@@ -1,8 +1,10 @@
 # gCMCRT - 3D Monte Carlo Radiative Transfer for exoplanet atmospheres with GPUs
 
+More extensive documentation is in the making, for now here are some bare bones instructions.
+
 ## k-tables and CE data
 
-k-tables and chemical equilibirum interpolation table can be found here:
+k-tables and chemical equilibirum interpolation tables can be found here:
 https://drive.google.com/drive/folders/1HVa9xWK_GqOqknIErcXVszzhhztACExw?usp=sharing
 
 ## To compile
@@ -16,3 +18,9 @@ You will need to install the CUDA toolkit: https://developer.nvidia.com/cuda-too
 You will need to install the CUDA hpc sdk: https://developer.nvidia.com/hpc-sdk
 
 
+# How to operate optools
+
+To compile cd to src_optoools_V2 and enter 'make'.
+To de-compile enter 'make clean'
+
+# How to operate gCMCRT
