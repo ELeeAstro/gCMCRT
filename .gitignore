@@ -32,7 +32,7 @@
 *.app
 
 # Folders
-data/k_tables/*
-data/CIA_tables/*
-data/CE_interp/*
+#data/k_tables/*
+#data/CIA_tables/*
+#data/CE_interp/*
 
