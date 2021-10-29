@@ -1,0 +1,87 @@
+&main
+
+exp_name = '1500K_bench'
+xper = '3D_sph_trans'
+do_trans = .True.
+
+oneD = .True.
+threeD = .False.
+
+do_moments = .False.
+do_images = .False.
+do_cf = .False.
+
+inc_ck = .True.
+inc_lbl = .False.
+inc_CIA = .True.
+inc_Ray = .True.
+inc_cld = .False.
+
+do_scat_loop = .False.
+do_g_bias = .True.
+wght_deg = .False.
+do_BB_band = .False.
+
+lbl = .False.
+ck = .True.
+
+! Wind paramaters for hi-res los velocity
+doppler_on = .False.
+winds_on = .False.
+rotation_on = .False.
+orbit_on = .False.
+orbital_period = 1.81 ! orbital period (days)
+systemic_velocity = 0.0 ! Systematic velocity (km s-1)
+sm_ax = 0.024           ! semi-major axis (AU)
+
+xpix = 200
+ypix = 200
+
+do_Draine = .False.
+Draine_alp = 1.0
+
+do_LD = .False.
+ilimb = 2
+LD_c = 0.077, 0.311, 0.0, 0.0
+
+Rs = 0.805
+inc = 90.00
+phase = 0.5
+
+/
+
+&sph_3D_em
+
+Nph_tot = 1024000
+n_wl =  512
+pl = 0.51
+pc = 0.39
+sc = 1.0
+iscat = 6
+n_theta = 45
+n_phi = 91
+n_lay = 199
+viewthet = 90.0
+viewphi = 0.0
+xi_emb = 0.99
+
+/
+
+
+&sph_3D_trans
+
+Nph = 1024000
+n_wl =  512
+pl = 0.51
+pc = 0.39
+sc = 1.0
+iscat = 6
+n_theta = 45
+n_phi = 91
+n_lay = 199
+viewthet = 90.0
+viewphi = 180.0
+nb_cf = 301
+
+/
+

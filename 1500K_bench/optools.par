@@ -1,0 +1,45 @@
+! Parameter file for optools routines
+!
+! ---- prf name file to process  ---- !
+! (Note, do not include the .prf extension)
+1500K_bench
+!
+! ---- Main Switches ---- !
+!
+.True.  ! Correlated-k
+.False.  ! `lbl' (single wavelength)
+.True.  ! CIA Continuum
+.True.  ! Rayleigh Scattering
+.False.  ! Cloud/Haze Opacity
+!
+! ---- Gas Opacity Properties ---- !
+! ! Number of corr-k line opacity species followed by names
+7
+CH4
+H2O
+CO
+CO2
+NH3
+Na
+K
+!
+! ---- Gas Opacity Properties ---- !
+! ! Number of lbl line opacity species followed by names
+1
+H2O
+!
+! ---- Gas Rayleigh scattering  ---- !
+! ! Number of Rayleigh scattering gases followed by names
+2
+H2
+He
+!
+! ---- Gas Continuum opacity  ---- !
+! ! Number of Continuum gases followed by names
+2
+H2-H2
+He-H2
+!
+! ---- Cloud Species  ---- !
+! ! Number of cloud species followed by names
+0

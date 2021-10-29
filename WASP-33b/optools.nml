@@ -1,0 +1,70 @@
+! Fortran namelist for optools
+
+&CK_nml
+
+
+pre_mixed = .False.
+interp_wl = .False.
+iopts = 1
+form = 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2
+nG = 16
+paths = '../data/k_tables/512_ck_data_g16/Na_ck_HELIOSK_512.txt',
+'../data/k_tables/512_ck_data_g16/K_ck_HELIOSK_512.txt'
+'../data/k_tables/512_ck_data_g16/H2O_ck_HELIOSK_512.txt'
+'../data/k_tables/512_ck_data_g16/CH4_ck_HELIOSK_512.txt'
+'../data/k_tables/512_ck_data_g16/CO_ck_HELIOSK_512.txt'
+'../data/k_tables/512_ck_data_g16/CO2_ck_HELIOSK_512.txt'
+'../data/k_tables/512_ck_data_g16/NH3_ck_HELIOSK_512.txt',
+'../data/k_tables/512_ck_data_g16/TiO_ck_HELIOSK_512.txt',
+'../data/k_tables/512_ck_data_g16/VO_ck_HELIOSK_512.txt',
+'../data/k_tables/512_ck_data_g16/FeH_ck_HELIOSK_512.txt',
+'../data/k_tables/512_ck_data_g16/Fe_ck_HELIOSK_512.txt',
+'../data/k_tables/512_ck_data_g16/HCN_ck_HELIOSK_512.txt'
+/
+
+&lbl_nml
+
+interp_wl = .False.
+iopts = 1
+form = 0
+paths = '../data/lbl_tables/Kband_H2O.dat'
+
+/
+
+&CIA_nml
+
+iopts = 1
+form = 4, 4, 4, 4, 0, 0
+paths = '../data/CIA_tables/H2-H2_2011.cia',
+'../data/CIA_tables/H2-He_2011.cia',
+'../data/CIA_tables/H2-H_2011.cia',
+'../data/CIA_tables/He-H_2011.cia',
+'',
+''
+/
+
+&Rayleigh_nml
+
+iopts = 1
+
+/
+
+&cl_nml
+
+iopts = 1
+imix = 1
+idist = 3
+ndist = 101
+idist_int = 1
+imie = 1
+form = 5
+paths = '../data/nk_tables/Al2O3[s].dat',
+sig = 1.0
+eff_fac = 0.125
+veff = 0.125
+amin = 1.0e-2
+amax = 100.0
+fmax = 0.95
+
+/
+

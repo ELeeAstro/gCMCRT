@@ -1,0 +1,5 @@
+! .prf HEADER - Height [cm], P_gas[bar], T_gas [K], mu [g mol-1], Volume mixing ratio [-]
+! Number of layers
+! Number and names of gases in table (VMR must be in same order!)
+! --- Begin profile ---
+! n_lay PG    TG  mug  VMR(:)
