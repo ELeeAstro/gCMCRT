@@ -38,7 +38,7 @@ Is quite self-explainatory - fill in the number of species followed by the numbe
 
 Is more difficult to fill out correctly:
 
-### &CK_nml
+### &CK_nml - corr-k namelist
 
 pre_mixed - Does a pre-mixed table interpolation (.True.), otherwise random overlap (.False.)
 
@@ -52,5 +52,19 @@ nG - number of g-ordinances in k-table
 
 paths - list of path to the k-table data
 NOTE: THESE PATHS MUST BE IN THE SAME ORDER AS THE SPECIES IN THE optools.par FILE !!!!
+
+### &lbl_nml - line-by-line namelist
+
+interp_wl - interpolate to wavelengths.wl file (.True.) or use wavelengths.wl file directly (.False.)
+iopts - Integer option number (dev-only)
+form - 
+paths - list of path to the k-table data
+NOTE: THESE PATHS MUST BE IN THE SAME ORDER AS THE SPECIES IN THE optools.par FILE !!!!
+### &CIA_nml - CIA namelist
+
+iopts - 
+form - 
+paths - 
+NOTE: put a dummy path (e.g. './' ) for special species (H-, He- etc.)
 
 # How to operate gCMCRT
