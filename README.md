@@ -2,6 +2,11 @@
 
 More extensive documentation is in the making, for now here are some bare bones instructions.
 
+Two example models are provided:
+
+1. 1D 1500K benchmark case from Baundino et al. (2017).
+2. A WASP-33b SPARC/MITgcm GCM model output example.
+
 ## k-tables and CE data
 
 k-tables and chemical equilibirum interpolation tables can be found here:
