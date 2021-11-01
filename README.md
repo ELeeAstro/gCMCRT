@@ -22,6 +22,15 @@ You will need to install the CUDA toolkit: https://developer.nvidia.com/cuda-too
 
 You will need to install the CUDA hpc sdk: https://developer.nvidia.com/hpc-sdk
 
+# Required gCMCRT formated files
+
+.prf file
+
+.hprf file
+
+.clprf (for clouds)
+
+.iprf (if CE interpolation required)
 
 # How to operate optools
 
@@ -51,20 +60,64 @@ form - 1 (NEMESIS format), 2 (gCMCRT format) Note, for multiple k-tables this is
 nG - number of g-ordinances in k-table 
 
 paths - list of path to the k-table data
-NOTE: THESE PATHS MUST BE IN THE SAME ORDER AS THE SPECIES IN THE optools.par FILE !!!!
+NOTE: THESE PATHS MUST BE IN THE SAME SPECIES ORDER AS THE SPECIES IN THE optools.par FILE !!!!
 
 ### &lbl_nml - line-by-line namelist
 
 interp_wl - interpolate to wavelengths.wl file (.True.) or use wavelengths.wl file directly (.False.)
+
 iopts - Integer option number (dev-only)
-form - 
-paths - list of path to the k-table data
-NOTE: THESE PATHS MUST BE IN THE SAME ORDER AS THE SPECIES IN THE optools.par FILE !!!!
+
+form - 0 (Joost's format), 1 (gCMCRT format)
+
+paths - list of paths to the lbl data
+NOTE: THESE PATHS MUST BE IN THE SAME SPECIES ORDER AS THE SPECIES IN THE optools FILE !!!
+
 ### &CIA_nml - CIA namelist
 
-iopts - 
-form - 
-paths - 
+iopts - Integer option number (dev-only)
+
+form - 0 (Special CIA species), 1 (NEMESIS CIA table), 4 (HITRAN CIA table)
+
+paths - list of paths to the CIA data
 NOTE: put a dummy path (e.g. './' ) for special species (H-, He- etc.)
+NOTE: THESE PATHS MUST BE IN THE SAME SPECIES ORDER AS THE SPECIES IN THE optools FILE !!!
+
+
+### &Rayleigh_nml - Rayleigh opacity namelist
+
+iopts - Integer option number (dev-only)
+
+### &cl_nml - clouds namelist
+
+iopts - Integer option number (dev-only)
+
+imix = 1
+
+idist - 0 (Read bin model results), 1 (single particle size), 2 (3 size peaked near mean size), 3 (log-normal), 4 (Gamma), 5 (Inv. Gamma), 6 (Rayleigh), 7 (Hansen)
+
+ndist - number of size distibution points (log-spaced between amin and amax)
+
+idist_int - 1 (Trapezium rule integration)
+
+imie - 1 (MieX solver), 2 (DHS solver)
+
+form - 5 (DIHRT format nk-tables)
+
+paths - list of paths to the nk data
+\NOTE: THESE PATHS MUST BE IN THE SAME SPECIES ORDER AS THE SPECIES IN THE optools FILE !!!
+
+sig - ln sigma value (log-normal)
+
+eff_fac - effetive mean size varience
+
+veff - effective varience (Hansen)
+
+amin - Minimum distribution particle size (um)
+
+amax - Maximum distribution particle size (um)
+
+fmax - parameter for DHS theory
+
 
 # How to operate gCMCRT
