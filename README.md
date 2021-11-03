@@ -18,7 +18,7 @@ You will need a Nvidia GPU card on your system.
 
 You will need to install the latest drivers from Nvidia: https://www.nvidia.com/Download/index.aspx
 
-You will need to install the CUDA toolkit: https://developer.nvidia.com/cuda-toolkit
+(optional) install the CUDA toolkit: https://developer.nvidia.com/cuda-toolkit
 
 You will need to install the CUDA hpc sdk: https://developer.nvidia.com/hpc-sdk
 
