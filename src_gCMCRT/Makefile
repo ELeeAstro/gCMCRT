@@ -6,7 +6,7 @@ F90LINKER    = nvfortran
 DEFS      =
 #FFLAGS   = -O0 -g -traceback -cuda
 #FFLAGS   = -fast -g -traceback -cuda
-FFLAGS    = -cuda -fast
+FFLAGS    = -cuda -fast 
 INCLUDES  =
 LFLAGS    = $(FFLAGS)
 
@@ -48,6 +48,11 @@ exp_3D_sph_atm_em.o \
 exp_3D_sph_atm_em_hires.o \
 gpuCMCRT.o
 
+# exp_1D_pp_atm.o \
+# exp_1D_sph_atm.o \
+# exp_3D_cart_galaxy.o \
+# exp_3D_sph_atm.o \
+
 # executable statement
 EXECS  = ../gCMCRT
 
@@ -59,7 +64,7 @@ gCMCRT:  $(OBJECTS)
 	 $(F90LINKER) $(LFLAGS) $(OBJECTS) -o $(EXECS)
 
 clean:
-	rm -f *.o *~ *.mod *__genmod.f90 $(EXECS)
+	rm -f *.o *.mod  $(EXECS)
 
 .f90.o:
 	$(F90) $(FFLAGS) $(DEFS) -c $<

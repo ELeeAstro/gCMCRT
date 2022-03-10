@@ -45,7 +45,8 @@ module mc_class_grid
 
   !! Allocatabe arrays for 3D grid
   real(dp), dimension(:,:,:), allocatable :: PG, MOL_W, TG, RH
-  real(dp), dimension(:,:,:), allocatable :: u_wind, v_wind, w_wind, v_los
+  real(dp), dimension(:,:,:), allocatable :: u_wind, v_wind, w_wind
+  real(dp), dimension(:,:,:,:), allocatable :: v_los
   real(dp), dimension(:,:,:,:), allocatable :: VMR
 
   !! Device arrays for 1D grid

@@ -153,7 +153,6 @@ subroutine exp_3D_sph_atm_em()
   use cudafor
   implicit none
 
-
   integer :: Nph_tot, Nph_sum,  Nph, l, uT, Nph_pad, n_lay, iscat
   integer, device :: Nph_pad_d
   integer :: i, j, k, n

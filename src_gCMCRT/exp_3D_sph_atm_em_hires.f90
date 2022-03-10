@@ -147,12 +147,16 @@ subroutine exp_3D_sph_atm_em_hires()
   implicit none
 
 
-  integer :: Nph_tot, Nph_sum,  Nph, l, uT, Nph_pad, n_lay, iscat
+  character (len=8) :: fmt
+  character (len=3) :: n_str
+  integer, allocatable, dimension(:) :: uT
+  integer :: Nph_tot, Nph_sum,  Nph, l, Nph_pad, n_lay, iscat
   integer, device :: Nph_pad_d
-  integer :: i, j, k, n, istat
+  integer :: i, j, k, n, nn, istat
   integer, device :: Nph_sum_d, l_d
   integer :: n_theta, n_phi
-  real(dp) :: viewthet, viewphi
+  real(dp) :: viewthet
+  real(dp), allocatable, dimension(:) :: viewphi
   real(dp) :: pl, pc, sc
   real(dp) :: diff, temp, rand, temp2, xi_emb
   real(dp),allocatable,dimension(:) :: em_out
@@ -165,7 +169,11 @@ subroutine exp_3D_sph_atm_em_hires()
 
   namelist /sph_3D_em_hires/ Nph_tot, n_wl, pl, pc, sc, n_theta, n_phi, viewthet, viewphi, n_lay, xi_emb, iscat
 
+  allocate(uT(n_phase),viewphi(n_phase))
+
   read(u_nml, nml=sph_3D_em_hires)
+
+  fmt = '(I3.3)'
 
   ! Give namelist paramaters to equilvanet values inside gCMCRT
   grid%n_lay = n_lay
@@ -174,15 +182,7 @@ subroutine exp_3D_sph_atm_em_hires()
   grid%n_phi = n_phi
 
   im%vtheta = viewthet
-
-  if (cmd_vphi .eqv. .False.) then
-    print*, 'Using namelist vphi'
-    im%vphi = viewphi
-    write(vphi_arg , *) viewphi
-  else
-    print*, 'Using cmdline vphi'
-  end if
-  print*, im%vphi
+  im%vphi = viewphi(1)
 
   pl_d = pl
   pc_d = pc
@@ -204,7 +204,7 @@ subroutine exp_3D_sph_atm_em_hires()
   call set_image()
 
   if (doppler_on .eqv. .True.) then
-    call compute_vlos()
+    call compute_vlos(viewphi(:))
   end if
 
   allocate(em_out(n_wl))
@@ -216,8 +216,11 @@ subroutine exp_3D_sph_atm_em_hires()
   allocate(wght_start(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
   allocate(wght_start_d(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
 
-  open(newunit=uT,file='Em_'//trim(vphi_arg)//'.txt',action='readwrite')
-  write(uT,*) n_wl, H(1), H(grid%n_lev)
+  do n = 1, n_phase
+    write(n_str,fmt) n
+    open(newunit=uT(n),file='Em_'//trim(n_str)//'.txt',action='readwrite')
+    write(uT(n),*) n_wl, H(1), H(grid%n_lev), viewphi(n)
+  end do
 
   if (doppler_on .eqv. .True.) then
     call read_next_opac_doppler(1)
@@ -227,117 +230,127 @@ subroutine exp_3D_sph_atm_em_hires()
 
   do l = 1, n_wl
 
-    call set_grid_opac()
-    call set_grid_em(l)
+    do n = 1, n_phase
 
-    do k = 1, grid%n_theta-1
-      do j = 1, grid%n_phi-1
-        do i = 1, grid%n_lay
+      im%vphi = viewphi(n)
+      im%vtheta = viewthet
 
-          if (l_cell(i,j,k) == 0.0_dp) then
-            Nph_cell(i,j,k) = 0
-            wght_start(i,j,k) = 0.0_dp
-            cycle
-          end if
+      if (doppler_on .eqv. .True.) then
+        call shift_opac(n,l)
+      end if
 
-          temp = real(Nph_tot,dp) * (1.0_dp - xi_emb) * l_cell(i,j,k)/grid%lumtot
-          temp2 = real(Nph_tot,dp) * (xi_emb / n_cells)
-          diff = (temp + temp2) - int(temp + temp2)
+      call set_grid_opac()
+      call set_grid_em(l,n)
 
-          call random_number(rand)
-          if (rand < diff .and. diff > 0.0_dp) then
-             Nph = int(temp+temp2)+1
-          else
-            Nph = int(temp+temp2)
-          end if
+      do k = 1, grid%n_theta-1
+        do j = 1, grid%n_phi-1
+          do i = 1, grid%n_lay
 
-          !Nph = Nph_tot*int(l_cell(i,j,k)/grid%lumtot)
-          Nph_cell(i,j,k) = Nph
+            if (l_cell(i,j,k) == 0.0_dp) then
+              Nph_cell(i,j,k) = 0
+              wght_start(i,j,k) = 0.0_dp
+              cycle
+            end if
 
-          wght_start(i,j,k) = 1.0_dp / ((1.0_dp - xi_emb) + &
-          & xi_emb*(grid%lumtot/n_cells/l_cell(i,j,k)))
+            temp = real(Nph_tot,dp) * (1.0_dp - xi_emb) * l_cell(i,j,k)/grid%lumtot
+            temp2 = real(Nph_tot,dp) * (xi_emb / n_cells)
+            diff = (temp + temp2) - int(temp + temp2)
 
+            call random_number(rand)
+            if (rand < diff .and. diff > 0.0_dp) then
+               Nph = int(temp+temp2)+1
+            else
+              Nph = int(temp+temp2)
+            end if
 
-        end do
-      end do
-    end do
+            !Nph = Nph_tot*int(l_cell(i,j,k)/grid%lumtot)
+            Nph_cell(i,j,k) = Nph
 
-    Nph_sum = sum(Nph_cell(:,:,:))
+            wght_start(i,j,k) = 1.0_dp / ((1.0_dp - xi_emb) + &
+            & xi_emb*(grid%lumtot/n_cells/l_cell(i,j,k)))
 
-    if (Nph_sum < 128) then
-      threads = dim3(Nph_sum, 1, 1)
-      blocks = dim3(1,1,1)
-    else
-      threads = dim3(128, 1, 1)
-      blocks = dim3(ceiling(real(Nph_sum,dp)/threads%x),1,1)
-    end if
-
-    !! Now for optimisation we have to 'flatten' the array, by assosiating each packet with a cell
-    allocate(Nph_i(Nph_sum),Nph_j(Nph_sum),Nph_k(Nph_sum))
-    id = 1
-    do k = 1, grid%n_theta-1
-      do j = 1, grid%n_phi-1
-        do i = 1, grid%n_lay
-          do n = 1, Nph_cell(i,j,k)
-            Nph_i(id) = i
-            Nph_j(id) = j
-            Nph_k(id) = k
-            !print*, id, Nph_sum , n, Nph_cell(i,j,k), Nph_i(id),Nph_j(id),Nph_k(id)
-            id = id + 1
           end do
         end do
       end do
+
+      Nph_sum = sum(Nph_cell(:,:,:))
+
+      if (Nph_sum < 128) then
+        threads = dim3(Nph_sum, 1, 1)
+        blocks = dim3(1,1,1)
+      else
+        threads = dim3(128, 1, 1)
+        blocks = dim3(ceiling(real(Nph_sum,dp)/threads%x),1,1)
+      end if
+
+      !! Now for optimisation we have to 'flatten' the array, by assosiating each packet with a cell
+      allocate(Nph_i(Nph_sum),Nph_j(Nph_sum),Nph_k(Nph_sum))
+      id = 1
+      do k = 1, grid%n_theta-1
+        do j = 1, grid%n_phi-1
+          do i = 1, grid%n_lay
+            do nn = 1, Nph_cell(i,j,k)
+              Nph_i(id) = i
+              Nph_j(id) = j
+              Nph_k(id) = k
+              !print*, id, Nph_sum , n, Nph_cell(i,j,k), Nph_i(id),Nph_j(id),Nph_k(id)
+              id = id + 1
+            end do
+          end do
+        end do
+      end do
+
+      im%fsum = 0.0_dp
+      im%qsum = 0.0_dp
+      im%usum = 0.0_dp
+      im%fail_pscat = 0
+      im%fail_pemit = 0
+
+      nscat_tot = 0
+      nscat_tot_d = nscat_tot
+
+      im_d = im
+
+      l_d = l
+      Nph_sum_d = Nph_sum
+      allocate(Nph_i_d(Nph_sum),Nph_j_d(Nph_sum),Nph_k_d(Nph_sum))
+      Nph_i_d(:) = Nph_i(:)
+      Nph_j_d(:) = Nph_j(:)
+      Nph_k_d(:) = Nph_k(:)
+      wght_start_d(:,:,:) = wght_start(:,:,:)
+
+      call exp_3D_sph_atm_em_hires_k<<<blocks, threads>>>(l_d,Nph_sum_d)
+
+      istat = cudaDeviceSynchronize()
+
+      im = im_d
+      nscat_tot = nscat_tot_d
+
+      em_out(l) = im%fsum / real(Nph_sum,dp)
+
+      print*, n, l, real(wl(l)), Nph_tot, Nph_sum, real(em_out(l)), grid%lumtot
+      print*, n, 'pemit, pscat failures and nscat_tot: ',  im%fail_pemit, im%fail_pscat, nscat_tot
+
+      write(uT(n),*) wl(l), em_out(l), grid%lumtot
+      call flush(uT(n))
+
+      !! This need changed for multi phases
+      if (do_cf .eqv. .True.) then
+        cf(:,:,:) = cf_d(:,:,:)
+        call output_cf(l)
+        cf_d(:,:,:) = 0.0_dp
+      end if
+
+      deallocate(Nph_i,Nph_j,Nph_k)
+      deallocate(Nph_i_d,Nph_j_d,Nph_k_d)
+
     end do
-
-
-    im%fsum = 0.0_dp
-    im%qsum = 0.0_dp
-    im%usum = 0.0_dp
-    im%fail_pscat = 0
-    im%fail_pemit = 0
-
-    nscat_tot = 0
-    nscat_tot_d = nscat_tot
-
-    im_d = im
-
-    l_d = l
-    Nph_sum_d = Nph_sum
-    allocate(Nph_i_d(Nph_sum),Nph_j_d(Nph_sum),Nph_k_d(Nph_sum))
-    Nph_i_d(:) = Nph_i(:)
-    Nph_j_d(:) = Nph_j(:)
-    Nph_k_d(:) = Nph_k(:)
-    wght_start_d(:,:,:) = wght_start(:,:,:)
-
-    call exp_3D_sph_atm_em_hires_k<<<blocks, threads>>>(l_d,Nph_sum_d)
 
     if (doppler_on .eqv. .True.) then
       call read_next_opac_doppler(l+1)
     else
       call read_next_opac(l+1)
     end if
-
-    istat = cudaDeviceSynchronize()
-
-    im = im_d
-    nscat_tot = nscat_tot_d
-
-    em_out(l) = im%fsum / real(Nph_sum,dp)
-
-    print*, l, real(wl(l)), Nph_tot, Nph_sum, real(em_out(l)), grid%lumtot
-    print*, 'pemit, pscat failures and nscat_tot: ',  im%fail_pemit, im%fail_pscat, nscat_tot
-
-    write(uT,*) wl(l), em_out(l), grid%lumtot
-    flush(uT)
-
-    if (do_cf .eqv. .True.) then
-      cf(:,:,:) = cf_d(:,:,:)
-      call output_cf(l)
-      cf_d(:,:,:) = 0.0_dp
-    end if
-
-    deallocate(Nph_i,Nph_j,Nph_k)
-    deallocate(Nph_i_d,Nph_j_d,Nph_k_d)
 
   end do
 

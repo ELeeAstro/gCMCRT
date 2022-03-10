@@ -140,7 +140,7 @@ contains
       ! Interpolate each g-ordinate
       do g = 1, CK_tab(s)%nG
         ! Point is within table, perform bi-linear interpolation
-        a00 = CK_tab(s)%k_abs(iwl,iP,iT,g) ; a10 = CK_tab(s)%k_abs(iwl,iP1,iT,g) 
+        a00 = CK_tab(s)%k_abs(iwl,iP,iT,g) ; a10 = CK_tab(s)%k_abs(iwl,iP1,iT,g)
         a01 = CK_tab(s)%k_abs(iwl,iP,iT1,g) ; a11 = CK_tab(s)%k_abs(iwl,iP1,iT1,g)
 
         call bilinear_log_interp(yval, zval, y0, y1, z0, z1, a00, a10, a01, a11, aval)

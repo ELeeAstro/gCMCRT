@@ -24,6 +24,7 @@ module optools_data_mod
   real(kind=dp), parameter :: N_A = 6.02214076e23_dp ! mol-1 - Avogadro's constant
   real(kind=dp), parameter :: a_fine = 7.2973525693e-3_dp ! fine structure constant
   real(kind=dp), parameter :: Comp_e = hp/(m_el*c_s) ! Compton wavelength for electrons
+  real(kind=dp), parameter :: sigT = ((8.0_dp*pi)/3.0_dp) * ((a_fine * Comp_e)/twopi)**2 ! Thomson cross section [cm2]
 
   !! Common unit conversions
   real(kind=dp), parameter :: pa = 10.0_dp ! Pa to dyne

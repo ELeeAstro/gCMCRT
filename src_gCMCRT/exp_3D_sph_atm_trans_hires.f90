@@ -151,26 +151,34 @@ subroutine exp_3D_sph_atm_trans_hires()
   implicit none
 
 
-  integer :: Nph, l, uT, iscat, istat
+  character (len=8) :: fmt
+  character (len=3) :: n_str
+  integer :: Nph, l, iscat, istat, n
+  integer, allocatable, dimension(:) :: uT
   integer, device :: l_d, Nph_d
   integer :: n_theta, n_phi, n_lay
-  real(dp) :: viewthet, viewphi
+  real(dp) :: viewthet
+  real(dp), allocatable, dimension(:) :: viewphi
   real(dp) :: pl, pc, sc
 
   type(dim3) :: blocks, threads
 
-
   namelist /sph_3D_trans_hires/ Nph, n_wl, pl, pc, sc, n_theta, n_phi, viewthet, viewphi, n_lay, iscat
 
+  allocate(uT(n_phase),viewphi(n_phase))
+
   read(u_nml, nml=sph_3D_trans_hires)
+
+  fmt = '(I3.3)'
 
   ! Give namelist paramaters to equilvanet values inside gCMCRT
   grid%n_lay = n_lay
   grid%n_lev = n_lay + 1
   grid%n_theta = n_theta
   grid%n_phi = n_phi
+
   im%vtheta = viewthet
-  im%vphi = viewphi
+  im%vphi = viewphi(1)
 
   pl_d = pl
   pc_d = pc
@@ -190,7 +198,9 @@ subroutine exp_3D_sph_atm_trans_hires()
   call set_grid()
   call set_image()
 
-  call compute_vlos()
+  if (doppler_on .eqv. .True.) then
+    call compute_vlos(viewphi(:))
+  end if
 
   ! Send data to GPU data containers
   im_d = im
@@ -205,8 +215,11 @@ subroutine exp_3D_sph_atm_trans_hires()
   print*, Nph, threads, blocks
 
 
-  open(newunit=uT,file='Transmission.txt',action='readwrite')
-  write(uT,*) n_wl, H(1), H(grid%n_lev)
+  do n = 1, n_phase
+    write(n_str,fmt) n
+    open(newunit=uT(n),file='Transmission_'//trim(n_str)//'.txt',action='readwrite')
+    write(uT(n),*) n_wl, H(1), H(grid%n_lev), viewphi(n)
+  end do
 
 
   if (doppler_on .eqv. .True.) then
@@ -217,23 +230,49 @@ subroutine exp_3D_sph_atm_trans_hires()
 
   do l = 1, n_wl
 
-    call set_grid_opac()
+    do n = 1, n_phase
 
-    im%fsum = 0.0_dp
-    im%qsum = 0.0_dp
-    im%usum = 0.0_dp
-    im%fail_pscat = 0
-    im%fail_pemit = 0
+      im%vphi = viewphi(n)
+      im%vtheta = viewthet
 
-    nscat_tot = 0
-    nscat_tot_d = nscat_tot
+      if (doppler_on .eqv. .True.) then
+        call shift_opac(n,l)
+      end if
 
-    T_trans(l) = 0.0_dp
-    T_trans_d(l) = T_trans(l)
-    
-    l_d = l
-    im_d = im
-    call exp_3D_sph_atm_trans_hires_k<<<blocks, threads>>>(l_d,Nph_d)
+      call set_grid_opac()
+
+      im%fsum = 0.0_dp
+      im%qsum = 0.0_dp
+      im%usum = 0.0_dp
+      im%fail_pscat = 0
+      im%fail_pemit = 0
+
+      nscat_tot = 0
+      nscat_tot_d = nscat_tot
+
+      T_trans(l) = 0.0_dp
+      T_trans_d(l) = T_trans(l)
+
+      l_d = l
+      im_d = im
+      call exp_3D_sph_atm_trans_hires_k<<<blocks, threads>>>(l_d,Nph_d)
+
+      !istat = cudaDeviceSynchronize()
+
+      im = im_d
+      nscat_tot = nscat_tot_d
+
+      ! Give T_trans_d back to CPU
+      T_trans(l) = T_trans_d(l)
+
+      T_trans(l) = (H(grid%n_lev) - H(1)) / real(Nph,dp) * T_trans(l)
+      write(uT(n),*) wl(l), T_trans(l)
+      call flush(uT(n))
+
+      print*, n, l, wl(l), T_trans(l)
+      print*, 'pscat failures and nscat_tot: ', im%fail_pscat, nscat_tot
+
+    end do
 
     if (doppler_on .eqv. .True.) then
       call read_next_opac_doppler(l+1)
@@ -241,23 +280,6 @@ subroutine exp_3D_sph_atm_trans_hires()
       call read_next_opac(l+1)
     end if
 
-    istat = cudaDeviceSynchronize()
-
-    im = im_d
-    nscat_tot = nscat_tot_d
-
-    ! Give T_trans_d back to CPU
-    T_trans(l) = T_trans_d(l)
-
-    T_trans(l) = (H(grid%n_lev) - H(1)) / real(Nph,dp) * T_trans(l)
-    write(uT,*) wl(l), T_trans(l)
-    call flush(uT)
-
-    print*, l, wl(l), T_trans(l)
-    print*, 'pscat failures and nscat_tot: ', im%fail_pscat, nscat_tot
-
-
   end do
-
 
 end subroutine exp_3D_sph_atm_trans_hires

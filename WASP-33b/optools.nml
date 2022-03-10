@@ -8,18 +8,18 @@ interp_wl = .False.
 iopts = 1
 form = 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2
 nG = 16
-paths = '../data/k_tables/512_ck_data_g16/Na_ck_HELIOSK_512.txt',
-'../data/k_tables/512_ck_data_g16/K_ck_HELIOSK_512.txt'
-'../data/k_tables/512_ck_data_g16/H2O_ck_HELIOSK_512.txt'
-'../data/k_tables/512_ck_data_g16/CH4_ck_HELIOSK_512.txt'
-'../data/k_tables/512_ck_data_g16/CO_ck_HELIOSK_512.txt'
-'../data/k_tables/512_ck_data_g16/CO2_ck_HELIOSK_512.txt'
-'../data/k_tables/512_ck_data_g16/NH3_ck_HELIOSK_512.txt',
-'../data/k_tables/512_ck_data_g16/TiO_ck_HELIOSK_512.txt',
-'../data/k_tables/512_ck_data_g16/VO_ck_HELIOSK_512.txt',
-'../data/k_tables/512_ck_data_g16/FeH_ck_HELIOSK_512.txt',
-'../data/k_tables/512_ck_data_g16/Fe_ck_HELIOSK_512.txt',
-'../data/k_tables/512_ck_data_g16/HCN_ck_HELIOSK_512.txt'
+paths = '../data/k_tables/R100_ck_data_g16/Na_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16/K_ck_HELIOSK_R100.txt'
+'../data/k_tables/R100_ck_data_g16/H2O_ck_HELIOSK_R100.txt'
+'../data/k_tables/R100_ck_data_g16/CH4_ck_HELIOSK_R100.txt'
+'../data/k_tables/R100_ck_data_g16/CO_ck_HELIOSK_R100.txt'
+'../data/k_tables/R100_ck_data_g16/CO2_ck_HELIOSK_R100.txt'
+'../data/k_tables/R100_ck_data_g16/NH3_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16/TiO_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16/VO_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16/FeH_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16/Fe_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16/HCN_ck_HELIOSK_R100.txt'
 /
 
 &lbl_nml
@@ -34,13 +34,13 @@ paths = '../data/lbl_tables/Kband_H2O.dat'
 &CIA_nml
 
 iopts = 1
-form = 4, 4, 4, 4, 0, 0
+form = 4, 4, 4, 4, 0, 2
 paths = '../data/CIA_tables/H2-H2_2011.cia',
 '../data/CIA_tables/H2-He_2011.cia',
 '../data/CIA_tables/H2-H_2011.cia',
 '../data/CIA_tables/He-H_2011.cia',
 '',
-''
+'../data/CIA_tables/He-_ff.txt'
 /
 
 &Rayleigh_nml

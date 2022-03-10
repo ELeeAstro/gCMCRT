@@ -99,7 +99,7 @@ contains
 
     print*,'Min, max T: ', temp(1), temp(nt)
     print*,'Min, max P: ', press(1), press(np)
-    print*,'Max, min wl: ', wll(1), wll(n_bins)
+    print*,'Min, max wl: ', wll(1), wll(n_bins)
     print*,'1, ng gx: ', gx(1), gx(ng)
     print*,'1, ng gw: ', gw(1), gw(ng)
 
@@ -116,7 +116,7 @@ contains
 
     ! Reverse l index as table is in wavenumber order
     do l = 1, CK_tab(s)%nwl
-      CK_tab(s)%wl(l) = wll(n_bins-l+1)
+      CK_tab(s)%wl(l) = wll(l)
     end do
 
     ! Add wavenumber information to k table [cm-1]
@@ -134,9 +134,9 @@ contains
         do i = 1, CK_tab(s)%nT
           do l = CK_tab(s)%nwl, 1, -1
             read(u,*) (k_abs(g), g = 1, CK_tab(s)%nG)
-            ! print*, (CK_tab(s)%k_abs(l,i,j), l = 1, CK_tab(s)%nwl)
             ! Reverse l index as table is in wavenumber order from HELIOS-K
             CK_tab(s)%k_abs(l,j,i,:) = max(k_abs(:),1.0e-99_dp)
+            !print*, l,j,i, CK_tab(s)%k_abs(l,j,i,1),CK_tab(s)%k_abs(l,j,i,CK_tab(s)%nG)
           end do
         end do
       end do
@@ -145,9 +145,9 @@ contains
         do j = 1, CK_tab(s)%nP
           do l = CK_tab(s)%nwl, 1, -1
             read(u,*) (k_abs(g), g = 1, CK_tab(s)%nG)
-            ! print*, (CK_tab(s)%k_abs(l,i,j), l = 1, CK_tab(s)%nwl)
             ! Reverse l index as table is in wavenumber order from HELIOS-K
             CK_tab(s)%k_abs(l,j,i,:) = max(k_abs(:),1.0e-99_dp)
+            !print*, l,j,i, CK_tab(s)%k_abs(l,j,i,1),CK_tab(s)%k_abs(l,j,i,CK_tab(s)%nG)
           end do
         end do
       end do

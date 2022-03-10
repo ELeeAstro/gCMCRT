@@ -1,7 +1,6 @@
 &main
 
-
-exp_name = 'SPARC-MITgcm'
+exp_name = 'WASP-33b'
 xper = '3D_sph_em'
 do_trans = .False.
 
@@ -18,7 +17,6 @@ inc_CIA = .True.
 inc_Ray = .True.
 inc_cld = .False.
 
-
 do_scat_loop = .False.
 do_g_bias = .True.
 wght_deg = .False.
@@ -32,31 +30,30 @@ doppler_on = .False.
 winds_on = .False.
 rotation_on = .False.
 orbit_on = .False.
-orbital_period = 1.21986967   ! orbital period (days)
+orbital_period = 1.81 ! orbital period (days)
 systemic_velocity = 0.0 ! Systematic velocity (km s-1)
-sm_ax = 0.02558         ! semi-major axis (AU)
+sm_ax = 0.024           ! semi-major axis (AU)
 
 xpix = 200
 ypix = 200
 
 do_Draine = .False.
-Draine_alp = 1.0
-
+Draine_alp = 0.5
 
 do_LD = .False.
 ilimb = 2
 LD_c = 0.077, 0.311, 0.0, 0.0
 
-Rs = 1.444
-inc = 87.7
-phase = 0.5
+Rs = 0.805
+inc = 85.51
+phase = 0.005
 
 /
 
 &sph_3D_em
 
 Nph_tot = 1024000
-n_wl = 512
+n_wl =  462
 pl = 0.51
 pc = 0.39
 sc = 1.0
@@ -73,7 +70,7 @@ xi_emb = 0.99
 &sph_3D_trans
 
 Nph = 1024000
-n_wl = 512
+n_wl = 462
 pl = 0.51
 pc = 0.39
 sc = 1.0
@@ -86,5 +83,4 @@ viewphi = 180.0
 nb_cf = 301
 
 /
-
 

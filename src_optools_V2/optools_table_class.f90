@@ -76,9 +76,9 @@ module optools_table_class
 
   type CIA_table
 
-    integer :: form          ! Table format - 1 = NEMESIS, 2 = HELIOS, 3 = SOCRATES, 4 = HITRAN (CIA)
+    integer :: form          ! Table format - 1 = NEMESIS, 2 = Bell, 3 = SOCRATES, 4 = HITRAN (CIA)
     integer :: NEMESIS_op
-    integer :: HELIOS_op     ! HELIOS cbin option - 1 = raw cbin, 2 = processed cbin
+    integer :: Bell_op
     integer :: SOCRATES_op
     integer :: HITRAN_op
 
@@ -91,14 +91,22 @@ module optools_table_class
     character(len=150) :: path ! Path to table data
 
     integer :: nwl
-    real(kind=dp), allocatable, dimension(:) :: wl ! Central wavelengths of table (um)
-    real(kind=dp), allocatable, dimension(:) :: wn ! Central wavenumbers of table (cm-1)
-    real(kind=dp), allocatable, dimension(:) :: freq ! Central frequencies of table (Hz)
+    real(kind=dp), allocatable, dimension(:,:) :: wl ! Central wavelengths of table sets (um)
+    real(kind=dp), allocatable, dimension(:,:) :: wn ! Central wavenumbers of table sets (cm-1)
+    real(kind=dp), allocatable, dimension(:,:) :: freq ! Central frequencies of table sets (Hz)
 
-    integer :: nT ! Number of temperature points in table
-    real(kind=dp), allocatable, dimension(:) :: T  ! Temperature points in table (K)
+    real(kind=dp), allocatable, dimension(:) :: wn_s
+    real(kind=dp), allocatable, dimension(:) :: wn_e
 
-    real(kind=dp), allocatable, dimension(:,:) :: tab ! table values [Usually: cm5 molecule-2] (CARE: Check format units)
+    integer :: nset
+    integer, allocatable, dimension(:) :: nT ! Number of temperature points in set
+    real(kind=dp), allocatable, dimension(:) :: Tmax, Tmin  ! Max T and min T in set
+    real(kind=dp), allocatable, dimension(:,:) :: T  ! Temperature points in full table sets (K)
+
+    integer, allocatable, dimension(:) :: irec ! Number of record points in set
+
+
+    real(kind=dp), allocatable, dimension(:,:,:) :: tab ! table values of sets [Usually: cm5 molecule-2] (CARE: Check format units)
 
     integer :: sp_iflag   ! Special integer flag
     logical :: sp_lflag   ! Special logical flag

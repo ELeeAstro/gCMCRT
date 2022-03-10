@@ -78,11 +78,7 @@ contains
       stop
     end if
 
-    ly1 = log10(y1); ly2 = log10(y2)
-
-    norm = 1.0_dp / log10(x2/x1)
-
-    yval = 10.0_dp**((ly1 * log10(x2/xval) + ly2 * log10(xval/x1)) * norm)
+    yval = 10.0_dp**((log10(y1) * log10(x2/xval) + log10(y2) * log10(xval/x1)) / log10(x2/x1))
 
   end subroutine linear_log_interp
 

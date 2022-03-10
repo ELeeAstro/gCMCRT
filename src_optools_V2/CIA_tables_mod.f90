@@ -122,7 +122,6 @@ contains
 
         ! Find the CIA opacity for this layer from tables
         call interp_CIA_tables(l,z,CIA_work)
-
         ! Convert interpolated result to cm2 g-1 of atmosphere and add to output array
         CIA_out(z) = CIA_work/RH_lay(z)
 
@@ -161,13 +160,17 @@ contains
         CIA_tab(s)%sp_con(1) = 'H2'
         CIA_tab(s)%sp_con(2) = 'H2'
 
-        CIA_tab(s)%nT = 113
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 113
 
       case('H2-He','He-H2')
         CIA_tab(s)%sp_con(1) = 'H2'
         CIA_tab(s)%sp_con(2) = 'He'
 
-        CIA_tab(s)%nT = 334
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 334
 
       case('H-')
         CIA_tab(s)%sp_con_3(1) = 'H-'
@@ -180,18 +183,89 @@ contains
         CIA_tab(s)%sp_con(1) = 'He'
         CIA_tab(s)%sp_con(2) = 'e-'
 
+      case('H2-')
+        CIA_tab(s)%sp_con(1) = 'H2'
+        CIA_tab(s)%sp_con(2) = 'e-'
+
       case('H2-H','H-H2')
         CIA_tab(s)%sp_con(1) = 'H2'
         CIA_tab(s)%sp_con(2) = 'H'
 
-        CIA_tab(s)%nT = 4
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 4
 
       case('H-He','He-H')
         CIA_tab(s)%sp_con(1) = 'He'
         CIA_tab(s)%sp_con(2) = 'H'
 
-        CIA_tab(s)%nT = 10
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 10
 
+      case('CO2-CO2')
+        CIA_tab(s)%sp_con(1) = 'CO2'
+        CIA_tab(s)%sp_con(2) = 'CO2'
+
+        CIA_tab(s)%nset = 3
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 10
+        CIA_tab(s)%nT(2) = 6
+        CIA_tab(s)%nT(3) = 3
+        !CIA_tab(s)%nT(4) = 1
+
+      case('N2-H2O','H2O-N2')
+        CIA_tab(s)%sp_con(1) = 'N2'
+        CIA_tab(s)%sp_con(2) = 'H2O'
+
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 21
+
+      case('N2-N2')
+        CIA_tab(s)%sp_con(1) = 'N2'
+        CIA_tab(s)%sp_con(2) = 'N2'
+
+        CIA_tab(s)%nset = 6
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 14
+        CIA_tab(s)%nT(2) = 10
+        CIA_tab(s)%nT(3) = 10
+        CIA_tab(s)%nT(4) = 5
+        CIA_tab(s)%nT(5) = 5
+        CIA_tab(s)%nT(6) = 14
+
+      case('H2O-H2O')
+        CIA_tab(s)%sp_con(1) = 'H2O'
+        CIA_tab(s)%sp_con(2) = 'H2O'
+
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 21
+
+      case('CH4-CH4')
+        CIA_tab(s)%sp_con(1) = 'CH4'
+        CIA_tab(s)%sp_con(2) = 'CH4'
+
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 7
+
+      case('H2-CH4','CH4-H2')
+        CIA_tab(s)%sp_con(1) = 'H2'
+        CIA_tab(s)%sp_con(2) = 'CH4'
+
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 10
+
+      case('CH4-He','He-CH4')
+        CIA_tab(s)%sp_con(1) = 'He'
+        CIA_tab(s)%sp_con(2) = 'CH4'
+
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 10
 
       case default
         print*, 'ERROR - CIA species constituents could not be found - STOPPING'

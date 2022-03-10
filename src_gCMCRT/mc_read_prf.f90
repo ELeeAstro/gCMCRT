@@ -164,8 +164,8 @@ contains
 
     ! Calculate the wavelength band edges
     allocate(wl_e(num_wl+1))
-    ! wl_e(1) = 0.3_dp
-    ! wl_e(num_wl+1) = 30.0_dp
+    wl_e(1) = 0.3_dp
+    wl_e(num_wl+1) = 30.0_dp
     do l = 2, num_wl
       wl_e(l) = (wl(l-1) + wl(l))/2.0_dp
     end do

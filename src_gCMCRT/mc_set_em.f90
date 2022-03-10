@@ -15,10 +15,11 @@ module mc_set_em
 
 contains
 
-  subroutine set_grid_em(l)
+  subroutine set_grid_em(l,n)
     implicit none
 
     integer, intent(in) :: l
+    integer, intent(in), optional :: n
     integer :: i, j, k, g,  itau, itaul
 
     real(dp) :: tau_sum, densav, wl_eff, BBf
@@ -59,6 +60,9 @@ contains
                itau3(1,1) = itaul
              end if
              exit
+           end if
+           if (i == 2) then
+             itau3(1,1) = itaul
            end if
        end do
 
@@ -124,7 +128,7 @@ contains
 
                if (lbl .eqv. .True.) then
                  if (doppler_on .eqv. .True.) then
-                   wl_eff = wl(l)*(1.0_dp - v_los(i,j,k)/c_s)
+                   wl_eff = wl(l)*(1.0_dp - v_los(n,i,j,k)/c_s)
                    l_cell(i,j,k) = fourpi * RH(i,j,k) * v_cell(i,j,k) * k_tot_abs(1,i,j,k) * BB(wl_eff,TG(i,j,k))
                    !print*, i,j,k,wl_eff, BB(wl_eff,TG(i,j,k)), k_tot_abs(1,i,j,k) , l_cell(i,j,k)
                  else

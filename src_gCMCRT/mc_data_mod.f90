@@ -140,11 +140,13 @@ module mc_data_mod
   real(dp), allocatable, dimension(:) :: p_cf, p_cf_grid
   real(dp), allocatable, dimension(:), device :: p_cf_d, p_cf_grid_d
 
+  integer :: n_phase
+
 
 
   namelist /main/ xper, exp_name, oneD, threeD, do_infslab, do_diffuse, do_cart_3D, do_images, do_moments, do_trans &
     & lbl, ck, orbital_period, sm_ax, systemic_velocity, winds_on, rotation_on, orbit_on, doppler_on, &
     & inc_ck, inc_lbl, inc_CIA, inc_Ray, inc_cld, do_cf, xpix, ypix, wght_deg, Draine_alp, do_Draine, &
-    & do_LD, ilimb, LD_c, Rs, inc, phase, do_g_bias, do_scat_loop, do_BB_band
+    & do_LD, ilimb, LD_c, Rs, inc, phase, do_g_bias, do_scat_loop, do_BB_band, n_phase
 
 end module mc_data_mod

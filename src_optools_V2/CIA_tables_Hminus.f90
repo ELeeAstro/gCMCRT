@@ -22,7 +22,7 @@ module CIA_tables_Hminus
   real(kind=dp), dimension(6), parameter :: &
     & Cn_bf = (/152.519_dp, 49.534_dp, -118.858_dp, 92.536_dp, -34.194_dp, 4.982_dp /)
 
-  real(kind=dp), parameter :: alf = 1.439e8_dp, lam_0 = 1.6419_dp
+  real(kind=dp), parameter :: alf = 1.439e8_dp, lam_0 = 1.6419_dp, lam_min = 0.125_dp
 
 contains
 
@@ -39,7 +39,7 @@ contains
     T5040 = 5040.0_dp / T
 
     ! Do bound free calculation
-    if (wl(l) > lam_0) then
+    if ((wl(l) > lam_0) .or. (wl(l) < lam_min)) then
       xbf = 0.0_dp
       !kbf = 0.0_dp
     else

@@ -65,6 +65,7 @@ contains
 
     type(pac), intent(inout) :: ph
     real(dp) :: rr2, r_num, ann_theta
+    real(dp) :: xp_help, yp_help, rot_angle
 
     !! For incident packets in 3D the incident angle is from the direction of the star
 
@@ -93,7 +94,19 @@ contains
       call limb_darkening(rr2, ann_theta,ph)
     end if
 
+    ! Rotate illumination for planet at a phase not at 0
+    ! rotate according to given viewing angle
+    if (im_d%vphi /= 180.0_dp) then
+      rot_angle = im_d%vphi * pi/180.0_dp - pi
+      xp_help = ph%xp*cos(rot_angle) - ph%yp*sin(rot_angle)
+      yp_help = ph%xp*sin(rot_angle) + ph%yp*cos(rot_angle)
+      ph%xp = xp_help
+      ph%yp = yp_help
+      ph%xp = sqrt(grid_d%r_max**2 - ph%zp**2 - ph%yp**2) - 1.0e-12_dp
+      ph%bp = sqrt(ph%zp**2 + ph%yp**2)
+    end if
 
+    !! NEEDS TO BE CHANGED FOR MULTIPLE SCATTERING MODE - RAY TRACING SHOULD WORK FINE
     ! Incident radiation plane parallel from the x direction, so cost = 0, and towards phi = pi degrees
     ph%cost = 0.0_dp
     ph%sint = sqrt(1.0_dp-ph%cost**2)
@@ -128,11 +141,7 @@ contains
     Rstar = Rs_d * Rsun
     rr2s = rr2 * H_d(1)
 
-    if (phase_d <= 0.5_dp) then
-      phase_n = 90.0_dp - phase_d*360.0_dp
-    else
-      phase_n = -90.0_dp - (360.0_dp - phase_d*360.0_dp)
-    end if
+    phase_n = 90.0_dp - (im_d%vphi - 180.0_dp)
 
     inc_n = inc_d * pi/180.0_dp
     phase_n = phase_n * pi/180.0_dp

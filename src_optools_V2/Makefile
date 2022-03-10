@@ -32,6 +32,7 @@ cloud_tables_dist.o \
 cloud_tables_mod.o \
 CIA_tables_Hminus.o \
 CIA_tables_Heminus.o \
+CIA_tables_H2minus.o \
 CIA_tables_interp.o \
 CIA_tables_read.o \
 CIA_tables_mod.o \

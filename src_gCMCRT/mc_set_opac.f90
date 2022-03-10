@@ -417,9 +417,7 @@ contains
 
     integer, intent(in) :: ll
     integer :: NX_dum, n_bins_dum, ng_dum, z, g, j, k, n, l
-    integer :: wl_idx, wl_idx1
     real(sp) :: Ray_dum, k_lbl_dum, conti_dum
-    real(dp) :: y1, y2, yval, wl_eff
 
     if (ll == n_wl+1) then
       return
@@ -584,56 +582,6 @@ contains
 
     end if
 
-    !! Now find the shifted opacity by interpolating from the dop array block
-    do k = 1, grid%n_theta-1
-      do j = 1, grid%n_phi-1
-        do z = 1, grid%n_lay
-
-          !! Find effective wavelength for the line of sight velocity
-          wl_eff = wl(ll)*(1.0_dp - v_los(z,j,k)/c_s)
-          call locate_host(wl_pad(:),wl_eff,wl_idx)
-          wl_idx1 = wl_idx + 1
-
-          !! Do some error checking
-          if (wl_idx == 0) then
-            ! blue shift is out of wavelength bounds, use rest frame opacity
-            print*, 'blueshift out of range: ', z, j, k, wl_eff, wl_pad(1)
-            k_gas_abs(1,z,j,k) = k_gas_abs_dop(1,z,j,k)
-            k_gas_Ray(z,j,k) = k_gas_Ray_dop(1,z,j,k)
-            cycle
-          else if (wl_idx == dop_pad) then
-            print*, 'redshift out of range: ', z, j, k, wl_eff, wl_pad(dop_pad)
-            k_gas_abs(1,z,j,k) = k_gas_abs_dop(dop_pad,z,j,k)
-            k_gas_Ray(z,j,k) = k_gas_Ray_dop(dop_pad,z,j,k)
-            cycle
-          end if
-
-          !! Interpolate dop arrays to find abs
-          y1 = k_gas_abs_dop(wl_idx,z,j,k)
-          y2 = k_gas_abs_dop(wl_idx1,z,j,k)
-          call linear_log_interp(wl_eff, wl_pad(wl_idx), wl_pad(wl_idx1), y1, y2, yval)
-          k_gas_abs(1,z,j,k) = yval
-
-          if (inc_Ray .eqv. .True.) then
-            !! Interpolate dop arrays to find Ray
-            y1 = k_gas_Ray_dop(wl_idx,z,j,k)
-            y2 = k_gas_Ray_dop(wl_idx1,z,j,k)
-            call linear_log_interp(wl_eff, wl_pad(wl_idx), wl_pad(wl_idx1), y1, y2, yval)
-            k_gas_Ray(z,j,k) = yval
-          else
-            k_gas_Ray(z,j,k) = 0.0_dp
-          end if
-
-          IF (k_gas_abs(1,z,j,k) < 0.0_dp .or. ieee_is_nan(k_gas_abs(1,z,j,k)) .or. .not.ieee_is_finite(k_gas_abs(1,z,j,k))) THEN
-           print*, 'Encountered negative k_gas value --> check opacities'
-           print*, z, j, k, k_gas_abs(1,z,j,k), wl_eff, wl_pad(wl_idx), wl_pad(wl_idx1), k_gas_abs_dop(wl_idx,z,j,k), k_gas_abs_dop(wl_idx1,z,j,k)
-           stop
-          END IF
-
-        end do
-     end do
-   end do
-
    !! Shift opacities, unless dop_pad/2 within the wavelength grid edges
 
    if (ll <= dop_pad/2 .or. ll >= (n_wl - dop_pad/2)) then
@@ -641,17 +589,22 @@ contains
    else
      ! We are at the center of padded wavelength region - shift everything in preparation for next loop
      ! EKH-Lee note: This next loop causes a lot of overhead - try find an improvement
-     do l = 1, dop_pad-1
-       wl_pad(l) = wl_pad(l+1)
-       k_gas_abs_dop(l,:,:,:) = k_gas_abs_dop(l+1,:,:,:)
-       k_gas_Ray_dop(l,:,:,:) = k_gas_Ray_dop(l+1,:,:,:)
-     end do
+     !do l = 1, dop_pad-1
+       !wl_pad(l) = wl_pad(l+1)
+       !k_gas_abs_dop(l,:,:,:) = k_gas_abs_dop(l+1,:,:,:)
+       !k_gas_Ray_dop(l,:,:,:) = k_gas_Ray_dop(l+1,:,:,:)
+     !end do
 
-     ! New end opacities are read in from opacity file
+     wl_pad(1:dop_pad-1) = wl_pad(2:dop_pad)
+     wl_pad(dop_pad) = wl(ll + dop_pad/2) ! wl(ll + dop_pad/2 + 1) ! New end wavelength is + dop_pad/2 +1 indexes ahead
+
+     k_gas_abs_dop(1:dop_pad-1,:,:,:) = k_gas_abs_dop(2:dop_pad,:,:,:)
      k_gas_abs_dop(dop_pad,:,:,:) = 0.0_dp
-     k_gas_Ray_dop(dop_pad,:,:,:) = 0.0_dp
 
-     wl_pad(dop_pad) = wl(ll + dop_pad/2 + 1) ! New end wavelength is + dop_pad/2 +1 indexes ahead
+     if (inc_Ray .eqv. .True.) then
+       k_gas_Ray_dop(1:dop_pad-1,:,:,:) = k_gas_Ray_dop(2:dop_pad,:,:,:)
+       k_gas_Ray_dop(dop_pad,:,:,:) = 0.0_dp
+     end if
 
       if (oneD .eqv. .True.) then
 
@@ -679,9 +632,8 @@ contains
          read(u_conti) conti_dum_arr
        end if
        if (inc_Ray .eqv. .True.) then
+         read(u_Ray) Ray_dum_arr
        end if
-       read(u_Ray) Ray_dum_arr
-
 
      if (lbl .eqv. .True.) then
        wait(u_k)
@@ -729,7 +681,67 @@ contains
    ! Increase the iwl_rest ticker
    iwl_rest = iwl_rest + 1
 
-
  end subroutine read_next_opac_doppler
+
+  subroutine shift_opac(n,ll)
+    implicit none
+
+    integer, intent(in) :: n, ll
+    integer :: k, j, z
+    integer :: wl_idx, wl_idx1
+    real(dp) :: y1, y2, yval, wl_eff
+
+
+     !! Now find the shifted opacity by interpolating from the dop array block
+     do k = 1, grid%n_theta-1
+       do j = 1, grid%n_phi-1
+         do z = 1, grid%n_lay
+
+           !! Find effective wavelength for the line of sight velocity
+           wl_eff = wl(ll)*(1.0_dp - v_los(n,z,j,k)/c_s)
+           call locate_host(wl_pad(:),wl_eff,wl_idx)
+           wl_idx1 = wl_idx + 1
+
+           !! Do some error checking
+           if (wl_idx == 0) then
+             ! blue shift is out of wavelength bounds, use rest frame opacity
+             !print*, 'blueshift out of range: ', z, j, k, wl_eff, wl_pad(1)
+             k_gas_abs(1,z,j,k) = k_gas_abs_dop(1,z,j,k)
+             k_gas_Ray(z,j,k) = k_gas_Ray_dop(1,z,j,k)
+             cycle
+           else if (wl_idx == dop_pad) then
+             !print*, 'redshift out of range: ', z, j, k, wl_eff, wl_pad(dop_pad)
+             k_gas_abs(1,z,j,k) = k_gas_abs_dop(dop_pad,z,j,k)
+             k_gas_Ray(z,j,k) = k_gas_Ray_dop(dop_pad,z,j,k)
+             cycle
+           end if
+
+           !! Interpolate dop arrays to find abs
+           y1 = k_gas_abs_dop(wl_idx,z,j,k)
+           y2 = k_gas_abs_dop(wl_idx1,z,j,k)
+           call linear_log_interp(wl_eff, wl_pad(wl_idx), wl_pad(wl_idx1), y1, y2, yval)
+           k_gas_abs(1,z,j,k) = yval
+
+           if (inc_Ray .eqv. .True.) then
+             !! Interpolate dop arrays to find Ray
+             y1 = k_gas_Ray_dop(wl_idx,z,j,k)
+             y2 = k_gas_Ray_dop(wl_idx1,z,j,k)
+             call linear_log_interp(wl_eff, wl_pad(wl_idx), wl_pad(wl_idx1), y1, y2, yval)
+             k_gas_Ray(z,j,k) = yval
+           else
+             k_gas_Ray(z,j,k) = 0.0_dp
+           end if
+
+           if (k_gas_abs(1,z,j,k) < 0.0_dp .or. ieee_is_nan(k_gas_abs(1,z,j,k)) .or. .not.ieee_is_finite(k_gas_abs(1,z,j,k))) then
+             print*, 'Encountered negative k_gas value --> check opacities'
+             print*, z, j, k, k_gas_abs(1,z,j,k), wl_eff, wl_pad(wl_idx), wl_pad(wl_idx1), k_gas_abs_dop(wl_idx,z,j,k), k_gas_abs_dop(wl_idx1,z,j,k)
+             stop
+           end if
+
+         end do
+      end do
+    end do
+    
+  end subroutine shift_opac
 
 end module mc_opacset

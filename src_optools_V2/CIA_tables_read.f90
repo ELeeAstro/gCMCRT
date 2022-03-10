@@ -13,7 +13,7 @@ module CIA_tables_read
   ! real(kind=sp), dimension(NUMPAIRS,NUMT,NUMWN) :: kcia
   ! real(kind=dp), dimension(NUMWN) :: vvk1, wlk1
 
-  private :: read_CIA_HITRAN, read_CIA_NEMESIS
+  private :: read_CIA_HITRAN, read_CIA_NEMESIS, read_CIA_Bell
   public :: read_CIA_tables
 
 contains
@@ -35,7 +35,10 @@ contains
       case(1)
         print*, ' - Reading NEMESIS CIA table: ', s,  CIA_tab(s)%sp, CIA_tab(s)%form
         call read_CIA_NEMESIS(s)
-        exit
+
+      case(2)
+        print*, ' - Reading Bell CIA table: ', s,  CIA_tab(s)%sp, CIA_tab(s)%form
+        call read_CIA_Bell(s)
 
       case(4)
         print*, ' - Reading HITRAN CIA table for species: ', s, CIA_tab(s)%sp, CIA_tab(s)%form
@@ -49,54 +52,114 @@ contains
 
     print*, ' ~~ Quest completed  ~~ '
 
-  end subroutine
+  end subroutine read_CIA_tables
 
   subroutine read_CIA_HITRAN(s)
     use :: iso_fortran_env
     implicit none
 
     integer, intent(in) :: s
-    integer :: u, i, n
+    integer :: u, i, n, j
     integer :: stat
 
     character(len=20) :: name
-    integer :: nrec
+    integer :: nrec, mnT, mnrec
     real(kind=dp) :: wn_s, wn_e, temp_r, kmax, dum
 
     open(newunit=u,file=trim(CIA_tab(s)%path),form='formatted', status='old',action='read')
 
     ! Allocate CIA table temperature arrays
-    allocate(CIA_tab(s)%T(CIA_tab(s)%nT))
+    mnT = maxval(CIA_tab(s)%nT(:))
+    allocate(CIA_tab(s)%T(CIA_tab(s)%nset,mnT))
+    allocate(CIA_tab(s)%irec(CIA_tab(s)%nset))
+    allocate(CIA_tab(s)%Tmin(CIA_tab(s)%nset))
+    allocate(CIA_tab(s)%Tmax(CIA_tab(s)%nset))
+    allocate(CIA_tab(s)%wn_s(CIA_tab(s)%nset))
+    allocate(CIA_tab(s)%wn_e(CIA_tab(s)%nset))
+
+    ! Read to find meta data first
+
+    do j = 1, CIA_tab(s)%nset
+      do n = 1, CIA_tab(s)%nT(j)
+        read(u,*,iostat=stat) name, wn_s, wn_e, nrec, temp_r, kmax, dum
+        if (n == 1) then
+          CIA_tab(s)%irec(j) = nrec
+          CIA_tab(s)%wn_s(j) = wn_s
+          CIA_tab(s)%wn_e(j) = wn_e
+          CIA_tab(s)%Tmin(j) = temp_r
+        else if (n == CIA_tab(s)%nT(j)) then
+          CIA_tab(s)%Tmax(j) = temp_r
+        end if
+        CIA_tab(s)%T(j,n) = temp_r
+        ! Check if end of file reached
+        if (stat == iostat_end) then
+          print*,'Reached end of HITRAN CIA file: ', j, n, CIA_tab(s)%sp, CIA_tab(s)%path
+        end if
+        do i = 1, nrec
+          read(u,*)
+        end do
+      end do
+    end do
+
+    rewind(u)
+
+    mnrec = maxval(CIA_tab(s)%irec(:))
+    allocate(CIA_tab(s)%wn(CIA_tab(s)%nset,mnrec))
+    allocate(CIA_tab(s)%tab(CIA_tab(s)%nset,mnrec,mnT))
 
     ! Read and allocate data until error (end of file)
-    do n = 1, CIA_tab(s)%nT
-      read(u,*,iostat=stat) name, wn_s, wn_e, nrec, temp_r, kmax, dum
-      !print*, n, name, wn_s, wn_e, nrec, temp_r, kmax, dum
-      if (n == 1) then
-        ! Allocate CIA table wn and table value array
-        allocate(CIA_tab(s)%wn(nrec))
-        allocate(CIA_tab(s)%tab(nrec,CIA_tab(s)%nT))
-        CIA_tab(s)%nwl = nrec
-      end if
-      ! Check if end of file reached
-      if (stat == iostat_end) then
-        print*,'Reached end of HITRAN CIA file: ', CIA_tab(s)%sp, CIA_tab(s)%path
-        exit
-      else
-        ! Temperature point of table
-        CIA_tab(s)%T(n) = temp_r
+    do j = 1, CIA_tab(s)%nset
+      do n = 1, CIA_tab(s)%nT(j)
+        read(u,*)
         ! Read the record data
-        do i = 1, nrec
-          read(u,*) CIA_tab(s)%wn(i), CIA_tab(s)%tab(i,n)
-          !print*, i, CIA_tab(s)%wn(i), CIA_tab(s)%tab(i,n)
+        do i = 1, CIA_tab(s)%irec(j)
+          read(u,*) CIA_tab(s)%wn(j,i), CIA_tab(s)%tab(j,i,n)
+          CIA_tab(s)%tab(j,i,n) = abs(CIA_tab(s)%tab(j,i,n))
+          !print*, i, CIA_tab(s)%wn(j,i), CIA_tab(s)%tab(j,i,n)
         end do
-      end if
-
+      end do
     end do
 
     close(u)
 
   end subroutine read_CIA_HITRAN
+
+  subroutine read_CIA_Bell(s)
+    implicit none
+
+    integer, intent(in) :: s
+
+    integer :: u, n
+
+    allocate(CIA_tab(s)%nT(1))
+    CIA_tab(s)%nT = 8
+
+    if (trim(CIA_tab(s)%sp) == 'He-') then
+      CIA_tab(s)%nwl = 16
+    else if (trim(CIA_tab(s)%sp) == 'H2-') then
+      CIA_tab(s)%nwl = 18
+    end if
+
+    open(newunit=u,file=trim(CIA_tab(s)%path),action='read',status='old')
+    read(u,*)
+
+    allocate(CIA_tab(s)%wl(1,CIA_tab(s)%nwl))
+    allocate(CIA_tab(s)%wn(1,CIA_tab(s)%nwl))
+    allocate(CIA_tab(s)%T(1,CIA_tab(s)%nT(1)))
+    allocate(CIA_tab(s)%tab(1,CIA_tab(s)%nwl,CIA_tab(s)%nT(1)))
+
+    read(u,*) CIA_tab(s)%T(1,:)
+
+    do n = 1, CIA_tab(s)%nwl
+      read(u,*) CIA_tab(s)%wl(1,n), CIA_tab(s)%tab(1,n,:)
+      !print*, s, n, CIA(s)%wl(n), CIA(s)%kap(n,:)
+    end do
+    !CIA(s)%wl(:) = CIA(s)%wl(:) * 1.0e-4_dp
+    CIA_tab(s)%wn(1,:) = 1.0_dp/(CIA_tab(s)%wl(1,:) * 1.0e-8_dp)
+
+    close(u)
+
+  end subroutine read_CIA_Bell
 
   subroutine read_CIA_NEMESIS(s)
     implicit none
