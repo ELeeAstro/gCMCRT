@@ -196,7 +196,6 @@ subroutine exp_3D_sph_atm_trans_hires()
   call read_wl()
 
   call set_grid()
-  call set_image()
 
   if (doppler_on .eqv. .True.) then
     call compute_vlos(viewphi(:))
@@ -234,6 +233,8 @@ subroutine exp_3D_sph_atm_trans_hires()
 
       im%vphi = viewphi(n)
       im%vtheta = viewthet
+
+      call set_image()
 
       if (doppler_on .eqv. .True.) then
         call shift_opac(n,l)

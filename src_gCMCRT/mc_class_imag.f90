@@ -29,7 +29,7 @@ contains
   subroutine set_image()
     implicit none
 
-    print*, "setting image"
+    !print*, "setting image"
 
 
     !! Observation direction and image set up
@@ -60,7 +60,7 @@ contains
       f_d(:,:) = f(:,:) ; q_d(:,:) = q(:,:) ; u_d(:,:) = u(:,:) ; im_err_d(:,:) = im_err(:,:)
     end if
 
-    print*, ' - Complete - '
+    !print*, ' - Complete - '
 
 
   end subroutine set_image

@@ -102,7 +102,7 @@ contains
       yp_help = ph%xp*sin(rot_angle) + ph%yp*cos(rot_angle)
       ph%xp = xp_help
       ph%yp = yp_help
-      ph%xp = sqrt(grid_d%r_max**2 - ph%zp**2 - ph%yp**2) - 1.0e-12_dp
+      ph%zp = sqrt(grid_d%r_max**2 - ph%xp**2 - ph%yp**2)
       ph%bp = sqrt(ph%zp**2 + ph%yp**2)
     end if
 

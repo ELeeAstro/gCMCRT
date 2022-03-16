@@ -47,13 +47,13 @@ contains
        do i = grid%n_lev, 2, -1
          itaul = i - 1
           densav = 0.0_dp
-          !if (ck .eqv. .True.) then
-            !do g = 1, ng
-            !  densav = densav + gord_w(g) * rhokap(g,i-1,1,1)/grid%r_del
-            !end do
-          !else if (lbl .eqv. .True.) then
+          if (ck .eqv. .True.) then
+            do g = 1, ng
+              densav = densav + gord_w(g) * rhokap(g,i-1,1,1)/grid%r_del
+            end do
+          else if (lbl .eqv. .True.) then
             densav = rhokap(1,i-1,1,1)/grid%r_del
-          !end if
+          end if
           tau_sum = tau_sum + densav * abs((H(i)-H(i-1)))
            if (tau_sum > tau_cuttoff) then
              if (itaul < itau3(1,1)) then
@@ -79,13 +79,13 @@ contains
             do i = grid%n_lev, 2, -1
               itaul = i - 1
                densav = 0.0_dp
-               !if (ck .eqv. .True.) then
-                 !do g = 1, ng
+               if (ck .eqv. .True.) then
+                 do g = 1, ng
                    densav = densav + gord_w(g) * rhokap(g,i-1,j,k)/grid%r_del
-                 !end do
-               !else if (lbl .eqv. .True.) then
+                 end do
+               else if (lbl .eqv. .True.) then
                  densav = rhokap(1,i-1,j,k)/grid%r_del
-               !end if
+               end if
                tau_sum = tau_sum + densav * abs((H(i)-H(i-1)))
                 if (tau_sum > tau_cuttoff) then
                   if (itaul < itau3(j,k)) then
