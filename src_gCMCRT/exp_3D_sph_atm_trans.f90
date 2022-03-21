@@ -296,7 +296,7 @@ subroutine exp_3D_sph_atm_transmission()
 
     T_trans(l) = (H(grid%n_lev) - H(1)) / real(Nph,dp) * T_trans(l)
     write(uT,*) wl(l), T_trans(l)
-    !call flush(uT)
+    call flush(uT)
 
     print*, l, wl(l), T_trans(l)
     print*, 'pscat failures and nscat_tot: ', im%fail_pscat, nscat_tot

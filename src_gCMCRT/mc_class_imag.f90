@@ -29,6 +29,9 @@ contains
   subroutine set_image()
     implicit none
 
+    !print*, "setting image"
+
+
     !! Observation direction and image set up
     im%sinto = sin(im%vtheta*pi/180.0_dp)
     im%costo = cos(im%vtheta*pi/180.0_dp)
@@ -39,27 +42,26 @@ contains
     im%obsy = im%sinto*im%sinpo
     im%obsz = im%costo
 
+
     if (do_images .eqv. .True.) then
-      if (allocated(f) .eqv. .False.) then
-        ! allocate all the arrays
-        im%x_pix = xpix
-        im%y_pix = ypix
-        im%rimage = rimage
-        allocate(f(im%x_pix,im%y_pix),q(im%x_pix,im%y_pix),u(im%x_pix,im%y_pix))
-        allocate(im_err(im%x_pix,im%y_pix))
-        allocate(f_d(im%x_pix,im%y_pix),q_d(im%x_pix,im%y_pix),u_d(im%x_pix,im%y_pix))
-        allocate(im_err_d(im%x_pix,im%y_pix))
-      end if
-
-      ! Zero the arrays
+      im%x_pix = xpix
+      im%y_pix = ypix
+      im%rimage = rimage
+      ! Calculate in CPU
+      allocate(f(im%x_pix,im%y_pix),q(im%x_pix,im%y_pix),u(im%x_pix,im%y_pix))
+      allocate(im_err(im%x_pix,im%y_pix))
       f(:,:) = 0.0_dp ; q(:,:) = 0.0_dp ; u(:,:) = 0.0_dp ; im_err(:,:) = 0.0_dp
-      im%fsum = 0.0_dp ; im%qsum = 0.0_dp ;  im%usum = 0.0_dp
+      im%fsum = sum(f(:,:)) ; im%qsum = sum(q(:,:)) ;  im%usum = sum(u(:,:))
 
-      ! Give to the GPU
+      !! Give to the GPU
       do_images_d = do_images
+      allocate(f_d(im%x_pix,im%y_pix),q_d(im%x_pix,im%y_pix),u_d(im%x_pix,im%y_pix))
+      allocate(im_err_d(im%x_pix,im%y_pix))
       f_d(:,:) = f(:,:) ; q_d(:,:) = q(:,:) ; u_d(:,:) = u(:,:) ; im_err_d(:,:) = im_err(:,:)
-
     end if
+
+    !print*, ' - Complete - '
+
 
   end subroutine set_image
 

@@ -50,7 +50,7 @@ contains
     endif
 
     ! tau = 0 if max distance is small
-    if (smax < 1.0e-12_dp) then
+    if (smax < 1.0e-8_dp) then
       ray%p_flag = -2
       return
     endif
@@ -72,8 +72,8 @@ contains
       taucell = dcell * rhokap_d(ray%ig,ray%c(1),ray%c(2),ray%c(3))
 
       ! Small offset for dcell
-      deps = (r_d(ray%c(1)+1) - r_d(ray%c(1)))*1.0e-12_dp
-      deps = max(deps, 1.0e-12_dp)
+      deps = (r_d(ray%c(1)+1) - r_d(ray%c(1)))*1.0e-8_dp
+      deps = max(deps, 1.0e-8_dp)
       d1 = dcell + deps
 
         ray%xp = ray%xp + d1 * ray%nxp

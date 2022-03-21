@@ -223,7 +223,7 @@ subroutine exp_3D_sph_atm_em()
   else
     open(newunit=uT,file='Em_'//trim(vphi_arg)//'.txt',action='readwrite')
   end if
-  write(uT,*) n_wl, H(1), H(grid%n_lev)
+  write(uT,*) n_wl, H(1), H(grid%n_lev), im%vphi
 
   call read_next_opac(1)
 
@@ -329,7 +329,7 @@ subroutine exp_3D_sph_atm_em()
     em_out(l) = im%fsum / real(Nph_sum,dp)
 
     write(uT,*) wl(l), em_out(l), grid%lumtot
-    !call flush(uT)
+    call flush(uT)
 
     if (do_cf .eqv. .True.) then
       cf(:,:,:) = cf_d(:,:,:)
