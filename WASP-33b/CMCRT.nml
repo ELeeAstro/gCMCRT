@@ -48,6 +48,8 @@ Rs = 0.805
 inc = 85.51
 phase = 0.005
 
+n_phase = 1
+
 /
 
 &sph_3D_em
