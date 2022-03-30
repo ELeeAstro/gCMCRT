@@ -154,7 +154,6 @@ contains
                  !print*,'single', i, wl(l), BBf * (wl(l) * 1e-4_dp)
                end if
 
-
               do g = 1, ng
                 l_cell_g(g,i,j,k) = gord_w(g) * fourpi * RH(i,j,k) * v_cell(i,j,k) * k_tot_abs(g,i,j,k) * BBf
               end do
@@ -178,6 +177,13 @@ contains
           end do
 
       end do
+
+
+      !if (do_surf .eqv. .True.) then
+      !  l_surf(i,j) = pi * a_surf(i,j) * emis_surf * BB(wl(l),T_surf)
+      !end if
+      !grid%lumtot_surf = sum(l_surf)
+
       !stop
     end do
   end do

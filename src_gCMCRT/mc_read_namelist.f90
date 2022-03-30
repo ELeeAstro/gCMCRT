@@ -27,6 +27,9 @@ subroutine read_namelist()
   phase_d = phase
   sm_ax_d = sm_ax
 
+  do_surf_d = do_surf
+  alb_surf_d = alb_surf
+
 end subroutine read_namelist
 
 

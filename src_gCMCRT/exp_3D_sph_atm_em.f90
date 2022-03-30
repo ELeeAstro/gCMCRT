@@ -321,7 +321,7 @@ subroutine exp_3D_sph_atm_em()
 
     call read_next_opac(l+1)
 
-    istat = cudaDeviceSynchronize()
+    !istat = cudaDeviceSynchronize()
 
     im = im_d
     nscat_tot = nscat_tot_d
@@ -329,7 +329,7 @@ subroutine exp_3D_sph_atm_em()
     em_out(l) = im%fsum / real(Nph_sum,dp)
 
     write(uT,*) wl(l), em_out(l), grid%lumtot
-    call flush(uT)
+    !call flush(uT)
 
     if (do_cf .eqv. .True.) then
       cf(:,:,:) = cf_d(:,:,:)

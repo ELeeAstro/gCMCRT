@@ -16,7 +16,7 @@ module mc_class_grid
     real(dp) :: r_del
 
     !! Common variables
-    real(dp) :: lumtot
+    real(dp) :: lumtot, lumtot_surf
 
   end type geo
 
@@ -33,6 +33,8 @@ module mc_class_grid
   real(dp), device :: mut_d
 
   !! Cell dimension properties
+  real(dp), allocatable, dimension(:,:) :: a_surf
+  real(dp), allocatable, dimension(:,:), device :: a_surf_d
   real(dp), allocatable, dimension(:,:,:) :: v_cell, a_cell
   real(dp), allocatable, dimension(:,:,:), device :: v_cell_d, a_cell_d
 
@@ -96,7 +98,7 @@ contains
     implicit none
 
     integer :: i,j,k
-    real(dp) :: v_tot, dr3
+    real(dp) :: v_tot, dr3, a_tot
 
     print*, 'Setting grid'
 
@@ -183,6 +185,21 @@ contains
 
     v_tot = (4.0_dp/3.0_dp) * pi * (H(grid%n_lev)**3 - H(1)**3)
     print*, 'Volumes Check:', v_tot - sum(v_cell), v_tot, sum(v_cell), sum(v_cell)/v_tot
+
+    ! Find area of each cell at the surface - spherical coordinates
+    allocate(a_surf(grid%n_phi-1,grid%n_theta-1))
+    dr3 = H(1)**2
+    do j = 1, grid%n_phi-1
+      dphi = phiarr(j+1) - phiarr(j)
+      do k = 1, grid%n_theta-1
+        dtheta = cos(thetarr(k)) - cos(thetarr(k+1))
+        a_surf(j,k) = dr3 * dphi * dtheta
+        !print*, j, k, a_cell(j,k), dr3, dphi, dtheta
+      end do
+    end do
+
+    a_tot = 4.0_dp * pi * H(1)**2
+    print*, 'Surface area Check:', a_tot - sum(a_surf), a_tot, sum(a_surf), sum(a_surf)/a_tot
 
     !! Allocate device arrays and send to gpu
     allocate(r_d(grid%n_lev),theta_d(grid%n_theta),phi_d(grid%n_phi))
