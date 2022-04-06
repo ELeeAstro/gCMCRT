@@ -177,8 +177,17 @@ subroutine exp_3D_sph_atm_trans_hires()
   grid%n_theta = n_theta
   grid%n_phi = n_phi
 
+  if (cmd_vphi .eqv. .False.) then
+    print*, 'Using namelist vphi'
+    im%vphi = viewphi(1)
+    !write(vphi_arg , *) viewphi
+  else
+    print*, 'Using cmdline vphi'
+    viewphi(:) = im%vphi
+  end if
+  print*, im%vphi, viewphi(:)
+
   im%vtheta = viewthet
-  im%vphi = viewphi(1)
 
   pl_d = pl
   pc_d = pc
@@ -217,7 +226,8 @@ subroutine exp_3D_sph_atm_trans_hires()
   do n = 1, n_phase
     write(n_str,fmt) n
     open(newunit=uT(n),file='Transmission_'//trim(n_str)//'.txt',action='readwrite')
-    write(uT(n),*) n_wl, H(1), H(grid%n_lev), viewphi(n)
+    write(uT(n),*) n_wl, H(1), H(grid%n_lev),  viewphi(n)
+    call flush(uT(n))
   end do
 
 
@@ -231,7 +241,11 @@ subroutine exp_3D_sph_atm_trans_hires()
 
     do n = 1, n_phase
 
-      im%vphi = viewphi(n)
+      if (cmd_vphi .eqv. .False.) then
+        im%vphi = viewphi(n)
+      else
+        viewphi(n) = im%vphi
+      end if
       im%vtheta = viewthet
 
       call set_image()
@@ -258,6 +272,14 @@ subroutine exp_3D_sph_atm_trans_hires()
       im_d = im
       call exp_3D_sph_atm_trans_hires_k<<<blocks, threads>>>(l_d,Nph_d)
 
+      if (n == n_phase) then
+        if (doppler_on .eqv. .True.) then
+          call read_next_opac_doppler(l+1)
+        else
+          call read_next_opac(l+1)
+        end if
+      end if
+
       !istat = cudaDeviceSynchronize()
 
       im = im_d
@@ -268,18 +290,12 @@ subroutine exp_3D_sph_atm_trans_hires()
 
       T_trans(l) = (H(grid%n_lev) - H(1)) / real(Nph,dp) * T_trans(l)
       write(uT(n),*) wl(l), T_trans(l)
-      call flush(uT(n))
+      !call flush(uT(n))
 
       print*, n, l, wl(l), T_trans(l)
       print*, 'pscat failures and nscat_tot: ', im%fail_pscat, nscat_tot
 
     end do
-
-    if (doppler_on .eqv. .True.) then
-      call read_next_opac_doppler(l+1)
-    else
-      call read_next_opac(l+1)
-    end if
 
   end do
 

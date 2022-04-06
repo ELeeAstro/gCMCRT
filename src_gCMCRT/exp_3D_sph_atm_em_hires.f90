@@ -227,7 +227,7 @@ subroutine exp_3D_sph_atm_em_hires()
   do n = 1, n_phase
     write(n_str,fmt) n
     open(newunit=uT(n),file='Em_'//trim(n_str)//'.txt',action='readwrite')
-    write(uT(n),*) n_wl, H(1), H(grid%n_lev), im%vphi
+    write(uT(n),*) n_wl, H(1), H(grid%n_lev), viewphi(n)
     call flush(uT(n))
   end do
 
