@@ -18,8 +18,10 @@ module cloud_tables_mod
 
   character(len=20), dimension(0:7) :: cdist
 
+  logical :: cld_tab_read = .False.
+
   namelist /cl_nml/ iopts, form, paths, imix, sig, idist, imie, &
-    & amin, amax, ndist, idist_int, eff_fac, veff, fmax
+    & amin, amax, ndist, idist_int, eff_fac, veff, fmax, cld_tab_read
 
   private :: output_cl_table
   public :: calc_cloud_table
@@ -31,6 +33,7 @@ contains
     implicit none
 
     integer :: s, j, l, z, a
+    integer :: uext, ua, ug, n
     logical :: exists
     real(kind=dp), allocatable, dimension(:) :: n_work, k_work
     complex(kind=dp) :: eps_comb
@@ -48,6 +51,21 @@ contains
 
     ! Allocate work arrays
     allocate(cl_out_k(nlay), cl_out_a(nlay), cl_out_g(nlay), cl_write(nlay))
+
+    if (cld_tab_read .eqv. .True.) then
+      open(newunit=uext,file='cld_ext.txt',action='read')
+      open(newunit=ua,file='cld_a.txt',action='read') 
+      open(newunit=ug,file='cld_g.txt',action='read')
+
+      do l = 1, nwl
+       read(uext,*) n, cl_out_k(:)
+       cl_out_k(:) = cl_out_k(:)!/RH_lay(:)
+       read(ua,*) n, cl_out_a(:)
+       read(ug,*) n, cl_out_g(:)
+       call output_cl_table()
+      end do
+      return
+    end if
 
     ! Allocate private work arrays and initialise
     allocate(n_work(ncl),k_work(ncl))
@@ -89,8 +107,8 @@ contains
         a_dist(a) = 10.0_dp**((lamax-lamin) * real(a-1,kind=dp) / real(ndist-1,kind=dp) + lamin)
       end do
 
-      ! ln the sigma (or not, moight be easier not to)
-      lsig = sig !log(sig)
+      ! ln the sigma (or not, might be easier not to)
+      lsig = log(sig)
 
     end if
 
@@ -104,6 +122,8 @@ contains
     cdist(3) = 'log-normal' ; cdist(4) = 'gamma' ; cdist(5) = 'inverse-gamma'
     cdist(6) = 'Rayleigh' ; cdist(7) = 'Hansen'
     print*, ' -- Assuming a '//trim(cdist(idist))//' distribution: ', idist
+
+
 
     !! Begin openMP loops
     !$omp parallel default (none), &
@@ -125,27 +145,27 @@ contains
       call interp_cl_tables(l,n_work(:),k_work(:))
       !$omp end single
 
-      !$omp do schedule (dynamic)
-      do z = 1, nlay
+       !$omp do schedule (dynamic)
+       do z = 1, nlay
 
-        if (sum(nd_cl_lay(:,z)) < 1e-20_dp) then
-          cl_out_k(z) = 1e-99_dp
-          cl_out_a(z) = 0.0_dp
-          cl_out_g(z) = 0.0_dp
-          cycle
-        end if
+          if (sum(nd_cl_lay(:,z)) < 1e-20_dp) then
+            cl_out_k(z) = 1e-99_dp
+            cl_out_a(z) = 0.0_dp
+            cl_out_g(z) = 0.0_dp
+            cycle
+          end if
 
-        ! Combine the n and k values for each species using EMT theory
-        call emt_cl(z,n_work(:),k_work(:),eps_comb)
+          ! Combine the n and k values for each species using EMT theory
+          call emt_cl(z,n_work(:),k_work(:),eps_comb)
 
-        ! perform Mie theory calculation
-        call dist_cl(z, l, eps_comb, cl_out_k(z), cl_out_a(z), cl_out_g(z))
+          ! perform Mie theory calculation
+          call dist_cl(z, l, eps_comb, cl_out_k(z), cl_out_a(z), cl_out_g(z))
 
-        ! Convert result to cm2 g-1 of atmosphere and add to output array
-        cl_out_k(z) = cl_out_k(z)/RH_lay(z)
+          ! Convert result to cm2 g-1 of atmosphere and add to output array
+          cl_out_k(z) = cl_out_k(z)/RH_lay(z)
 
-      end do
-      !$omp end do
+        end do
+        !$omp end do
 
       !$omp single
       ! Output CMCRT formatted cl table for layers

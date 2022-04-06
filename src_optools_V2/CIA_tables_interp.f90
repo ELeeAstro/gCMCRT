@@ -155,6 +155,7 @@ contains
     use CIA_tables_Hminus
     use CIA_tables_Heminus
     use CIA_tables_H2minus
+    use CIA_tables_fake_H2O_special
     implicit none
 
     integer, intent(in) :: s, l, z
@@ -179,6 +180,10 @@ contains
     case ('H2-')
 
       call CIA_H2minus_Bell(s,l,z,CIA_spec)
+ 
+    case ('H2O')
+
+      call Fake_H2O_special(s,l,z,CIA_spec)
 
     case default
 

@@ -267,6 +267,45 @@ contains
         allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
         CIA_tab(s)%nT(1) = 10
 
+      case('O2-CO2','CO2-O2')
+        CIA_tab(s)%sp_con(1) = 'O2'
+        CIA_tab(s)%sp_con(2) = 'CO2'
+
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 1
+
+      case('O2-N2','N2-O2')
+        CIA_tab(s)%sp_con(1) = 'O2'
+        CIA_tab(s)%sp_con(2) = 'N2'
+
+        CIA_tab(s)%nset = 5
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 7
+        CIA_tab(s)%nT(2) = 5
+        CIA_tab(s)%nT(3) = 5
+        CIA_tab(s)%nT(4) = 1
+        CIA_tab(s)%nT(5) = 1
+
+      case('O2-O2')
+        CIA_tab(s)%sp_con(1) = 'O2'
+        CIA_tab(s)%sp_con(2) = 'O2'
+
+        CIA_tab(s)%nset = 8
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 15
+        CIA_tab(s)%nT(2) = 1
+        CIA_tab(s)%nT(3) = 1
+        CIA_tab(s)%nT(4) = 1
+        CIA_tab(s)%nT(5) = 1
+        CIA_tab(s)%nT(6) = 1
+        CIA_tab(s)%nT(7) = 4
+        CIA_tab(s)%nT(8) = 5
+
+      case('H2O')
+        CIA_tab(s)%sp_con(1) = 'H2O'
+        CIA_tab(s)%sp_con(2) = 'H2O'
+
       case default
         print*, 'ERROR - CIA species constituents could not be found - STOPPING'
         print*, 'Species: ', CIA_tab(s)%sp

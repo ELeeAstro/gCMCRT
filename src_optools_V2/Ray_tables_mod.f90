@@ -11,10 +11,10 @@ module Ray_tables_mod
   real(kind=dp), parameter :: T_s = 273.15_dp
   real(kind=dp), parameter :: lam_ir = 5.432937_dp, lam_uv = 0.229202_dp
 
+  ! Parametr for H
   real(kind=dp), parameter :: wl_ly = 0.121567_dp * 1.0e-4_dp ! Lyman alpha wavelength [cm]
   real(kind=dp), parameter :: f_ly = c_s/wl_ly
   real(kind=dp), parameter :: w_l = (2.0_dp * pi * f_ly) / 0.75_dp
-
   real(kind=dp), dimension(10), parameter :: cp = (/1.26537_dp,3.73766_dp,8.8127_dp,19.1515_dp, &
   &  39.919_dp,81.1018_dp,161.896_dp,319.001_dp,622.229_dp,1203.82_dp/)
 
@@ -187,7 +187,7 @@ contains
 
         nd_stp(s) = 2.546899e19_dp
 
-      case('e-')
+      case('e-','el')
         ! Use Thomson scattering cross section
         n_ref(s) = -1
         King(s) = 1.0_dp
@@ -226,7 +226,7 @@ contains
 
         ! Is a special species - just calculate King factor for now
         Dpol = 3.0e-4_dp ! Murphy (1977)
-        King(s) = King_from_Dpol(DPol)
+        King(s) = King_from_Dpol_1(DPol)
 
       case('O2')
 
@@ -253,12 +253,12 @@ contains
 
         nd_stp(s) = 2.546899e19_dp
 
-
      case('NH3')
+
         ! Use Irwin (2009)+ paramaters
         A = 37.0e-5_dp ; B = 12.0e-3_dp ; Dpol = 0.0922_dp
         n_ref(s) = n_func2(wl(l),A,B)
-        King(s) = King_from_Dpol(DPol)
+        King(s) = King_from_Dpol_1(DPol)
 
         nd_stp(s) = N_stp
 
@@ -267,6 +267,21 @@ contains
         ! Use Thalman et al. (2014) parameters
         A = 6432.135_dp ; B = 286.06021e12_dp ; C = 14.4e9_dp
         n_ref(s) = n_func(wn(l),A,B,C)
+        King(s) = 1.0_dp
+
+        nd_stp(s) = 2.546899e19_dp
+
+      case('N2O')
+        ! Use Sneeps & Ubachs (2005) expression
+        n_ref(s) = (46890.0_dp + 4.12e-6_dp*wn(l)**2)/1e8_dp + 1.0_dp
+        Dpol = 0.0577_dp + 11.8e-12_dp*wn(l)**2
+        King(s) = King_from_Dpol_2(DPol) 
+
+        nd_stp(s) = 2.546899e19_dp
+
+      case('SF6')
+        ! Use Sneeps & Ubachs (2005) expression
+        n_ref(s) = (71517.0_dp + 4.996e-6_dp*wn(l)**2)/1e8_dp + 1.0_dp
         King(s) = 1.0_dp
 
         nd_stp(s) = 2.546899e19_dp
@@ -303,14 +318,23 @@ contains
 
     end function n_func2
 
-    real(kind=dp) function King_from_Dpol(DPol)
+    real(kind=dp) function King_from_Dpol_1(DPol)
       implicit none
 
       real(kind=dp), intent(in) :: DPol
 
-      King_from_Dpol = (6.0_dp  + 3.0_dp * DPol) / (6.0_dp - 7.0_dp * DPol)
+      King_from_Dpol_1 = (6.0_dp  + 3.0_dp * DPol) / (6.0_dp - 7.0_dp * DPol)
 
-    end function King_from_Dpol
+    end function King_from_Dpol_1
+
+    real(kind=dp) function King_from_Dpol_2(DPol)
+      implicit none
+
+      real(kind=dp), intent(in) :: DPol
+
+      King_from_Dpol_2 = (3.0_dp  + 6.0_dp * DPol) / (3.0_dp - 4.0_dp * DPol)
+
+    end function King_from_Dpol_2
 
   end subroutine refrac_index_calc
 
@@ -389,7 +413,7 @@ contains
       ! Multiply by Thomson x-section
       xsec = xsec * sigT
 
-    case('e-')
+    case('e-','el')
       ! Thomson scattering cross section expression
       xsec = sigT
 

@@ -47,7 +47,7 @@ contains
     case(3)
 
       !! log normal distribution - particle size in prf is the geometric mean, median and mode size
-      !! sig = std. deviation - lsig = ln(sig), typically 1 < sig < 2
+      !! sig = std. deviation - lsig = ln(sig), typically 1 < lsig < 2
 
       do m = 1, ndist
         ! Distribution in cm-3 um-1
