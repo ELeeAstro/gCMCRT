@@ -12,7 +12,7 @@ module Ray_tables_mod
   real(kind=dp), parameter :: lam_ir = 5.432937_dp, lam_uv = 0.229202_dp
 
   ! Parametr for H
-  real(kind=dp), parameter :: wl_ly = 0.121567_dp * 1.0e-4_dp ! Lyman alpha wavelength [cm]
+  real(kind=dp), parameter :: wl_ly = 121.567_dp * 1.0e-7_dp ! Lyman alpha wavelength [cm]
   real(kind=dp), parameter :: f_ly = c_s/wl_ly
   real(kind=dp), parameter :: w_l = (2.0_dp * pi * f_ly) / 0.75_dp
   real(kind=dp), dimension(10), parameter :: cp = (/1.26537_dp,3.73766_dp,8.8127_dp,19.1515_dp, &
@@ -404,9 +404,10 @@ contains
         do p = 0, 9
           xsec = xsec + (cp(p+1) * wwl**(2 * p))
         end do
+        xsec = xsec * wwl**4
       else
         ! High energy limit (approaching Lyman alpha wavelengths)
-        wb = (w - 0.75_dp*w_l)/0.75_dp
+        wb = (w - 0.75_dp*w_l)/(0.75_dp*w_l)
         xsec = (0.0433056_dp/wb**2)*(1.0_dp - 1.792_dp*wb - 23.637_dp*wb**2 - 83.1393_dp*wb**3 &
         & - 244.1453_dp*wb**4 - 699.473_dp*wb**5)
       end if
