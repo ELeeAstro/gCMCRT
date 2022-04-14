@@ -205,9 +205,12 @@ contains
       Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - mus) - LD_c_d(2)*(1.0_dp  - mus**(1.5_dp)) &
       & - LD_c_d(3)*(1.0_dp  - mus**2)
     case(7)
-      ! Four parameter - Claret (2000)
+      ! Four parameter (non-linear) - Claret (2000)
       Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - sqrt(mus)) - LD_c_d(2)*(1.0_dp  - mus) &
       & - LD_c_d(3)*(1.0_dp  - mus**(1.5_dp)) - LD_c_d(4)*(1.0_dp  - mus**2)
+    case(8)
+      ! power2 law - Morello et al. 2017, Hestroffer 1997
+      Imus = 1.0_dp - LD_c_d(1)*(1.0_dp - mus**LD_c_d(2))
     case default
       print*, 'Invalid ilimb: ', ilimb_d
       stop
