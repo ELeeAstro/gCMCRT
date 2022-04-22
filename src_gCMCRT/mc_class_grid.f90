@@ -42,14 +42,14 @@ module mc_class_grid
   integer, dimension(:), allocatable :: lay
   real(dp), dimension(:), allocatable :: PG_1D, MOL_W_1D, TG_1D, RH_1D
   real(dp), dimension(:), allocatable :: u_wind_1D, v_wind_1D, w_wind_1D
-  real(dp), dimension(:,:), allocatable :: VMR_1D
+  !real(dp), dimension(:,:), allocatable :: VMR_1D
   real(dp), dimension(:), allocatable :: rhokap_1D, ssa_1D, g_1D
 
   !! Allocatabe arrays for 3D grid
   real(dp), dimension(:,:,:), allocatable :: PG, MOL_W, TG, RH
   real(dp), dimension(:,:,:), allocatable :: u_wind, v_wind, w_wind
   real(dp), dimension(:,:,:,:), allocatable :: v_los
-  real(dp), dimension(:,:,:,:), allocatable :: VMR
+  !real(dp), dimension(:,:,:,:), allocatable :: VMR
 
   !! Device arrays for 1D grid
   real(dp), dimension(:), allocatable, device :: rhokap_1D_d, ssa_1D_d, g_1D_d

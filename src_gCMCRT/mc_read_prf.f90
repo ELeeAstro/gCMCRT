@@ -12,7 +12,7 @@ contains
 
     integer :: u, i, j, k, jj, icount, nlay, nlev, ngas, n, l
     real(kind=dp) :: mu
-    real(kind=dp), allocatable, dimension(:) :: VMR_dum
+    !real(kind=dp), allocatable, dimension(:) :: VMR_dum
 
     print*, ' - Reading in '//trim(exp_name)//'.prf file - '
 
@@ -30,7 +30,7 @@ contains
     read(u,*)
     read(u,*) ngas
 
-    allocate(VMR_1D(ngas,nlay),  VMR_dum(ngas))
+    !allocate(VMR_1D(ngas,nlay),  VMR_dum(ngas))
 
     do i = 1, ngas
       read(u,*)
@@ -39,8 +39,8 @@ contains
 
     read(u,*); read(u,*)
     do i = 1, nlay
-      read(u,*) lay(i), PG_1D(i), TG_1D(i), MOL_W_1D(i), (VMR_dum(j), j=1,ngas)
-      VMR_1D(:,i) = VMR_dum(:)
+      read(u,*) lay(i), PG_1D(i), TG_1D(i), MOL_W_1D(i)!, (VMR_dum(j), j=1,ngas)
+      !VMR_1D(:,i) = VMR_dum(:)
       PG_1D(i) = PG_1D(i) * bar
       RH_1D(i) = (PG_1D(i) * MOL_W_1D(i) * amu) / (kb * TG_1D(i))
     end do
@@ -50,8 +50,8 @@ contains
     print*, ' - Complete - '
 
     allocate(RH(grid%n_lay,grid%n_phi-1,grid%n_theta-1), TG(grid%n_lay,grid%n_phi-1,grid%n_theta-1), &
-      & PG(grid%n_lay,grid%n_phi-1,grid%n_theta-1), MOL_W(grid%n_lay,grid%n_phi-1,grid%n_theta-1), &
-      & VMR(ngas,grid%n_lay,grid%n_phi-1,grid%n_theta-1))
+      & PG(grid%n_lay,grid%n_phi-1,grid%n_theta-1), MOL_W(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
+    !allocate(VMR(ngas,grid%n_lay,grid%n_phi-1,grid%n_theta-1))
 
 
     if (oneD .eqv. .True. ) then
@@ -60,9 +60,9 @@ contains
         TG(i,:,:) = TG_1D(i)
         PG(i,:,:) = PG_1D(i)
         MOL_W(i,:,:) = MOL_W_1D(i)
-        do j = 1, ngas
-          VMR(j,i,:,:) = VMR_1D(j,i)
-        end do
+        !do j = 1, ngas
+        !  VMR(j,i,:,:) = VMR_1D(j,i)
+        !end do
       end do
     else if (threeD .eqv. .True.) then
       ! Unpack the 1D profile to the 3D grid
@@ -74,9 +74,9 @@ contains
             TG(i,j,k) = TG_1D(n)
             PG(i,j,k) = PG_1D(n)
             MOL_W(i,j,k) = MOL_W_1D(n)
-            do l = 1, ngas
-              VMR(l,i,j,k) = VMR_1D(l,n)
-            end do
+            !do l = 1, ngas
+            !  VMR(l,i,j,k) = VMR_1D(l,n)
+            !end do
             n = n + 1
           end do
         end do
@@ -94,7 +94,8 @@ contains
     H_d(:) = H(:)
 
     ! 1D arrays have served their purpose, deallocate to save memory
-    deallocate(lay,VMR_dum,PG_1D,MOL_W_1D,TG_1D,VMR_1D,RH_1D)
+    deallocate(lay,PG_1D,MOL_W_1D,TG_1D,RH_1D)
+    !deallocate(VMR_dum,VMR_1D)
 
     close(u)
 
