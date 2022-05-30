@@ -55,7 +55,7 @@ n_phase = 1
 &sph_3D_em
 
 Nph_tot = 1024000
-n_wl =  462
+n_wl = 503
 pl = 0.51
 pc = 0.39
 sc = 1.0
@@ -72,7 +72,7 @@ xi_emb = 0.99
 &sph_3D_trans
 
 Nph = 1024000
-n_wl = 462
+n_wl = 503
 pl = 0.51
 pc = 0.39
 sc = 1.0

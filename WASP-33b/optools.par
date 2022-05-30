@@ -42,12 +42,13 @@ e-
 !
 ! ---- Gas Continuum opacity  ---- !
 ! ! Number of Continuum gases followed by names
-6
+7
 H2-H2
 He-H2
 H2-H
 He-H
 H-
+H2-
 He-
 !
 ! ---- Cloud Species  ---- !
