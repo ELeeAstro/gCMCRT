@@ -8,13 +8,13 @@ interp_wl = .False.
 iopts = 1
 form = 2, 2, 2, 2, 2, 2, 2
 nG = 16
-paths = '../data/k_tables/512_ck_data_g16/CH4_ck_HELIOSK_512.txt',
-'../data/k_tables/512_ck_data_g16/H2O_ck_HELIOSK_512.txt',
-'../data/k_tables/512_ck_data_g16/CO_ck_HELIOSK_512.txt',
-'../data/k_tables/512_ck_data_g16/CO2_ck_HELIOSK_512.txt',
-'../data/k_tables/512_ck_data_g16/NH3_ck_HELIOSK_512.txt',
-'../data/k_tables/512_ck_data_g16/Na_ck_HELIOSK_512.txt',
-'../data/k_tables/512_ck_data_g16/K_ck_HELIOSK_512.txt'
+paths = '../data/k_tables/HELIOS-K/R100_ck_data_g16_UV/CH4_ck_HELIOSK_R100.txt',
+'../data/k_tables/HELIOS-K/R100_ck_data_g16_UV/H2O_ck_HELIOSK_R100.txt',
+'../data/k_tables/HELIOS-K/R100_ck_data_g16_UV/CO_ck_HELIOSK_R100.txt',
+'../data/k_tables/HELIOS-K/R100_ck_data_g16_UV/CO2_ck_HELIOSK_R100.txt',
+'../data/k_tables/HELIOS-K/R100_ck_data_g16_UV/NH3_ck_HELIOSK_R100.txt',
+'../data/k_tables/HELIOS-K/R100_ck_data_g16_UV/Na_ck_HELIOSK_R100.txt',
+'../data/k_tables/HELIOS-K/R100_ck_data_g16_UV/K_ck_HELIOSK_R100.txt',
 
 /
 

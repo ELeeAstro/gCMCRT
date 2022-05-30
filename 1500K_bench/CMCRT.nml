@@ -38,7 +38,7 @@ xpix = 200
 ypix = 200
 
 do_Draine = .False.
-Draine_alp = 1.0
+Draine_alp = 0.5
 
 do_LD = .False.
 ilimb = 2
@@ -47,6 +47,8 @@ LD_c = 0.077, 0.311, 0.0, 0.0
 Rs = 0.805
 inc = 90.00
 phase = 0.5
+
+n_phase = 1
 
 /
 
