@@ -102,8 +102,6 @@ contains
       yp_help = ph%xp*sin(rot_angle) + ph%yp*cos(rot_angle)
       ph%xp = xp_help
       ph%yp = yp_help
-      ph%zp = sqrt(grid_d%r_max**2 - ph%xp**2 - ph%yp**2)
-      ph%bp = sqrt(ph%zp**2 + ph%yp**2)
     end if
 
     !! NEEDS TO BE CHANGED FOR MULTIPLE SCATTERING MODE - RAY TRACING SHOULD WORK FINE
