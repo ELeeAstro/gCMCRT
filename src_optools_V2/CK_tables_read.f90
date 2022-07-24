@@ -79,11 +79,12 @@ contains
     allocate(press(np),temp(nt),wll(n_bins),k_abs(ng),gx(ng),gw(ng))
 
     ! Allocate table arrays
-    allocate(CK_tab(s)%T(CK_tab(s)%nT))
-    allocate(CK_tab(s)%P(CK_tab(s)%nP))
+    allocate(CK_tab(s)%T(CK_tab(s)%nT),CK_tab(s)%lT(CK_tab(s)%nT))
+    allocate(CK_tab(s)%P(CK_tab(s)%nP),CK_tab(s)%lP(CK_tab(s)%nP))
     allocate(CK_tab(s)%wl(CK_tab(s)%nwl),CK_tab(s)%wn(CK_tab(s)%nwl))
     allocate(CK_tab(s)%Gx(CK_tab(s)%nG),CK_tab(s)%Gw(CK_tab(s)%nG))
     allocate(CK_tab(s)%k_abs(CK_tab(s)%nwl,CK_tab(s)%nP,CK_tab(s)%nT,CK_tab(s)%nG))
+    allocate(CK_tab(s)%lk_abs(CK_tab(s)%nwl,CK_tab(s)%nP,CK_tab(s)%nT,CK_tab(s)%nG))
 
 
     ! Read pressure, temperature and wavenumbers
@@ -108,6 +109,9 @@ contains
     ! Give pressure, temperature and wavelengths to table object
     CK_tab(s)%T(:) = temp(:)
     CK_tab(s)%P(:) = press(:) * bar
+
+    CK_tab(s)%lT(:) = log10(CK_tab(s)%T(:))
+    CK_tab(s)%lP(:) = log10(CK_tab(s)%P(:))
 
     ! Give g ordinance x and weights to object
     CK_tab(s)%Gx(:) = gx(:)
@@ -136,6 +140,7 @@ contains
             read(u,*) (k_abs(g), g = 1, CK_tab(s)%nG)
             ! Reverse l index as table is in wavenumber order from HELIOS-K
             CK_tab(s)%k_abs(l,j,i,:) = max(k_abs(:),1.0e-99_dp)
+            CK_tab(s)%lk_abs(l,j,i,:) = log10(CK_tab(s)%k_abs(l,j,i,:))
             !print*, l,j,i, CK_tab(s)%k_abs(l,j,i,1),CK_tab(s)%k_abs(l,j,i,CK_tab(s)%nG)
           end do
         end do
@@ -147,6 +152,7 @@ contains
             read(u,*) (k_abs(g), g = 1, CK_tab(s)%nG)
             ! Reverse l index as table is in wavenumber order from HELIOS-K
             CK_tab(s)%k_abs(l,j,i,:) = max(k_abs(:),1.0e-99_dp)
+            CK_tab(s)%lk_abs(l,j,i,:) = log10(CK_tab(s)%k_abs(l,j,i,:))
             !print*, l,j,i, CK_tab(s)%k_abs(l,j,i,1),CK_tab(s)%k_abs(l,j,i,CK_tab(s)%nG)
           end do
         end do
@@ -197,12 +203,13 @@ contains
     CK_tab(s)%nwl = npoint
     allocate(CK_tab(s)%wl(CK_tab(s)%nwl),CK_tab(s)%wn(CK_tab(s)%nwl))
     CK_tab(s)%nP = np
-    allocate(CK_tab(s)%P(CK_tab(s)%nP))
+    allocate(CK_tab(s)%P(CK_tab(s)%nP), CK_tab(s)%lP(CK_tab(s)%nP))
     CK_tab(s)%nT = nt
-    allocate(CK_tab(s)%T(CK_tab(s)%nT))
+    allocate(CK_tab(s)%T(CK_tab(s)%nT),CK_tab(s)%lT(CK_tab(s)%nT))
     CK_tab(s)%nG = ng
     allocate(CK_tab(s)%Gx(CK_tab(s)%nG),CK_tab(s)%Gw(CK_tab(s)%nG))
     allocate(CK_tab(s)%k_abs(CK_tab(s)%nwl,CK_tab(s)%nP,CK_tab(s)%nT,CK_tab(s)%nG))
+    allocate(CK_tab(s)%lk_abs(CK_tab(s)%nwl,CK_tab(s)%nP,CK_tab(s)%nT,CK_tab(s)%nG))
 
     !! Start reading data from NEMESIS table
 
@@ -237,6 +244,7 @@ contains
     do j = 1, CK_tab(s)%nP
       read(u, rec=irec) p_dum
       CK_tab(s)%P(j) = real(p_dum,kind=dp) * atm ! Convert atm to dyne
+      CK_tab(s)%lP(j) = log10(CK_tab(s)%P(j))
       !print*, j, CK_tab(s)%P(j) / bar, log10(CK_tab(s)%P(j)/bar)
       irec = irec + 1
     end do
@@ -245,6 +253,7 @@ contains
     do j = 1, CK_tab(s)%nT
       read(u, rec=irec) t_dum
       CK_tab(s)%T(j) = real(t_dum,kind=dp)
+      CK_tab(s)%lT(j) = log10(CK_tab(s)%T(j))
       !print*, j, CK_tab(s)%T(j)
       irec = irec + 1
     end do
@@ -292,6 +301,7 @@ contains
             read(u,rec=irec) k_dum
             ! De-scale 1e20 NEMESIS scaling factor and check maximum (i.e. no zeros) units [cm2 molecule-1]
             CK_tab(s)%k_abs(l,j,i,g) = max(real(k_dum, kind=dp) * 1.0e-20_dp,1.0e-99_dp)
+            CK_tab(s)%lk_abs(l,j,i,g) = log10(CK_tab(s)%k_abs(l,j,i,g))
             irec = irec + 1
           end do
         end do

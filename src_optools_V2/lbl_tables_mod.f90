@@ -82,7 +82,7 @@ contains
     !! Begin openMP loops
     !$omp parallel default (none), &
     !$omp& private (l,z), &
-    !$omp& shared (nwl,wl,nlay,lbl_out,RH_lay), &
+    !$omp& shared (nwl,wl,nlay,lbl_out,RH_lay,interp_wl), &
     !$omp& firstprivate(lbl_work, lbl_comb)
 
     ! Perform lbl table interpolation to layer T,p
@@ -97,7 +97,11 @@ contains
       do z = 1, nlay
 
         ! Find the lbl opacity for this layer from tables
-        call interp_lbl_tables(l,z,lbl_work(:))
+        if (interp_wl .eqv. .True.) then
+           call interp_lbl_tables(l,z,lbl_work(:))
+        else
+          call interp_lbl_tables_Bezier(l,z,lbl_work(:))
+        end if
 
         ! Combine interpolated lbl opacity for each species with VMR of species
         call combine_lbl_opacity(z,lbl_work(:),lbl_comb)

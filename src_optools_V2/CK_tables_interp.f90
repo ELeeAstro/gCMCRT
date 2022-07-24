@@ -1,11 +1,158 @@
 module CK_tables_interp
   use optools_data_mod
-  use optools_aux, only : locate, bilinear_log_interp, linear_log_interp
+  use optools_aux, only : locate, bilinear_log_interp, linear_log_interp, Bezier_interp
   use ieee_arithmetic
   implicit none
 
 
 contains
+
+  subroutine interp_CK_tables_Bezier(l,z,nG,CK_work)
+    implicit none
+
+    integer, intent(in) :: l, z, nG
+
+    real(kind=dp), dimension(nCK,nG), intent(out) :: CK_work
+
+    integer :: s, g
+    integer :: iT1, iT2, iT3, iP1, iP2, iP3
+    real(kind=dp) :: T, P, lT, lP
+    real(kind=dp), dimension(3) :: lTa, lPa, lka, lka_ck
+
+    ! Interpolate from each CK table to the layer
+    CK_work(:,:) = 0.0_dp
+
+    !! A large if block statement is used to determine if the T-p point
+    !! is within the ck table, then interpolates.
+    !! If T > Tmax, then T = Tmax, if P > Pmax, P = Pmax and if P < Pmin, P = Pmin
+    !! This is done to avoid crashes with k-tables that may not cover the intendend T-p range
+    !! IT IS AVDISED TO CREATE k-tables WITHIN APPRORIATE T-p RANGES!!
+
+    T = TG_lay(z)
+    P = PG_lay(z)
+    lT = log10(T)
+    lP = log10(P)
+
+    do s = 1, nCK
+
+      ! Find temperature grid index triplet
+      call locate(CK_tab(s)%T(:),T,iT2)
+      iT1 = iT2 - 1
+      iT3 = iT2 + 1
+
+      if (iT1 <= 0) then
+        iT1 = 1
+        iT2 = 2
+        iT3 = 3
+      else if (iT3 > CK_tab(s)%nT) then
+        iT1 = CK_tab(s)%nT - 2
+        iT2 = CK_tab(s)%nT - 1
+        iT3 = CK_tab(s)%nT
+      end if
+
+      lTa(1) = CK_tab(s)%lT(iT1)
+      lTa(2) = CK_tab(s)%lT(iT2)
+      lTa(3) = CK_tab(s)%lT(iT3)
+
+      ! Find pressure grid index triplet
+      call locate(CK_tab(s)%P(:),P,iP2)
+      iP1 = iP2 - 1
+      iP3 = iP2 + 1
+
+      if (iP1 <= 0) then
+        iP1 = 1
+        iP2 = 2
+        iP3 = 3
+      else if (iP3 > CK_tab(s)%nP) then
+        iP1 = CK_tab(s)%nP - 2
+        iP2 = CK_tab(s)%nP - 1
+        iP3 = CK_tab(s)%nP
+      end if
+
+      lPa(1) = CK_tab(s)%lP(iP1)
+      lPa(2) = CK_tab(s)%lP(iP2)
+      lPa(3) = CK_tab(s)%lP(iP3)
+
+      if (T >= CK_tab(s)%T(CK_tab(s)%nT)) then
+        ! Temperature is too high, outside table range - use highest available T data
+        if (P >= CK_tab(s)%P(CK_tab(s)%nP)) then
+           ! Pressure is too high, outside table range - use highest available P data
+            CK_work(s,:) = 10.0_dp**CK_tab(s)%lk_abs(l,CK_tab(s)%nP,CK_tab(s)%nT,:)
+        else if (P <= CK_tab(s)%P(1)) then
+           ! Pressure is too low, outside table range - use lowest available P data
+           CK_work(s,:) = 10.0_dp**CK_tab(s)%lk_abs(l,1,CK_tab(s)%nT,:)
+        else
+          ! Pressure is within table range, perform Bezier interpolation at highest T
+          do g = 1, CK_tab(s)%nG
+            lka(1) = CK_tab(s)%lk_abs(l,iP1,CK_tab(s)%nT,g)
+            lka(2) = CK_tab(s)%lk_abs(l,iP2,CK_tab(s)%nT,g)
+            lka(3) = CK_tab(s)%lk_abs(l,iP3,CK_tab(s)%nT,g)
+            call Bezier_interp(lPa(:), lka(:), 3, lP, CK_work(s,g))
+            CK_work(s,g) = 10.0_dp**CK_work(s,g)
+          end do
+        end if
+      else if (T <= CK_tab(s)%T(1)) then
+        ! Temperature is too low, outside table range - use lowest available T data
+        if (P >= CK_tab(s)%P(CK_tab(s)%nP)) then
+           ! Pressure is too high, outside table range - use highest available P data
+            CK_work(s,:) = 10.0_dp**CK_tab(s)%lk_abs(l,CK_tab(s)%nP,1,:)
+        else if (P <= CK_tab(s)%P(1)) then
+           ! Pressure is too low, outside table range - use lowest available P data
+           CK_work(s,:) = 10.0_dp**CK_tab(s)%lk_abs(l,1,1,:)
+        else
+          ! Pressure is within table range, perform linear interpolation at lowest T
+          do g = 1, CK_tab(s)%nG
+            lka(1) = CK_tab(s)%lk_abs(l,iP1,1,g)
+            lka(2) = CK_tab(s)%lk_abs(l,iP2,1,g)
+            lka(3) = CK_tab(s)%lk_abs(l,iP3,1,g)
+            call Bezier_interp(lPa(:), lka(:), 3, lP, CK_work(s,g))
+            CK_work(s,g) = 10.0_dp**CK_work(s,g)
+          end do
+        end if
+      else
+        ! Temperature is within the normal range
+        if (P >= CK_tab(s)%P(CK_tab(s)%nP)) then
+          ! Pressure is too high, outside table range - use highest availible P
+          do g = 1, CK_tab(s)%nG
+            lka(1) = CK_tab(s)%lk_abs(l,CK_tab(s)%nP,iT1,g)
+            lka(2) = CK_tab(s)%lk_abs(l,CK_tab(s)%nP,iT2,g)
+            lka(3) = CK_tab(s)%lk_abs(l,CK_tab(s)%nP,iT3,g)
+            call Bezier_interp(lTa(:), lka(:), 3, lT, CK_work(s,g))
+            CK_work(s,g) = 10.0_dp**CK_work(s,g)
+          end do
+        else if (P <= CK_tab(s)%P(1)) then
+          ! Pressure is too low, outside table range - use lowest availible P
+          do g = 1, CK_tab(s)%nG
+            lka(1) = CK_tab(s)%lk_abs(l,1,iT1,g)
+            lka(2) = CK_tab(s)%lk_abs(l,1,iT2,g)
+            lka(3) = CK_tab(s)%lk_abs(l,1,iT3,g)
+            call Bezier_interp(lTa(:), lka(:), 3, lT, CK_work(s,g))
+            CK_work(s,g) = 10.0_dp**CK_work(s,g)
+          end do
+        else
+          ! Both pressure and temperature are within table bounds, perform Bezier interpolation 4 times
+          do g = 1, CK_tab(s)%nG
+            lka(1) = CK_tab(s)%lk_abs(l,iP1,iT1,g)
+            lka(2) = CK_tab(s)%lk_abs(l,iP2,iT1,g)
+            lka(3) = CK_tab(s)%lk_abs(l,iP3,iT1,g)
+            call Bezier_interp(lPa(:), lka(:), 3, lP, lka_ck(1)) ! Result at T1, P_in
+            lka(1) = CK_tab(s)%lk_abs(l,iP1,iT2,g)
+            lka(2) = CK_tab(s)%lk_abs(l,iP2,iT2,g)
+            lka(3) = CK_tab(s)%lk_abs(l,iP3,iT2,g)
+            call Bezier_interp(lPa(:), lka(:), 3, lP, lka_ck(2)) ! Result at T2, P_in
+            lka(1) = CK_tab(s)%lk_abs(l,iP1,iT3,g)
+            lka(2) = CK_tab(s)%lk_abs(l,iP2,iT3,g)
+            lka(3) = CK_tab(s)%lk_abs(l,iP3,iT3,g)
+            call Bezier_interp(lPa(:), lka(:), 3, lP, lka_ck(3)) ! Result at T3, P_in
+            call Bezier_interp(lTa(:), lka_ck(:), 3, lT, CK_work(s,g)) ! Result at T_in, P_in
+            CK_work(s,g) = 10.0_dp**CK_work(s,g)
+          end do
+        end if
+      end if
+
+    end do
+
+  end subroutine interp_CK_tables_Bezier
 
   subroutine interp_CK_tables(l,z,nG,CK_work)
     implicit none

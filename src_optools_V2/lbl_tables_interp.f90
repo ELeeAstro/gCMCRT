@@ -1,12 +1,12 @@
 module lbl_tables_interp
   use optools_data_mod
-  use optools_aux, only : locate, linear_log_interp, bilinear_log_interp
+  use optools_aux, only : locate, linear_log_interp, bilinear_log_interp, Bezier_interp
   use ieee_arithmetic
   implicit none
 
 
   private
-  public :: interp_lbl_tables
+  public :: interp_lbl_tables, interp_lbl_tables_Bezier
 
 contains
 
@@ -179,7 +179,138 @@ contains
 
     end do
 
-
   end subroutine interp_lbl_tables
+
+  subroutine interp_lbl_tables_Bezier(l,z,lbl_work)
+    implicit none
+
+    integer, intent(in) :: l, z
+
+    real(kind=dp), dimension(nlbl), intent(out) :: lbl_work
+
+    integer :: s
+    integer :: iT1, iT2, iT3, iP1, iP2, iP3
+    real(kind=dp) :: T, P, lT, lP
+    real(kind=dp), dimension(3) :: lTa, lPa, lka, lka_lbl
+
+    ! Interpolate each species lbl table to the layer properties
+    lbl_work(:) = 0.0_dp
+
+    T = TG_lay(z)
+    P = PG_lay(z)
+    lT = log10(TG_lay(z))
+    lP = log10(PG_lay(z))
+
+    do s = 1, nlbl
+
+      ! Find temperature grid index triplet
+      call locate(lbl_tab(s)%T(:),T,iT2)
+      iT1 = iT2 - 1
+      iT3 = iT2 + 1
+
+      if (iT1 <= 0) then
+        iT1 = 1
+        iT2 = 2
+        iT3 = 3
+      else if (iT3 > lbl_tab(s)%nT) then
+        iT1 = lbl_tab(s)%nT - 2
+        iT2 = lbl_tab(s)%nT - 1
+        iT3 = lbl_tab(s)%nT
+      end if
+
+      lTa(1) = lbl_tab(s)%lT(iT1)
+      lTa(2) = lbl_tab(s)%lT(iT2)
+      lTa(3) = lbl_tab(s)%lT(iT3)
+
+      ! Find upper and lower T and P triplet indexes
+      call locate(lbl_tab(s)%P(:),P,iP2)
+      iP1 = iP2 - 1
+      iP3 = iP2 + 1 
+
+      if (iP1 <= 0) then
+        iP1 = 1
+        iP2 = 2
+        iP3 = 3
+      else if (iP3 > lbl_tab(s)%nP) then
+        iP1 = lbl_tab(s)%nP - 2
+        iP2 = lbl_tab(s)%nP - 1
+        iP3 = lbl_tab(s)%nP
+      end if
+
+      lPa(1) = lbl_tab(s)%lP(iP1)
+      lPa(2) = lbl_tab(s)%lP(iP2)
+      lPa(3) = lbl_tab(s)%lP(iP3)
+
+      if (T >= lbl_tab(s)%T(lbl_tab(s)%nT)) then
+        ! Temperature is too high, outside table range - use highest available T data
+        if (P >= lbl_tab(s)%P(lbl_tab(s)%nP)) then
+           ! Pressure is too high, outside table range - use highest available P data
+           lbl_work(s) = 10.0_dp**lbl_tab(s)%lk_abs(l,lbl_tab(s)%nP,lbl_tab(s)%nT)
+        else if (P <= lbl_tab(s)%P(1)) then
+           ! Pressure is too low, outside table range - use lowest available P data
+           lbl_work(s)  = 10.0_dp**lbl_tab(s)%lk_abs(l,1,lbl_tab(s)%nT)
+        else
+          ! Pressure is within table range, perform Bezier interpolation at highest T
+          lka(1) = lbl_tab(s)%lk_abs(l,iP1,lbl_tab(s)%nT)
+          lka(2) = lbl_tab(s)%lk_abs(l,iP2,lbl_tab(s)%nT)
+          lka(3) = lbl_tab(s)%lk_abs(l,iP3,lbl_tab(s)%nT)
+          call Bezier_interp(lPa(:), lka(:), 3, lP, lbl_work(s))
+          lbl_work(s) = 10.0_dp**lbl_work(s)
+        end if
+      else if (T <= lbl_tab(s)%T(1)) then
+        ! Temperature is too low, outside table range - use lowest available T data
+        if (P >= lbl_tab(s)%P(lbl_tab(s)%nP)) then
+           ! Pressure is too high, outside table range - use highest available P data
+            lbl_work(s) = 10.0_dp**lbl_tab(s)%lk_abs(l,lbl_tab(s)%nP,1)
+        else if (P <= lbl_tab(s)%P(1)) then
+           ! Pressure is too low, outside table range - use lowest available P data
+           lbl_work(s) = 10.0_dp**lbl_tab(s)%lk_abs(l,1,1)
+        else
+          ! Pressure is within table range, perform linear interpolation at lowest T
+          lka(1) = lbl_tab(s)%lk_abs(l,iP1,1)
+          lka(2) = lbl_tab(s)%lk_abs(l,iP2,1)
+          lka(3) = lbl_tab(s)%lk_abs(l,iP3,1)
+          call Bezier_interp(lPa(:), lka(:), 3, lP, lbl_work(s))
+          lbl_work(s) = 10.0_dp**lbl_work(s)
+        end if
+      else
+        ! Temperature is within the normal range
+        if (P >= lbl_tab(s)%P(lbl_tab(s)%nP)) then
+          ! Pressure is too high, outside table range - use highest availible P
+          lka(1) = lbl_tab(s)%lk_abs(l,lbl_tab(s)%nP,iT1)
+          lka(2) = lbl_tab(s)%lk_abs(l,lbl_tab(s)%nP,iT2)
+          lka(3) = lbl_tab(s)%lk_abs(l,lbl_tab(s)%nP,iT3)
+          call Bezier_interp(lTa(:), lka(:), 3, lT, lbl_work(s))
+          lbl_work(s) = 10.0_dp**lbl_work(s)
+        else if (P <= lbl_tab(s)%P(1)) then
+          ! Pressure is too low, outside table range - use lowest availible P
+          lka(1) = lbl_tab(s)%lk_abs(l,1,iT1)
+          lka(2) = lbl_tab(s)%lk_abs(l,1,iT2)
+          lka(3) = lbl_tab(s)%lk_abs(l,1,IT3)
+          call Bezier_interp(lTa(:), lka(:), 3, lT, lbl_work(s))
+          lbl_work(s) = 10.0_dp**lbl_work(s)
+        else
+          ! Both pressure and temperature are within table bounds, perform Bezier interpolation 4 times
+          lka(1) = lbl_tab(s)%lk_abs(l,iP1,iT1)
+          lka(2) = lbl_tab(s)%lk_abs(l,iP2,iT1)
+          lka(3) = lbl_tab(s)%lk_abs(l,iP3,iT1)
+          call Bezier_interp(lPa(:), lka(:), 3, lP, lka_lbl(1)) ! Result at T1, P_in
+          lka(1) = lbl_tab(s)%lk_abs(l,iP1,iT2)
+          lka(2) = lbl_tab(s)%lk_abs(l,iP2,iT2)
+          lka(3) = lbl_tab(s)%lk_abs(l,iP3,iT3)
+          call Bezier_interp(lPa(:), lka(:), 3, lP, lka_lbl(2)) ! Result at T2, P_in
+          lka(1) = lbl_tab(s)%lk_abs(l,iP1,iT3)
+          lka(2) = lbl_tab(s)%lk_abs(l,iP2,iT3)
+          lka(3) = lbl_tab(s)%lk_abs(l,iP3,iT3)
+          call Bezier_interp(lPa(:), lka(:), 3, lP, lka_lbl(3)) ! Result at T3, P_in
+          call Bezier_interp(lTa(:), lka_lbl(:), 3, lT, lbl_work(s)) ! Result at T_in, P_in
+          lbl_work(s) = 10.0_dp**lbl_work(s)
+        end if
+      end if
+
+    end do
+
+
+  end subroutine interp_lbl_tables_Bezier
 
 end module lbl_tables_interp

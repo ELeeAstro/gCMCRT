@@ -48,6 +48,7 @@ contains
     ! Read number of lines and conducting flag
     read(u,*) nlines, conducting_flag
 
+
     ! Put data into cl_tab container
     cl_tab(s)%nwl = nlines
     allocate(cl_tab(s)%wl(cl_tab(s)%nwl))
@@ -60,10 +61,10 @@ contains
 
     ! Read wavelengths, n and k values
     do l = 1, cl_tab(s)%nwl
-       read(u,*) cl_tab(s)%wl(l), cl_tab(s)%n(l),cl_tab(s)%k(l)
-        cl_tab(s)%n(l) = max(0.0_dp, cl_tab(s)%n(l))
-        cl_tab(s)%k(l) = max(0.0_dp, cl_tab(s)%k(l))
-        !print*, l, cl_tab(s)%wl(l), cl_tab(s)%n(l),cl_tab(s)%k(l)
+      read(u,*) cl_tab(s)%wl(l), cl_tab(s)%n(l),cl_tab(s)%k(l)
+      cl_tab(s)%n(l) = max(0.0_dp, cl_tab(s)%n(l))
+      cl_tab(s)%k(l) = max(0.0_dp, cl_tab(s)%k(l))
+      !print*, l, cl_tab(s)%wl(l), cl_tab(s)%n(l),cl_tab(s)%k(l)
     end do
 
   end subroutine read_nk_DIHRT

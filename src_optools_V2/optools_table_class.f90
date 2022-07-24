@@ -27,15 +27,15 @@ module optools_table_class
     integer :: iVMR ! VMR index for consituent species
 
     integer :: nT ! Number of temperature points in table
-    real(kind=dp), allocatable, dimension(:) :: T  ! Temperature points in table (K)
+    real(kind=dp), allocatable, dimension(:) :: T, lT  ! Temperature points in table (K)
 
     integer :: nP ! Number of pressure points in table
-    real(kind=dp), allocatable, dimension(:) :: P ! Pressure points in table (dyne) [CARE UNITS!!]
+    real(kind=dp), allocatable, dimension(:) :: P, lP ! Pressure points in table (dyne) [CARE UNITS!!]
 
     integer :: nG ! Number of g-ordinances (for corr-k)
     real(kind=dp), allocatable, dimension(:) :: Gx, Gw ! Gx ordinances in table, Gw weight of ordinances
 
-    real(kind=dp), allocatable, dimension(:,:,:,:) :: k_abs ! Kappa values [cm2 molecule-1] (CARE: convert units from table source)
+    real(kind=dp), allocatable, dimension(:,:,:,:) :: k_abs, lk_abs ! Kappa values [cm2 molecule-1] (CARE: convert units from table source)
 
     integer :: sp_iflag   ! Special integer flag
     logical :: sp_lflag   ! Special logical flag
@@ -62,12 +62,13 @@ module optools_table_class
     integer :: iVMR ! VMR index for consituent species
 
     integer :: nT ! Number of temperature points in table
-    real(kind=dp), allocatable, dimension(:) :: T  ! Temperature points in table (K)
+    real(kind=dp), allocatable, dimension(:) :: T, lT  ! Temperature points in table (K) + log10 values
 
     integer :: nP ! Number of pressure points in table
-    real(kind=dp), allocatable, dimension(:) :: P ! Pressure points in table (dyne) [CARE UNITS!!]
+    real(kind=dp), allocatable, dimension(:) :: P, lP ! Pressure points in table (dyne) [CARE UNITS!!] + log10 values
 
-    real(kind=dp), allocatable, dimension(:,:,:) :: k_abs ! Kappa values [cm2 molecule-1] (CARE: convert units from table source)
+    real(kind=dp), allocatable, dimension(:,:,:) :: k_abs, lk_abs ! Kappa values [cm2 molecule-1] 
+    !(CARE: convert units from table source) + log10 values
 
     integer :: sp_iflag   ! Special integer flag
     logical :: sp_lflag   ! Special logical flag
@@ -101,12 +102,12 @@ module optools_table_class
     integer :: nset
     integer, allocatable, dimension(:) :: nT ! Number of temperature points in set
     real(kind=dp), allocatable, dimension(:) :: Tmax, Tmin  ! Max T and min T in set
-    real(kind=dp), allocatable, dimension(:,:) :: T  ! Temperature points in full table sets (K)
+    real(kind=dp), allocatable, dimension(:,:) :: T, lT  ! Temperature points in full table sets (K)
 
     integer, allocatable, dimension(:) :: irec ! Number of record points in set
 
 
-    real(kind=dp), allocatable, dimension(:,:,:) :: tab ! table values of sets [Usually: cm5 molecule-2] (CARE: Check format units)
+    real(kind=dp), allocatable, dimension(:,:,:) :: tab, ltab ! table values of sets [Usually: cm5 molecule-2] (CARE: Check format units)
 
     integer :: sp_iflag   ! Special integer flag
     logical :: sp_lflag   ! Special logical flag

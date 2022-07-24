@@ -70,7 +70,7 @@ contains
 
     ! Allocate CIA table temperature arrays
     mnT = maxval(CIA_tab(s)%nT(:))
-    allocate(CIA_tab(s)%T(CIA_tab(s)%nset,mnT))
+    allocate(CIA_tab(s)%T(CIA_tab(s)%nset,mnT),CIA_tab(s)%lT(CIA_tab(s)%nset,mnT))
     allocate(CIA_tab(s)%irec(CIA_tab(s)%nset))
     allocate(CIA_tab(s)%Tmin(CIA_tab(s)%nset))
     allocate(CIA_tab(s)%Tmax(CIA_tab(s)%nset))
@@ -91,6 +91,7 @@ contains
           CIA_tab(s)%Tmax(j) = temp_r
         end if
         CIA_tab(s)%T(j,n) = temp_r
+        CIA_tab(s)%lT(j,n) = log10(CIA_tab(s)%T(j,n))
         ! Check if end of file reached
         if (stat == iostat_end) then
           print*,'Reached end of HITRAN CIA file: ', j, n, CIA_tab(s)%sp, CIA_tab(s)%path
@@ -105,7 +106,7 @@ contains
 
     mnrec = maxval(CIA_tab(s)%irec(:))
     allocate(CIA_tab(s)%wn(CIA_tab(s)%nset,mnrec))
-    allocate(CIA_tab(s)%tab(CIA_tab(s)%nset,mnrec,mnT))
+    allocate(CIA_tab(s)%tab(CIA_tab(s)%nset,mnrec,mnT),CIA_tab(s)%ltab(CIA_tab(s)%nset,mnrec,mnT))
 
     ! Read and allocate data until error (end of file)
     do j = 1, CIA_tab(s)%nset
@@ -114,7 +115,8 @@ contains
         ! Read the record data
         do i = 1, CIA_tab(s)%irec(j)
           read(u,*) CIA_tab(s)%wn(j,i), CIA_tab(s)%tab(j,i,n)
-          CIA_tab(s)%tab(j,i,n) = abs(CIA_tab(s)%tab(j,i,n))
+          CIA_tab(s)%tab(j,i,n) = max(abs(CIA_tab(s)%tab(j,i,n)),1e-99_dp) 
+          CIA_tab(s)%ltab(j,i,n) = log10(CIA_tab(s)%tab(j,i,n))
           !print*, i, CIA_tab(s)%wn(j,i), CIA_tab(s)%tab(j,i,n)
         end do
       end do

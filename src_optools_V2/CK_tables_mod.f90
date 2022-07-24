@@ -125,7 +125,8 @@ contains
         if (interp_wl .eqv. .True.) then
           call interp_CK_tables_wl(l,z,nG,CK_work(:,:))
         else
-          call interp_CK_tables(l,z,nG,CK_work(:,:))
+          !call interp_CK_tables(l,z,nG,CK_work(:,:))
+          call interp_CK_tables_Bezier(l,z,nG,CK_work(:,:))
         end if
 
         if (pre_mixed .eqv. .True.) then

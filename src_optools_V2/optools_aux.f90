@@ -5,7 +5,7 @@ module optools_aux
   private
   public :: locate, sort2, gauss, &
     & linear_interp, linear_log_interp, bilinear_interp, bilinear_log_interp, &
-    & trapz
+    & trapz, Bezier_interp
 
 contains
 
@@ -98,6 +98,51 @@ contains
     aval = 10.0_dp**(aval)
 
   end subroutine bilinear_log_interp
+
+  ! Perform Bezier interpolation
+  subroutine Bezier_interp(xi, yi, ni, x, y)
+    implicit none
+
+    integer, intent(in) :: ni
+    real(dp), dimension(ni), intent(in) :: xi, yi
+    real(dp), intent(in) :: x
+    real(dp), intent(out) :: y
+
+    real(dp) :: xc, dx, dx1, dy, dy1, w, yc, t, wlim, wlim1
+
+    !xc = (xi(1) + xi(2))/2.0_dp ! Control point (no needed here, implicitly included)
+    dx = xi(2) - xi(1)
+    dx1 = xi(3) - xi(2)
+    dy = yi(2) - yi(1)
+    dy1 = yi(3) - yi(2)
+
+    if (x > xi(1) .and. x < xi(2)) then
+      ! left hand side interpolation
+      !print*,'left'
+      w = dx1/(dx + dx1)
+      wlim = 1.0_dp + 1.0_dp/(1.0_dp - (dy1/dy) * (dx/dx1))
+      wlim1 = 1.0_dp/(1.0_dp - (dy/dy1) * (dx1/dx))
+      if (w <= min(wlim,wlim1) .or. w >= max(wlim,wlim1)) then
+        w = 1.0_dp
+      end if
+      yc = yi(2) - dx/2.0_dp * (w*dy/dx + (1.0_dp - w)*dy1/dx1)
+      t = (x - xi(1))/dx
+      y = (1.0_dp - t)**2 * yi(1) + 2.0_dp*t*(1.0_dp - t)*yc + t**2*yi(2)
+    else ! (x > xi(2) and x < xi(3)) then
+      ! right hand side interpolation
+      !print*,'right'
+      w = dx/(dx + dx1)
+      wlim = 1.0_dp/(1.0_dp - (dy1/dy) * (dx/dx1))
+      wlim1 = 1.0_dp + 1.0_dp/(1.0_dp - (dy/dy1) * (dx1/dx))
+      if (w <= min(wlim,wlim1) .or. w >= max(wlim,wlim1)) then
+        w = 1.0_dp
+      end if
+      yc = yi(2) + dx1/2.0_dp * (w*dy1/dx1 + (1.0_dp - w)*dy/dx)
+      t = (x - xi(2))/(dx1)
+      y = (1.0_dp - t)**2 * yi(2) + 2.0_dp*t*(1.0_dp - t)*yc + t**2*yi(3)
+    end if
+
+  end subroutine Bezier_interp
 
   pure subroutine locate(arr, var, idx)
     implicit none
