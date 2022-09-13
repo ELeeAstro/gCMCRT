@@ -7,7 +7,7 @@ More extensive documentation is in the making, for now here are some bare bones 
 
 Two example models are provided:
 
-1. A WASP-33b SPARC/MITgcm GCM model transmission and emission example - which includes chemical abundances
+1. A WASP-33b SPARC/MITgcm GCM model emission example - which includes chemical abundances
 2. A WASP-39b Exo-FMS GCM model transmission example - uses chemical equilibirum abundance table interpolation
 3. A WASP-39b 1D VULCAN + CARMA output example - uses VULCAN
 

@@ -116,22 +116,19 @@ plt.tight_layout(pad=1.05, h_pad=None, w_pad=None, rect=None)
 # Fp/Fs plots
 
 # Observational data
-S36 = 3506.0/1e6 
-S36_err = 173.0/1e6
 
-S45 = 4250.0/1e6
-S45_err = 160.0/1e6
+data = np.loadtxt('obs_data.txt')
+wl_obs = data[:,0]
+FpFs_obs = data[:,1]/100.0
+FpFs_obs_err = data[:,2]/100.0
 
 fig = plt.figure()
 
 plt.plot(wl,FpFs[0,:],label='Dayside')
 plt.plot(wl,FpFs[1,:],label='Nightside')
 
-plt.scatter(3.6,S36,c='darkcyan',marker='o',s=12.0,label='Zhang et al. (2013)',zorder=1)
-plt.errorbar(3.6,S36,yerr=S36_err,fmt='none',c='darkcyan',zorder=1)
-
-plt.scatter(4.5,S45,c='darkcyan',marker='o',s=12.0,zorder=1)
-plt.errorbar(4.5,S45,yerr=S45_err,fmt='none',c='darkcyan',zorder=1)
+plt.scatter(wl_obs,FpFs_obs,c='darkcyan',marker='o',s=12.0,label='Obs. data',zorder=1)
+plt.errorbar(wl_obs,FpFs_obs,yerr=FpFs_obs_err,fmt='none',c='darkcyan',zorder=1)
 
 plt.legend()
 
