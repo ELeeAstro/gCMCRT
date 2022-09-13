@@ -182,7 +182,7 @@ contains
   subroutine read_g_ord()
     implicit none
 
-    integer :: u, ng, g
+    integer :: u, g
 
     ! Read g-ordinances and delg with weights to file g.ord
     open(newunit=u, file='gord.cmcrt', status='old', action='read',form='formatted')
@@ -206,6 +206,7 @@ contains
 
     ! Send data to GPU
     allocate(gord_cdf_d(ng), gord_x_d(ng), gord_w_d(ng))
+    ng_d = ng
     gord_cdf_d(:) = gord_cdf(:)
     gord_x_d(:) = gord_x(:)
     gord_w_d(:) = gord_w(:)

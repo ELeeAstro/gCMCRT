@@ -152,7 +152,7 @@ contains
        y   = sqrt( RI * conjg(ri) )  *  x
        num = 1.25 * y + 15.5
 
-       if      ( y<1.0_r2 ) then
+       if ( y<1.0_r2 ) then
           num = 7.5 * y + 9.0
        else if ( (y>100.0_r2) .and. (y<50000.0_r2) ) then
           num = 1.0625 * y + 28.5
@@ -165,7 +165,8 @@ contains
           print *, "<!> Error in subroutine shexqnn2:"
           print *, "    - Maximum number of terms  : ", nterms
           print *, "    - Number of terms required : ", num
-          print *, "    ** Solution: Increase default value of the variable 'nterm' **"
+          print *, "    ** Solution: Increase default value of the variable 'nterm' **", ier
+          return
        else
           ! logarithmic derivative to Bessel function (complex argument)
           call aa2(ax,ri,num,ru)
@@ -375,7 +376,7 @@ contains
        end if
     end if
     !deallocate( ru, mu, fpi, fpi0, fpi1, ftau )
-    ier=0
+    !ier=0
     return
   end subroutine shexqnn2
 end module mie_routines

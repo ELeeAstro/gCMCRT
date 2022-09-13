@@ -147,7 +147,7 @@ contains
 
       !$omp single
       ! Output CMCRT formatted CK table for layers
-      call output_CK_table()
+      call output_CK_table(l)
       !$omp end single
 
     end do
@@ -168,22 +168,23 @@ contains
 
   end subroutine calc_CK_table
 
-  subroutine output_CK_table()
+  subroutine output_CK_table(l)
     implicit none
 
-    integer :: z, g
+    integer, intent(in) :: l
+    integer :: z, g, reclen
 
     if (first_call .eqv. .True.) then
       ! Output k-table in 1D flattened 3D CMCRT format CK.cmcrt (single precision)
+      inquire(iolength=reclen) CK_write
       open(newunit=uCK, file='CK.cmcrt', action='readwrite', &
-      & form='unformatted', status='replace', access='stream')
-      write(uCK) nlay, nwl, nG
+              & form='unformatted', status='replace', access='direct',recl=reclen)
       first_call = .False.
     end if
 
     ! Convert to single precision on output, also care for underfloat
-    CK_write(:,:) = real(max(CK_out(:,:),1.0e-30_dp),kind=sp)
-    write(uCK) CK_write
+    CK_write = real(max(CK_out,1.0e-30_dp),kind=sp)
+    write(uCK,rec=l) CK_write
 
   end subroutine output_CK_table
 

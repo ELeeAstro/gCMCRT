@@ -29,6 +29,7 @@ cloud_tables_interp.o \
 cloud_tables_emt.o \
 cloud_tables_mie.o \
 cloud_tables_dist.o \
+cloud_tables_carma.o \
 cloud_tables_mod.o \
 CIA_tables_Hminus.o \
 CIA_tables_Heminus.o \

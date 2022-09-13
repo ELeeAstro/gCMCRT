@@ -216,8 +216,9 @@ contains
   subroutine read_clprf()
     implicit none
 
-    integer :: u, i, j, k, l
+    integer :: u, i, j, k, l, sdum
     real(kind=dp), allocatable, dimension(:) :: VMR_dum, a_dum, nd_dum
+    real(kind=dp), allocatable, dimension(:) :: VMR_dum2
 
 
     print*, ' ~~ Reading in '//trim(exp_name)//'.clprf file ~~ '
@@ -231,8 +232,8 @@ contains
     read(u,*) ndust
 
     allocate(ilay2(nlay), nd_cl_lay(nmode,nlay), a_cl_lay(nmode,nlay))
-    allocate(VMR_cl_lay(ndust,nlay), d_name(ndust))
-    allocate(VMR_dum(ndust),a_dum(nmode),nd_dum(nmode))
+    allocate(VMR_cl_lay(nmode,nlay), d_name(ndust))
+    allocate(VMR_dum(ndust),a_dum(nmode),nd_dum(nmode),VMR_dum2(nmode))
 
     do i = 1, ndust
       read(u,*) d_name(i)
@@ -240,12 +241,30 @@ contains
     end do
 
     read(u,*); read(u,*)
-    do i = 1, nlay
-      read(u,*) ilay2(i), (a_dum(j), j=1,nmode), (nd_dum(k), k=1,nmode) , (VMR_dum(l), l=1,ndust)
-      VMR_cl_lay(:,i) = VMR_dum(:)
-      a_cl_lay(:,i) = a_dum(:) 
-      nd_cl_lay(:,i) = nd_dum(:)
-    end do
+    if (nmode == 1) then
+      do i = 1, nlay
+        read(u,*) ilay2(i), (a_dum(j), j=1,nmode), (nd_dum(k), k=1,nmode) , (VMR_dum(l), l=1,ndust)
+        VMR_cl_lay(:,i) = VMR_dum(:)
+        a_cl_lay(:,i) = a_dum(:) 
+        nd_cl_lay(:,i) = nd_dum(:)
+      end do
+    else
+      allocate(nd_C_cl_lay(ndust,nmode,nlay))
+      allocate(a_C_cl_lay(ndust,nmode))
+      do i = 1, ndust
+         read(u,*) (a_dum(j), j=1,nmode)
+         a_C_cl_lay(i,:) = a_dum(:)
+         !print*, a_C_cl_lay(i,:)
+      end do
+      do i = 1, nlay
+        do j = 1, ndust
+          read(u,*) ilay2(i), sdum,  (nd_dum(k), k=1,nmode)
+          nd_C_cl_lay(j,:,i) = nd_dum(:)
+          !print*, nd_C_cl_lay(j,:,i)
+        end do
+      end do
+    end if
+
 
     close(u)
 

@@ -158,7 +158,7 @@ subroutine exp_3D_sph_atm_em()
   character (len=3) :: n_str
   integer, allocatable, dimension(:) :: uT
   integer, device :: Nph_pad_d
-  integer :: i, j, k, n, nn
+  integer :: i, j, k, n, nn, s_wl
   integer, device :: Nph_sum_d, l_d
   integer :: n_theta, n_phi, istat
   real(dp) :: viewthet
@@ -173,7 +173,7 @@ subroutine exp_3D_sph_atm_em()
   type(dim3) :: blocks, threads
 
 
-  namelist /sph_3D_em/ Nph_tot, n_wl, pl, pc, sc, n_theta, n_phi, viewthet, viewphi, n_lay, xi_emb, iscat
+  namelist /sph_3D_em/ Nph_tot, s_wl, n_wl, pl, pc, sc, n_theta, n_phi, viewthet, viewphi, n_lay, xi_emb, iscat
 
   allocate(uT(n_phase),viewphi(n_phase))
 
@@ -232,11 +232,11 @@ subroutine exp_3D_sph_atm_em()
     call flush(uT(n))
   end do
 
-  call read_next_opac(1)
+  call read_next_opac(s_wl)
 
   print*, 'starting loop'
 
-  do l = 1, n_wl
+  do l = s_wl, n_wl
 
     call set_grid_opac()
     call set_grid_em(l)
@@ -352,13 +352,13 @@ subroutine exp_3D_sph_atm_em()
 
       if (do_cf .eqv. .True.) then
         cf(:,:,:) = cf_d(:,:,:)
-        call output_cf(l)
+        call output_cf(n,l)
         cf_d(:,:,:) = 0.0_dp
       end if
 
       if (do_images .eqv. .True.) then
         f(:,:) = f_d(:,:) ; q(:,:) = q_d(:,:) ; u(:,:) = u_d(:,:) ; im_err(:,:) = im_err_d(:,:)
-        call output_im(l)
+        call output_im(n,l)
       end if
 
 

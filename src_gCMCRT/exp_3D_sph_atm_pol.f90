@@ -272,7 +272,7 @@ subroutine exp_3D_sph_atm_pol()
       q(:,:) = q_d(:,:)/real(Nph,dp)
       u(:,:) = u_d(:,:)/real(Nph,dp)
       im_err(:,:) = im_err_d(:,:)/real(Nph,dp)
-      call output_im(l)
+      call output_im(1,l)
     end if
 
     print*, l, wl(l), alb_out(l), im%qsum*pi, im%usum*pi

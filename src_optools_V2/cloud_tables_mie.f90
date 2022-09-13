@@ -42,7 +42,6 @@ contains
       x = 100000.0_dp
     end if
 
-
     select case(imie)
 
     case(1)
@@ -55,6 +54,10 @@ contains
         cl_out_k = rQext * xsec * nd
         cl_out_a = ralbedo
         cl_out_g = rg
+     
+      if ((ieee_is_nan(cl_out_k) .eqv. .True.) .or. (rier /= 0)) then
+        print*, 'cl: NaN in cl mie theory: ', imie, l, wl(l), rQext, xsec, nd, a, x, eps
+      end if
 
     case(2)
 
@@ -70,11 +73,6 @@ contains
     case default
 
     end select
-
-    if (ieee_is_nan(cl_out_k) .eqv. .True.) then
-      print*, 'cl: NaN in cl mie theory: ', imie, l, wl(l), rQext, xsec, nd, a, x
-    end if
-
 
   end subroutine cl_mie
 

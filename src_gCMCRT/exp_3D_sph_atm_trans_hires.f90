@@ -201,12 +201,12 @@ subroutine exp_3D_sph_atm_trans_hires()
   call set_iseed<<<blocks, threads>>>(Nph_d)
 
   call read_1D_prf()
-  call read_1D_wprf()
   call read_wl()
 
   call set_grid()
 
   if (doppler_on .eqv. .True.) then
+    call read_1D_wprf()
     call compute_vlos(viewphi(:))
   end if
 
@@ -239,7 +239,18 @@ subroutine exp_3D_sph_atm_trans_hires()
 
   do l = 1, n_wl
 
+    !if (l < 71177) then
+    !  if (doppler_on .eqv. .True.) then
+    !      call read_next_opac_doppler(l+1)
+    !    else
+    !      call read_next_opac(l+1)
+    !    end if
+    !    print*, l
+    !  cycle
+    !end if
+
     do n = 1, n_phase
+
 
       if (cmd_vphi .eqv. .False.) then
         im%vphi = viewphi(n)

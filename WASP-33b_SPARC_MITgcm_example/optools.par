@@ -6,7 +6,7 @@ SPARC-MITgcm
 !
 ! ---- Main Switches ---- !
 !
-.True.  ! Correlated-k
+.False.  ! Correlated-k
 .False.  ! `lbl' (single wavelength)
 .True.  ! CIA Continuum
 .True.  ! Rayleigh Scattering

@@ -1,5 +1,6 @@
 module CIA_tables_Hminus
   use optools_data_mod
+  use ieee_arithmetic
   implicit none
 
   ! John (1988) paramaters
@@ -41,12 +42,13 @@ contains
     ! Do bound free calculation
     if ((wl(l) > lam_0) .or. (wl(l) < lam_min)) then
       xbf = 0.0_dp
-      !kbf = 0.0_dp
+      kbf = 0.0_dp
     else
       fbf = 0.0_dp
       do n = 1, 6
         fbf = fbf + Cn_bf(n) * (1.0_dp/wl(l) - 1.0_dp/lam_0)**((real(n,kind=dp)-1.0_dp)/2.0_dp)
       end do
+      ! xbf is in [cm2 molecule-1] and kff is in [cm4 dyne-1] - convert to [cm-1] before CMCRT output
       xbf = 1.0e-18_dp * wl(l)**3 * (1.0_dp/wl(l) - 1.0_dp/lam_0)**(3.0_dp/2.0_dp) * fbf
       !kbf = 0.750_dp * T**(-5.0_dp/2.0_dp) * exp(alf/(lam_0*T)) * (1.0_dp - exp(-alf/(wl(l)*T))) * xbf
     end if
@@ -71,7 +73,8 @@ contains
       kff = 0.0_dp
     end if
 
-    ! xbf is in [cm2 molecule-1] and kff is in [cm4 dyne-1] - convert to [cm-1] before CMCRT output
+
+
     kbf = xbf * VMR_lay(CIA_tab(s)%iVMR_3(1),z) * N_lay(z) ! * H- [molecule cm-3]
     !kbf = kbf * (VMR_lay(CIA_tab(s)%iVMR_3(2),z) * N_lay(z) * VMR_lay(CIA_tab(s)%iVMR_3(3),z) * N_lay(z)) * kb * T ! * P(e-) [dyne cm-2] * H [cm-3]
     kff = kff * (VMR_lay(CIA_tab(s)%iVMR_3(2),z) * N_lay(z) * VMR_lay(CIA_tab(s)%iVMR_3(3),z) * N_lay(z)) * kb * T ! * P(e-) [dyne cm-2] * H [cm-3]

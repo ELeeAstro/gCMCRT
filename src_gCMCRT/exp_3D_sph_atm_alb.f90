@@ -248,7 +248,7 @@ subroutine exp_3D_sph_atm_albedo()
 
     if (do_images .eqv. .True.) then
       f(:,:) = f_d(:,:) ; q(:,:) = q_d(:,:) ; u(:,:) = u_d(:,:) ; im_err(:,:) = im_err_d(:,:)
-      call output_im(l)
+      call output_im(1,l)
     end if
 
     print*, l, wl(l), alb_out(l)

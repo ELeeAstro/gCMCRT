@@ -360,7 +360,7 @@ subroutine exp_3D_sph_atm_em_hires()
       !! This need changed for multi phases
       if (do_cf .eqv. .True.) then
         cf(:,:,:) = cf_d(:,:,:)
-        call output_cf(l)
+        call output_cf(n,l)
         cf_d(:,:,:) = 0.0_dp
       end if
 

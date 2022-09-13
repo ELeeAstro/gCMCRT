@@ -1,16 +1,21 @@
 # gCMCRT - 3D Monte Carlo Radiative Transfer for exoplanet atmospheres with GPUs
 
+WARNING - this code is not a black box and requires some getting used to, that said it typically takes a student a few hours of tinkering to get a first spectra. Once the model works the first time, further tinkering with options/physics etc becomes more simple.
+The best way to learn the code is to use it! And feel free to contact Elsie or other experianced users if stuck or confused.
+
 More extensive documentation is in the making, for now here are some bare bones instructions.
 
 Two example models are provided:
 
-1. 1D 1500K benchmark case from Baundino et al. (2017).
-2. A WASP-33b SPARC/MITgcm GCM model output example.
+1. A WASP-33b SPARC/MITgcm GCM model transmission and emission example - which includes chemical abundances
+2. A WASP-39b Exo-FMS GCM model transmission example - uses chemical equilibirum abundance table interpolation
+3. A WASP-39b 1D VULCAN + CARMA output example - uses VULCAN
 
 ## k-tables and CE data
 
 k-tables and chemical equilibirum interpolation tables can be found here:
 https://drive.google.com/drive/folders/1HVa9xWK_GqOqknIErcXVszzhhztACExw?usp=sharing
+
 
 ## To compile
 

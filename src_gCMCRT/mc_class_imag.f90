@@ -22,12 +22,13 @@ module mc_class_imag
   real(dp), allocatable, dimension(:,:) :: f, q, u, im_err
   real(dp), allocatable, dimension(:,:), device :: f_d, q_d, u_d, im_err_d
 
-
+  integer, allocatable, dimension(:) :: f_im, q_im, u_im
 
 contains
 
   subroutine set_image()
     implicit none
+    logical, save :: first_call = .True.
 
     !print*, "setting image"
 
@@ -43,21 +44,20 @@ contains
     im%obsz = im%costo
 
 
-    if (do_images .eqv. .True.) then
+    if (do_images .eqv. .True. .and. first_call .eqv. .True.) then
       im%x_pix = xpix
       im%y_pix = ypix
       im%rimage = rimage
       ! Calculate in CPU
       allocate(f(im%x_pix,im%y_pix),q(im%x_pix,im%y_pix),u(im%x_pix,im%y_pix))
       allocate(im_err(im%x_pix,im%y_pix))
-      f(:,:) = 0.0_dp ; q(:,:) = 0.0_dp ; u(:,:) = 0.0_dp ; im_err(:,:) = 0.0_dp
-      im%fsum = sum(f(:,:)) ; im%qsum = sum(q(:,:)) ;  im%usum = sum(u(:,:))
 
       !! Give to the GPU
       do_images_d = do_images
       allocate(f_d(im%x_pix,im%y_pix),q_d(im%x_pix,im%y_pix),u_d(im%x_pix,im%y_pix))
       allocate(im_err_d(im%x_pix,im%y_pix))
-      f_d(:,:) = f(:,:) ; q_d(:,:) = q(:,:) ; u_d(:,:) = u(:,:) ; im_err_d(:,:) = im_err(:,:)
+
+      first_call = .False.
     end if
 
     !print*, ' - Complete - '
@@ -65,23 +65,32 @@ contains
 
   end subroutine set_image
 
-  subroutine output_im(l)
+  subroutine output_im(n,l)
     implicit none
 
-    integer, intent(in) :: l
+    integer, intent(in) :: l, n
     logical, save :: first_call = .True.
-    integer, save :: f_im, q_im, u_im
+    integer :: nn
+    character (len=8) :: fmt
+    character (len=3) :: n_str
 
     if (first_call .eqv. .True.) then
-      open(newunit=f_im, file='f_im.txt', action='readwrite',form='unformatted')
-      open(newunit=q_im, file='q_im.txt', action='readwrite',form='unformatted')
-      open(newunit=u_im, file='u_im.txt', action='readwrite',form='unformatted')
+      allocate(f_im(n_phase))
+      allocate(q_im(n_phase))
+      allocate(u_im(n_phase))
+      fmt = '(I3.3)'
+      do nn = 1, n_phase
+        write(n_str,fmt) nn 
+        open(newunit=f_im(nn), file='f_im_'//trim(n_str)//'.txt', action='readwrite',form='unformatted')
+      end do
+      !open(newunit=q_im, file='q_im.txt', action='readwrite',form='unformatted')
+      !open(newunit=u_im, file='u_im.txt', action='readwrite',form='unformatted')
       first_call = .False.
     end if
 
-    write(f_im) real(f(:,:))
-    write(q_im) real(q(:,:))
-    write(u_im) real(u(:,:))
+    write(f_im(n)) real(f(:,:))
+    !write(q_im) real(q(:,:))
+    !write(u_im) real(u(:,:))
 
     !flush(f_im)
     !flush(q_im)

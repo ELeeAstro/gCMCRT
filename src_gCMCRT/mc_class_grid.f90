@@ -92,6 +92,8 @@ module mc_class_grid
   real(dp), allocatable, dimension(:,:), device  :: surf_ssa_d
 
 
+  integer, allocatable, dimension(:) :: u_cf
+
 contains
 
   subroutine set_grid()
@@ -217,7 +219,6 @@ contains
       allocate(cf_d(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
       cf(:,:,:) = 0.0_dp
       cf_d(:,:,:) = cf(:,:,:)
-      call output_cf(1)
     end if
 
     print*, ' - Complete - '
@@ -225,21 +226,27 @@ contains
   end subroutine set_grid
 
 
-  subroutine output_cf(l)
+  subroutine output_cf(n,l)
     implicit none
 
-    integer, intent(in) :: l
+    integer, intent(in) :: n,l
     logical, save :: first_call = .True.
-    integer, save :: u_cf
+    integer :: nn
+    character (len=8) :: fmt
+    character (len=3) :: n_str
 
     if (first_call .eqv. .True.) then
-      open(newunit=u_cf, file='cf.out', action='readwrite',form='unformatted')
+      allocate(u_cf(n_phase))
+      fmt = '(I3.3)'      
+      do nn = 1, n_phase
+        write(n_str,fmt) nn
+        open(newunit=u_cf(nn), file='cf_'//trim(n_str)//'.txt', action='readwrite',form='unformatted')
+      end do
 
       first_call = .False.
-      return
     end if
 
-    write(u_cf) real(cf(:,:,:))
+    write(u_cf(n)) real(cf(:,:,:))
 
   end subroutine output_cf
 

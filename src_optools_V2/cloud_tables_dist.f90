@@ -23,10 +23,18 @@ contains
 
     select case(idist)
     case(0)
-
+ 
       ! Entire distribution is given via nmode parameter (Experimental!)
       do m = 1, nmode
-        call cl_mie(l,nd_cl_lay(m,z),a_cl_lay(m,z),eps_comb,cl_out_k,cl_out_a,cl_out_g)
+        if (nd_cl_lay(m,z) < 1e-20) then
+           ifunc_k(m) = 1.0e-99_dp
+           ifunc_a(m) = 0.0_dp
+           ifunc_g(m) = 0.0_dp
+        else
+          nd_dist(m) = nd_cl_lay(m,z)/a_dist(m)
+          nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
+          call cl_mie(l,nd_dist(m),a_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
+        end if
       end do
     case(1)
 

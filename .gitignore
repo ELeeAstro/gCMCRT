@@ -31,8 +31,6 @@
 *.out
 *.app
 
-# Folders
-#data/k_tables/*
-#data/CIA_tables/*
-#data/CE_interp/*
+# Cia data
+*.cia
 

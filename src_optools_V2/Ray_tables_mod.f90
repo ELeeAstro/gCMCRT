@@ -118,7 +118,7 @@ contains
 
       !$omp single
       ! Output CMCRT formatted Rayleigh scattering table for layers
-      call output_Ray_table()
+      call output_Ray_table(l)
       !$omp end single
 
     end do
@@ -464,23 +464,24 @@ contains
   end subroutine Ray_xsec_calc_H2O
 
 
-  subroutine output_Ray_table()
+  subroutine output_Ray_table(l)
     implicit none
 
-    integer :: z
+    integer, intent(in) :: l
+    integer :: z, reclen
 
     if (first_call .eqv. .True.) then
+      inquire(iolength=reclen) Ray_write
       !print*, 'Outputing Rayleigh.cmcrt'
       ! Output k-table in 1D or flattened 3D CMCRT format k_CMCRT.ktb (single precision)
       open(newunit=uRay, file='Rayleigh.cmcrt', action='readwrite',&
-        & form='unformatted',status='replace', access='stream')
-      write(uRay) nlay, nwl
+        & form='unformatted',status='replace', access='direct',recl=reclen)
       first_call = .False.
     end if
 
     ! Convert to single precision on output, also care for underfloat
     Ray_write(:) = real(max(Ray_out(:),1.0e-30_dp),kind=sp)
-    write(uRay) Ray_write
+    write(uRay,rec=l) Ray_write
 
   end subroutine output_Ray_table
 

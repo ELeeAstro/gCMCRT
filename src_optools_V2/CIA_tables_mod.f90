@@ -215,6 +215,30 @@ contains
         CIA_tab(s)%nT(3) = 3
         !CIA_tab(s)%nT(4) = 1
 
+      case('CO2-He','He-CO2')
+        CIA_tab(s)%sp_con(1) = 'CO2'
+        CIA_tab(s)%sp_con(2) = 'He'
+
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 1
+
+      case('CO2-H2','H2-CO2')
+        CIA_tab(s)%sp_con(1) = 'CO2'
+        CIA_tab(s)%sp_con(2) = 'H2'
+
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 4
+
+      case('CO2-Ar','Ar-CO2')
+        CIA_tab(s)%sp_con(1) = 'CO2'
+        CIA_tab(s)%sp_con(2) = 'Ar'
+
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 21
+
       case('N2-H2O','H2O-N2')
         CIA_tab(s)%sp_con(1) = 'N2'
         CIA_tab(s)%sp_con(2) = 'H2O'
@@ -223,6 +247,22 @@ contains
         allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
         CIA_tab(s)%nT(1) = 21
 
+      case('N2-H2','H2-N2')
+        CIA_tab(s)%sp_con(1) = 'N2'
+        CIA_tab(s)%sp_con(2) = 'H2'
+
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 10
+
+      case('N2-He','He-N2')
+        CIA_tab(s)%sp_con(1) = 'N2'
+        CIA_tab(s)%sp_con(2) = 'He'
+
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 1
+   
       case('N2-N2')
         CIA_tab(s)%sp_con(1) = 'N2'
         CIA_tab(s)%sp_con(2) = 'N2'
@@ -235,6 +275,14 @@ contains
         CIA_tab(s)%nT(4) = 5
         CIA_tab(s)%nT(5) = 5
         CIA_tab(s)%nT(6) = 14
+
+      case('N2-CH4','CH4-N2')
+        CIA_tab(s)%sp_con(1) = 'N2'
+        CIA_tab(s)%sp_con(2) = 'CH4'
+
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 10
 
       case('H2O-H2O')
         CIA_tab(s)%sp_con(1) = 'H2O'
@@ -252,6 +300,14 @@ contains
         allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
         CIA_tab(s)%nT(1) = 7
 
+      case('CH4-He','He-CH4')
+        CIA_tab(s)%sp_con(1) = 'CH4'
+        CIA_tab(s)%sp_con(2) = 'He'
+
+        CIA_tab(s)%nset = 1
+        allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
+        CIA_tab(s)%nT(1) = 10
+
       case('H2-CH4','CH4-H2')
         CIA_tab(s)%sp_con(1) = 'H2'
         CIA_tab(s)%sp_con(2) = 'CH4'
@@ -260,13 +316,13 @@ contains
         allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
         CIA_tab(s)%nT(1) = 10
 
-      case('CH4-He','He-CH4')
+      case('CH4-Ar','Ar-CH4')
         CIA_tab(s)%sp_con(1) = 'He'
-        CIA_tab(s)%sp_con(2) = 'CH4'
+        CIA_tab(s)%sp_con(2) = 'Ar'
 
         CIA_tab(s)%nset = 1
         allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
-        CIA_tab(s)%nT(1) = 10
+        CIA_tab(s)%nT(1) = 5
 
       case('O2-CO2','CO2-O2')
         CIA_tab(s)%sp_con(1) = 'O2'
@@ -321,20 +377,20 @@ contains
     implicit none
 
     integer, intent(in) :: l
-    integer :: z
+    integer :: z,  reclen
 
     if (first_call .eqv. .True.) then
       !print*, 'Outputing CIA.cmcrt'
+      inquire(iolength=reclen) CIA_write
       ! Output k-table in 1D or flattened 3D CMCRT format k_CMCRT.ktb (single precision)
       open(newunit=uCIA, file='CIA.cmcrt', action='readwrite', &
-      & form='unformatted',status='replace',access='stream')
-      write(uCIA) nlay, nwl
+      & form='unformatted',status='replace',access='direct',recl=reclen)
       first_call = .False.
     end if
 
     ! Convert to single precision on output, also care for underfloat
     CIA_write(:) = real(max(CIA_out(:),1.0e-30_dp),kind=sp)
-    write(uCIA) CIA_write
+    write(uCIA,rec=l) CIA_write
 
   end subroutine output_CIA_table
 

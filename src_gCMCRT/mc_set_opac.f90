@@ -11,7 +11,7 @@ module mc_opacset
 
   integer :: u_k, u_conti, u_Ray, u_cld_k, u_cld_a, u_cld_g
   integer :: id_u_k, id_u_conti, id_u_Ray, id_u_cld_k, id_u_cld_a, id_u_cld_g
-  integer, parameter :: dop_pad = 30
+  integer :: dop_pad
 
   !! Grid opacities
   real(dp), dimension(:,:,:,:), allocatable :: k_gas_abs, k_tot_abs
@@ -92,6 +92,7 @@ contains
 
     integer, intent(in) :: l
     integer :: NX_dum, n_bins_dum, ng_dum, z, g, j, k, n
+    integer :: reclen
     real(sp) :: Ray_dum, k_lbl_dum, conti_dum
 
     if (l == n_wl+1) then
@@ -101,114 +102,88 @@ contains
     if (first_call .eqv. .True.) then
 
       if (ck .eqv. .True.) then
-        ! Read k-table in 1D or 3D CMCRT format (single precision)
-        open(newunit=u_k, file='CK.cmcrt', status='old', action='read',&
-         & form='unformatted', asynchronous='yes', access='stream')
-
-        read(u_k) NX_dum, n_bins_dum, ng_dum
-
-        print*, 'unit _k :', u_k
-        print*, 'n_bins _k :', n_bins_dum
-        print*, 'ng _k :', ng_dum
-
-
-        print*, '- Complete -'
 
         ! Allocate dummy variable for reading in k-table
-        allocate(k_dum(ng_dum))
-        allocate(ck_dum_arr(ng_dum,grid%n_cell))
+        allocate(k_dum(ng))
+        allocate(ck_dum_arr(ng,grid%n_cell))
+        inquire(iolength=reclen) ck_dum_arr
 
+        ! Read k-table in 1D or 3D CMCRT format (single precision)
+        open(newunit=u_k, file='CK.cmcrt', status='old', action='read',&
+         & form='unformatted', asynchronous='yes', access='direct',recl=reclen)
 
-      else if (lbl .eqv. .True.) then
-        ! Read lbl table in 1D or 3D CMCRT format (single precision)
-        open(newunit=u_k, file='lbl.cmcrt', status='old', action='read',&
-        & form='unformatted', asynchronous='yes',access='stream')
-
-        read(u_k) NX_dum, n_bins_dum
-
-        print*, 'unit _lbl :', u_k
-        print*, 'n_bins _lbl :', n_bins_dum
-        ng_dum = 1
-
+        print*, 'unit _k :', u_k
         print*, '- Complete -'
 
-        allocate(lbl_dum_arr(grid%n_cell))
+      else if (lbl .eqv. .True.) then
 
+        allocate(lbl_dum_arr(grid%n_cell))
+        inquire(iolength=reclen) lbl_dum_arr
+
+        ! Read lbl table in 1D or 3D CMCRT format (single precision)
+        open(newunit=u_k, file='lbl.cmcrt', status='old', action='read',&
+        & form='unformatted', asynchronous='yes',access='direct',recl=reclen)
+
+        print*, 'unit _lbl :', u_k
+        print*, '- Complete -'
 
       end if
 
       if (inc_CIA .eqv. .True.) then
 
-        open(newunit=u_conti, file='CIA.cmcrt', status='old', action='read', &
-          & form='unformatted', asynchronous='yes', access='stream')
+        allocate(conti_dum_arr(grid%n_cell))
+        inquire(iolength=reclen) conti_dum_arr
 
-        read(u_conti) NX_dum, n_bins_dum
+        open(newunit=u_conti, file='CIA.cmcrt', status='old', action='read', &
+          & form='unformatted', asynchronous='yes', access='direct',recl=reclen)
 
         print*, 'unit _conti :', u_conti
-        print*, 'n_bins _conti :', n_bins_dum
-
-
         print*, '- Complete -'
-
-        allocate(conti_dum_arr(grid%n_cell))
 
       end if
 
       if (inc_Ray .eqv. .True.) then
 
-        open(newunit=u_Ray, file='Rayleigh.cmcrt', status='old', action='read', &
-         & form='unformatted', asynchronous='yes', access='stream')
+        allocate(Ray_dum_arr(grid%n_cell))
+        inquire(iolength=reclen) Ray_dum_arr
 
-        read(u_Ray) NX_dum, n_bins_dum
+        open(newunit=u_Ray, file='Rayleigh.cmcrt', status='old', action='read', &
+         & form='unformatted', asynchronous='yes', access='direct',recl=reclen)
 
         print*, 'unit _Ray :', u_Ray
-        print*, 'n_bins _Ray :', n_bins_dum
-
-
         print*, '- Complete -'
-
-        allocate(Ray_dum_arr(grid%n_cell))
 
       end if
 
       if (inc_cld .eqv. .True.) then
 
-        open(newunit=u_cld_k, file='cl_k.cmcrt', status='old', action='read', &
-          & form='unformatted', asynchronous='yes', access='stream')
-
-        read(u_cld_k) NX_dum, n_bins_dum
-
-        print*, 'unit _cld_k :', u_cld_k
-        print*, 'n_bins _cld_k :', n_bins_dum
-
-        open(newunit=u_cld_a, file='cl_a.cmcrt', status='old', action='read', &
-          & form='unformatted', asynchronous='yes', access='stream')
-
-        read(u_cld_a) NX_dum, n_bins_dum
-
-        print*, 'unit _cld_a :', u_cld_a
-        print*, 'n_bins _cld_a :', n_bins_dum
-
-        open(newunit=u_cld_g, file='cl_g.cmcrt', status='old', action='read', &
-          & form='unformatted', asynchronous='yes', access='stream')
-
-        read(u_cld_g) NX_dum, n_bins_dum
-
-        print*, 'unit _cld_g :', u_cld_g
-        print*, 'n_bins _cld_g :', n_bins_dum
-
-
-        print*, '- Complete -'
-
         allocate(cld_k_dum_arr(grid%n_cell))
         allocate(cld_g_dum_arr(grid%n_cell))
         allocate(cld_a_dum_arr(grid%n_cell))
+        inquire(iolength=reclen) cld_k_dum_arr
+
+        open(newunit=u_cld_k, file='cl_k.cmcrt', status='old', action='read', &
+          & form='unformatted', asynchronous='yes', access='direct',recl=reclen)
+
+        print*, 'unit _cld_k :', u_cld_k
+
+        open(newunit=u_cld_a, file='cl_a.cmcrt', status='old', action='read', &
+          & form='unformatted', asynchronous='yes', access='direct',recl=reclen)
+
+        print*, 'unit _cld_a :', u_cld_a
+
+        open(newunit=u_cld_g, file='cl_g.cmcrt', status='old', action='read', &
+          & form='unformatted', asynchronous='yes', access='direct',recl=reclen)
+
+        print*, 'unit _cld_g :', u_cld_g
+        print*, '- Complete -'
 
       end if
 
-
-      ng = ng_dum
-      ng_d = ng
+      if (inc_lbl .eqv. .True.) then
+        ng = 1
+        ng_d = ng
+      end if
 
       allocate(k_gas_abs(ng,grid%n_lay,grid%n_phi-1,grid%n_theta-1))
       allocate(k_gas_Ray(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
@@ -230,7 +205,6 @@ contains
       allocate(gg(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
       allocate(g_d(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
 
-
       first_call = .False.
 
 
@@ -246,20 +220,20 @@ contains
     if (oneD .eqv. .True.) then
 
       if (inc_ck .eqv. .True.) then
-        read(u_k) ck_dum_arr
+        read(u_k,rec=l) ck_dum_arr
       else if (lbl .eqv. .True.) then
-        read(u_k) lbl_dum_arr
+        read(u_k,rec=l) lbl_dum_arr
       end if
       if (inc_cld .eqv. .True.) then
-        read(u_cld_k) cld_k_dum_arr
-        read(u_cld_a) cld_a_dum_arr
-        read(u_cld_g) cld_g_dum_arr
+        read(u_cld_k,rec=l) cld_k_dum_arr
+        read(u_cld_a,rec=l) cld_a_dum_arr
+        read(u_cld_g,rec=l) cld_g_dum_arr
       end if
       if (inc_CIA .eqv. .True.) then
-        read(u_conti) conti_dum_arr
+        read(u_conti,rec=l) conti_dum_arr
       end if
       if (inc_Ray .eqv. .True.) then
-       read(u_Ray) Ray_dum_arr
+       read(u_Ray,rec=l) Ray_dum_arr
       end if
 
       if (inc_ck .eqv. .True.) then
@@ -305,20 +279,20 @@ contains
    else if (threeD .eqv. .True.) then
 
      if (inc_ck .eqv. .True.) then
-       read(u_k) ck_dum_arr
+       read(u_k,rec=l) ck_dum_arr
      else if (lbl .eqv. .True.) then
-       read(u_k) lbl_dum_arr
+       read(u_k,rec=l) lbl_dum_arr
      end if
      if (inc_cld .eqv. .True.) then
-       read(u_cld_k) cld_k_dum_arr
-       read(u_cld_a) cld_a_dum_arr
-       read(u_cld_g) cld_g_dum_arr
+       read(u_cld_k,rec=l) cld_k_dum_arr
+       read(u_cld_a,rec=l) cld_a_dum_arr
+       read(u_cld_g,rec=l) cld_g_dum_arr
      end if
      if (inc_CIA .eqv. .True.) then
-       read(u_conti) conti_dum_arr
+       read(u_conti,rec=l) conti_dum_arr
      end if
      if (inc_Ray .eqv. .True.) then
-       read(u_Ray) Ray_dum_arr
+       read(u_Ray,rec=l) Ray_dum_arr
      end if
 
       !print*, 'ck reading 1 : ', ck_dum_arr(:,1)!, ck_dum_arr(ng,1)
@@ -418,6 +392,8 @@ contains
     integer, intent(in) :: ll
     integer :: NX_dum, n_bins_dum, ng_dum, z, g, j, k, n, l
     real(sp) :: Ray_dum, k_lbl_dum, conti_dum
+    integer :: pad_idx1, pad_idx2, reclen
+    real(dp) :: wl_test1, wl_test2
 
     if (ll == n_wl+1) then
       return
@@ -426,53 +402,47 @@ contains
 
     if (first_call .eqv. .True.) then
 
-        ! Read lbl table in 1D or 3D CMCRT format (single precision)
-        open(newunit=u_k, file='lbl.cmcrt', status='old', action='read', &
-          & form='unformatted', asynchronous='yes', access='stream')
+      allocate(lbl_dum_arr(grid%n_cell))
+      inquire(iolength=reclen) lbl_dum_arr
 
-        read(u_k) NX_dum, n_bins_dum
+      ! Read lbl table in 1D or 3D CMCRT format (single precision)
+      open(newunit=u_k, file='lbl.cmcrt', status='old', action='read', &
+        & form='unformatted', asynchronous='yes', access='direct',recl=reclen)
 
-        print*, 'unit _lbl :', u_k
-        print*, 'n_bins _lbl :', n_bins_dum
-        ng_dum = 1
-
-        print*, '- Complete -'
-
-        allocate(lbl_dum_arr(grid%n_cell))
-
-      open(newunit=u_conti, file='CIA.cmcrt', status='old', action='read', &
-        & form='unformatted', asynchronous='yes', access='stream')
-
-      read(u_conti) NX_dum, n_bins_dum
-
-      print*, 'unit _conti :', u_conti
-      print*, 'n_bins _conti :', n_bins_dum
-
-
+      print*, 'unit _lbl :', u_k
       print*, '- Complete -'
 
       allocate(conti_dum_arr(grid%n_cell))
+      inquire(iolength=reclen) conti_dum_arr
+
+      open(newunit=u_conti, file='CIA.cmcrt', status='old', action='read', &
+        & form='unformatted', asynchronous='yes', access='direct',recl=reclen)
+
+      print*, 'unit _conti :', u_conti
+      print*, '- Complete -'
 
       if (inc_Ray .eqv. .True.) then
 
+        allocate(Ray_dum_arr(grid%n_cell))
+        inquire(iolength=reclen) Ray_dum_arr
+
         open(newunit=u_Ray, file='Rayleigh.cmcrt', status='old', action='read', &
-          & form='unformatted', asynchronous='yes', access='stream')
-        read(u_Ray) NX_dum, n_bins_dum
+          & form='unformatted', asynchronous='yes', access='direct',recl=reclen)
 
         print*, 'unit _Ray :', u_Ray
-        print*, 'n_bins _Ray :', n_bins_dum
-
-
         print*, '- Complete -'
-
-        allocate(Ray_dum_arr(grid%n_cell))
 
       end if
 
-      ng = ng_dum
+      ng = 1
       ng_d = ng
 
       if (allocated(k_gas_abs) .eqv. .False.) then
+        wl_test1 = wl(1) * (1.0_dp - minval(v_los(:,:,:,:))/c_s)
+        wl_test2 = wl(n_wl) * (1.0_dp - maxval(v_los(:,:,:,:))/c_s)
+        call locate_host(wl,wl_test1,pad_idx1)
+        call locate_host(wl,wl_test2,pad_idx2)
+        dop_pad = (max(pad_idx1, n_wl-pad_idx2) + 1) * 2 ! Ensure dop_pad is an even number
         !! Allocate doppler padded arrays
         allocate(wl_pad(dop_pad))
         allocate(k_gas_abs_dop(dop_pad,grid%n_lay,grid%n_phi-1,grid%n_theta-1))
@@ -520,23 +490,23 @@ contains
         if (oneD .eqv. .True.) then
 
           do z = 1, grid%n_lay
-            read(u_k) k_lbl_dum
+            read(u_k,rec=ll+(l-1)) k_lbl_dum
             k_gas_abs_dop(l,z,:,:) = k_gas_abs_dop(l,z,:,:) + real(k_lbl_dum,dp)
           end do
 
            do z = 1, grid%n_lay
-              read(u_conti) conti_dum
+              read(u_conti,rec=ll+(l-1)) conti_dum
               k_gas_abs_dop(l,z,:,:) = k_gas_abs_dop(l,z,:,:) + real(conti_dum,dp)
            end do
 
            do z = 1, grid%n_lay
-              read(u_Ray) Ray_dum
+              read(u_Ray,rec=ll+(l-1)) Ray_dum
               k_gas_Ray_dop(l,z,:,:) = k_gas_Ray_dop(l,z,:,:) + real(Ray_dum,dp)
            end do
 
            else if (threeD .eqv. .True.) then
 
-             read(u_k) lbl_dum_arr(:)
+             read(u_k,rec=ll+(l-1)) lbl_dum_arr(:)
              n = 1
              do k = 1, grid%n_theta-1
                do j = 1, grid%n_phi-1
@@ -548,7 +518,7 @@ contains
              end do
 
 
-           read(u_conti) conti_dum_arr(:)
+           read(u_conti,rec=ll+(l-1)) conti_dum_arr(:)
            n = 1
            do k = 1, grid%n_theta-1
              do j = 1, grid%n_phi-1
@@ -560,7 +530,7 @@ contains
            end do
 
            if (inc_Ray .eqv. .True.) then
-             read(u_Ray) Ray_dum_arr(:)
+             read(u_Ray,rec=ll+(l-1)) Ray_dum_arr(:)
              n = 1
              do k = 1, grid%n_theta-1
                do j = 1, grid%n_phi-1
@@ -595,44 +565,48 @@ contains
        !k_gas_Ray_dop(l,:,:,:) = k_gas_Ray_dop(l+1,:,:,:)
      !end do
 
-     wl_pad(1:dop_pad-1) = wl_pad(2:dop_pad)
-     wl_pad(dop_pad) = wl(ll + dop_pad/2) ! wl(ll + dop_pad/2 + 1) ! New end wavelength is + dop_pad/2 +1 indexes ahead
 
-     k_gas_abs_dop(1:dop_pad-1,:,:,:) = k_gas_abs_dop(2:dop_pad,:,:,:)
-     k_gas_abs_dop(dop_pad,:,:,:) = 0.0_dp
+     wl_pad(:) = eoshift(wl_pad(:), shift = 1, boundary = wl(ll + dop_pad/2), dim = 1)
+     !wl_pad(1:dop_pad-1) = wl_pad(2:dop_pad)
+     !wl_pad(dop_pad) = wl(ll + dop_pad/2) ! wl(ll + dop_pad/2 + 1) ! New end wavelength is + dop_pad/2 +1 indexes ahead
+
+     k_gas_abs_dop(:,:,:,:) = eoshift(k_gas_abs_dop(:,:,:,:), shift = 1, boundary = 0.0_dp, dim = 1)
+     !k_gas_abs_dop(1:dop_pad-1,:,:,:) = k_gas_abs_dop(2:dop_pad,:,:,:)
+     !k_gas_abs_dop(dop_pad,:,:,:) = 0.0_dp
 
      if (inc_Ray .eqv. .True.) then
-       k_gas_Ray_dop(1:dop_pad-1,:,:,:) = k_gas_Ray_dop(2:dop_pad,:,:,:)
-       k_gas_Ray_dop(dop_pad,:,:,:) = 0.0_dp
+       k_gas_Ray_dop(:,:,:,:) = eoshift(k_gas_Ray_dop(:,:,:,:), shift = 1, boundary = 0.0_dp, dim = 1)
+       !k_gas_Ray_dop(1:dop_pad-1,:,:,:) = k_gas_Ray_dop(2:dop_pad,:,:,:)
+       !k_gas_Ray_dop(dop_pad,:,:,:) = 0.0_dp
      end if
 
-      if (oneD .eqv. .True.) then
-
-          do z = 1, grid%n_lay
-              read(u_k) k_lbl_dum
-              k_gas_abs_dop(dop_pad,:,:,:) = k_gas_abs_dop(dop_pad,:,:,:) + real(k_lbl_dum,dp)
-          end do
+     if (oneD .eqv. .True.) then
 
        do z = 1, grid%n_lay
-          read(u_conti) conti_dum
-          k_gas_abs_dop(dop_pad,:,:,:) = k_gas_abs_dop(dop_pad,:,:,:) + real(conti_dum,dp)
+         read(u_k,rec=ll+dop_pad/2) k_lbl_dum
+         k_gas_abs_dop(dop_pad,:,:,:) = k_gas_abs_dop(dop_pad,:,:,:) + real(k_lbl_dum,dp)
        end do
 
        do z = 1, grid%n_lay
-          read(u_Ray) Ray_dum
-          k_gas_Ray_dop(dop_pad,:,:,:) = k_gas_Ray_dop(dop_pad,:,:,:) + real(Ray_dum,dp)
+         read(u_conti,rec=ll+dop_pad/2) conti_dum
+         k_gas_abs_dop(dop_pad,:,:,:) = k_gas_abs_dop(dop_pad,:,:,:) + real(conti_dum,dp)
+       end do
+
+       do z = 1, grid%n_lay
+         read(u_Ray,rec=ll+dop_pad/2) Ray_dum
+         k_gas_Ray_dop(dop_pad,:,:,:) = k_gas_Ray_dop(dop_pad,:,:,:) + real(Ray_dum,dp)
        end do
 
      else if (threeD .eqv. .True.) then
 
        if (lbl .eqv. .True.) then
-         read(u_k) lbl_dum_arr
+         read(u_k,rec=ll+dop_pad/2) lbl_dum_arr
        end if
        if (inc_CIA .eqv. .True.) then
-         read(u_conti) conti_dum_arr
+         read(u_conti,rec=ll+dop_pad/2) conti_dum_arr
        end if
        if (inc_Ray .eqv. .True.) then
-         read(u_Ray) Ray_dum_arr
+         read(u_Ray,rec=ll+dop_pad/2) Ray_dum_arr
        end if
 
      if (lbl .eqv. .True.) then
@@ -690,7 +664,9 @@ contains
     integer :: k, j, z
     integer :: wl_idx, wl_idx1
     real(dp) :: y1, y2, yval, wl_eff
+    logical :: outr
 
+    outr = .False.
 
      !! Now find the shifted opacity by interpolating from the dop array block
      do k = 1, grid%n_theta-1
@@ -705,12 +681,18 @@ contains
            !! Do some error checking
            if (wl_idx == 0) then
              ! blue shift is out of wavelength bounds, use rest frame opacity
-             !print*, 'blueshift out of range: ', z, j, k, wl_eff, wl_pad(1)
+             if (outr .eqv. .False.) then 
+               print*, 'blueshift out of range: ', z, j, k, wl_eff, wl_pad(1),ll,dop_pad 
+               outr = .True.
+             end if
              k_gas_abs(1,z,j,k) = k_gas_abs_dop(1,z,j,k)
              k_gas_Ray(z,j,k) = k_gas_Ray_dop(1,z,j,k)
              cycle
            else if (wl_idx == dop_pad) then
-             !print*, 'redshift out of range: ', z, j, k, wl_eff, wl_pad(dop_pad)
+             if (outr .eqv. .False.) then
+               print*, 'redshift out of range: ', z, j, k, wl_eff, wl_pad(dop_pad),ll,dop_pad
+               outr = .True.
+             end if
              k_gas_abs(1,z,j,k) = k_gas_abs_dop(dop_pad,z,j,k)
              k_gas_Ray(z,j,k) = k_gas_Ray_dop(dop_pad,z,j,k)
              cycle

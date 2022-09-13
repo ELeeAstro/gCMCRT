@@ -114,7 +114,7 @@ contains
 
       !$omp single
       ! Output CMCRT formatted lbl table for layers
-      call output_lbl_table()
+      call output_lbl_table(l)
       !$omp end single
 
     end do
@@ -134,22 +134,23 @@ contains
   end subroutine calc_lbl_table
 
 
-  subroutine output_lbl_table()
+  subroutine output_lbl_table(l)
     implicit none
 
-    integer :: z
+    integer, intent(in) :: l
+    integer :: z, reclen
 
     if (first_call .eqv. .True.) then
+      inquire(iolength=reclen) lbl_write
       ! Output lbl-table in 1D flattened 3D CMCRT format lbl.cmcrt (single precision)
       open(newunit=ulbl, file='lbl.cmcrt', action='readwrite', &
-      & form='unformatted',status='replace',access='stream')
-      write(ulbl) nlay, nwl
+      & form='unformatted',status='replace',access='direct',recl=reclen)
       first_call = .False.
     end if
 
     ! Convert to single precision on output, also care for underfloat
     lbl_write(:) = real(max(lbl_out(:),1.0e-30_dp),kind=sp)
-    write(ulbl) lbl_write
+    write(ulbl,rec=l) lbl_write
 
   end subroutine output_lbl_table
 
