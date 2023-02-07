@@ -169,7 +169,7 @@ subroutine exp_3D_sph_atm_transmission()
   implicit none
 
 
-  integer :: Nph, l, uT, iscat, ucf, nb_cf, i
+  integer :: Nph, l, uT, iscat, ucf, nb_cf, i, s_wl
   integer, device :: l_d, Nph_d, nb_cf_d
   integer :: n_theta, n_phi, n_lay
   real(dp) :: dH
@@ -180,7 +180,7 @@ subroutine exp_3D_sph_atm_transmission()
   type(dim3) :: blocks, threads
 
 
-  namelist /sph_3D_trans/ Nph, n_wl, pl, pc, sc, n_theta, n_phi, n_lay, viewthet, viewphi, iscat, nb_cf
+  namelist /sph_3D_trans/ Nph, s_wl, n_wl, pl, pc, sc, n_theta, n_phi, n_lay, viewthet, viewphi, iscat, nb_cf
 
   read(u_nml, nml=sph_3D_trans)
 
@@ -205,8 +205,11 @@ subroutine exp_3D_sph_atm_transmission()
   call set_iseed<<<blocks, threads>>>(Nph_d)
 
   call read_1D_prf()
+  print*, 'read wl'
   call read_wl()
+  print*, 'read gord'
   call read_g_ord()
+
 
   call set_grid()
   call set_image()
@@ -245,9 +248,9 @@ subroutine exp_3D_sph_atm_transmission()
     write(ucf,*) n_wl, nb_cf, H(1), H(grid%n_lev), dH
   end if
 
-  call read_next_opac(1)
+  call read_next_opac(s_wl)
 
-  do l = 1, n_wl
+  do l = s_wl, n_wl
 
     call set_grid_opac()
 

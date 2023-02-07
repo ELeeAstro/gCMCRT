@@ -6,7 +6,7 @@ F90LINKER    = nvfortran
 DEFS      =
 #FFLAGS   = -O0 -g -traceback -cuda
 #FFLAGS   = -fast -g -traceback -cuda
-FFLAGS    = -cuda -fast 
+FFLAGS    = -cuda -fast -cudalib=curand 
 INCLUDES  =
 LFLAGS    = $(FFLAGS)
 

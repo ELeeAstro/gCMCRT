@@ -9,7 +9,7 @@ module mc_opacset
 
   logical :: first_call = .True.
 
-  integer :: u_k, u_conti, u_Ray, u_cld_k, u_cld_a, u_cld_g
+  integer :: u_k, u_conti, u_Ray, u_cld_k, u_cld_a, u_cld_g, u_xsec
   integer :: id_u_k, id_u_conti, id_u_Ray, id_u_cld_k, id_u_cld_a, id_u_cld_g
   integer :: dop_pad
 
@@ -24,7 +24,7 @@ module mc_opacset
 
   ! Dummy variable for reading in k-tables
   real(sp), allocatable, dimension(:) :: k_dum
-  real(sp), allocatable, dimension(:) :: conti_dum_arr, Ray_dum_arr, lbl_dum_arr
+  real(sp), allocatable, dimension(:) :: conti_dum_arr, Ray_dum_arr, lbl_dum_arr, xsec_dum_arr
   real(sp), allocatable, dimension(:) :: cld_k_dum_arr, cld_a_dum_arr, cld_g_dum_arr
   real(sp), allocatable, dimension(:,:) :: ck_dum_arr
 
@@ -180,6 +180,19 @@ contains
 
       end if
 
+      if (inc_xsec .eqv. .True.) then
+
+        allocate(xsec_dum_arr(grid%n_cell))
+        inquire(iolength=reclen) xsec_dum_arr
+
+        open(newunit=u_xsec, file='xsec.cmcrt', status='old', action='read', &
+         & form='unformatted', asynchronous='yes', access='direct',recl=reclen)
+
+        print*, 'unit _xsec :', u_xsec
+        print*, '- Complete -'
+
+      end if
+
       if (inc_lbl .eqv. .True.) then
         ng = 1
         ng_d = ng
@@ -235,6 +248,9 @@ contains
       if (inc_Ray .eqv. .True.) then
        read(u_Ray,rec=l) Ray_dum_arr
       end if
+      if (inc_xsec .eqv. .True.) then
+       read(u_xsec,rec=l) xsec_dum_arr
+      end if
 
       if (inc_ck .eqv. .True.) then
         wait(u_k)
@@ -276,6 +292,13 @@ contains
         end do
       end if
 
+      if (inc_xsec .eqv. .True.) then
+        wait(u_xsec)
+        do z = 1, grid%n_lay
+          k_gas_abs(:,z,:,:) = k_gas_abs(:,z,:,:) + real(xsec_dum_arr(z),dp)
+        end do
+      end if
+
    else if (threeD .eqv. .True.) then
 
      if (inc_ck .eqv. .True.) then
@@ -293,6 +316,9 @@ contains
      end if
      if (inc_Ray .eqv. .True.) then
        read(u_Ray,rec=l) Ray_dum_arr
+     end if
+     if (inc_xsec .eqv. .True.) then
+       read(u_xsec,rec=l) xsec_dum_arr
      end if
 
       !print*, 'ck reading 1 : ', ck_dum_arr(:,1)!, ck_dum_arr(ng,1)
@@ -371,6 +397,20 @@ contains
          do j = 1, grid%n_phi-1
            do z = 1, grid%n_lay
              k_gas_Ray(z,j,k) = real(Ray_dum_arr(n),dp)
+             n = n + 1
+          end do
+         end do
+       end do
+    end if
+
+    if (inc_xsec .eqv. .True.) then
+      wait(u_xsec)
+       !print*, 'Ray reading: ', Ray_dum_arr(1), Ray_dum_arr(grid%n_cell)
+       n = 1
+       do k = 1, grid%n_theta-1
+         do j = 1, grid%n_phi-1
+           do z = 1, grid%n_lay
+             k_gas_abs(:,z,j,k) = k_gas_abs(:,z,j,k) + real(xsec_dum_arr(n),dp)
              n = n + 1
           end do
          end do

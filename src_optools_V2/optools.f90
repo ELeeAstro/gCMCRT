@@ -6,6 +6,7 @@ program optools
   use Ray_tables_mod, only : calc_Ray_table
   use CIA_tables_mod, only : calc_CIA_table
   use cloud_tables_mod, only: calc_cloud_table
+  use xsec_tables_mod, only: calc_xsec_table
   implicit none
 
   !! Idea is run this opacity toolkit separatly, and output opacity variables for each cell
@@ -53,6 +54,10 @@ program optools
   ! Output CMCRT Cloud Properties formatted file
   if (cloud_opc .eqv. .True.) then
     call calc_cloud_table()
+  end if
+
+  if (xsec_opc .eqv. .True.) then
+    call calc_xsec_table()
   end if
 
   ! Read gas phase optical constants and find refraction parameters

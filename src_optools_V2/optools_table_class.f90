@@ -143,4 +143,25 @@ module optools_table_class
 
   end type nk_table
 
+
+  type xsec_table
+
+    integer :: form          ! Table format - 1 = VULCAN format
+
+    character(len=10) :: sp  ! Species name
+    character(len=150) :: path ! Path to table data
+
+    integer :: nwl
+    real(kind=dp), allocatable, dimension(:) :: wl ! Central wavelengths of table (um)
+
+    integer :: iVMR ! VMR index for consituent species
+
+    real(kind=dp), allocatable, dimension(:) :: x_abs, lx_abs ! Kappa values [cm2 molecule-1]
+    !(CARE: convert units from table source) + log10 values
+
+    integer :: sp_iflag   ! Special integer flag
+    logical :: sp_lflag   ! Special logical flag
+
+  end type xsec_table
+
 end module optools_table_class

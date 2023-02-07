@@ -27,7 +27,7 @@ contains
         call read_CK_NEMESIS(s)
       case(2)
 
-        print*, ' - Reading CMCRT CK table: ', s, CK_tab(s)%sp, CK_tab(s)%form, CK_tab(s)%iVMR
+        print*, ' - Reading CMCRT CK table: ', s, CK_tab(s)%sp, CK_tab(s)%form, CK_tab(s)%iVMR, g_name(CK_tab(s)%iVMR)
         call read_CK_CMCRT(s,pre_mixed)
 
       case(3)

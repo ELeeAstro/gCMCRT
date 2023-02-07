@@ -44,16 +44,17 @@ module optools_data_mod
   logical :: conti
   logical :: Ray_scat
   logical :: cloud_opc
+  logical :: xsec_opc
 
   ! ---- Name of gas and dust species to calculate ---- !
-  character(len=10), allocatable, dimension(:) :: g_name, CK_name, lbl_name, CIA_name, Ray_name
+  character(len=10), allocatable, dimension(:) :: g_name, CK_name, lbl_name, CIA_name, Ray_name, xsec_name
   character(len=10), allocatable, dimension(:) :: cl_name, d_name
 
   ! ---- Output file units ---- !
-  integer :: uCK, ulbl, ulbl_for, uRay, ucl_k, ucl_a, ucl_g, uCIA, u_nml
+  integer :: uCK, ulbl, ulbl_for, uRay, ucl_k, ucl_a, ucl_g, uCIA, u_nml, uxsec
 
   ! ---- Number of species for each source ---- !
-  integer :: nCK, nlbl, nCIA, nRay, ncl
+  integer :: nCK, nlbl, nCIA, nRay, ncl, nxsec
 
   ! ---- Experiment name ---- !
   character(len=50) :: exp_name
@@ -81,8 +82,9 @@ module optools_data_mod
   real(kind=dp), allocatable, dimension(:) :: N_lay
   real(kind=dp), allocatable, dimension(:) :: mu_lay
   real(kind=dp), allocatable, dimension(:,:) :: VMR_lay
-  real(kind=dp), allocatable, dimension(:,:) :: nd_cl_lay
-  real(kind=dp), allocatable, dimension(:,:) :: a_cl_lay, la_cl_lay, VMR_cl_lay, a_C_cl_lay
+  real(kind=dp), allocatable, dimension(:) :: nd_cl_lay, a_cl_lay, la_cl_lay
+  real(kind=dp), allocatable, dimension(:,:) :: VMR_cl_lay
+  real(kind=dp), allocatable, dimension(:,:) :: a_C_cl_lay
   real(kind=dp), allocatable, dimension(:,:,:) :: nd_C_cl_lay
 
   ! --- Global CK table data --- !
@@ -94,7 +96,10 @@ module optools_data_mod
   ! --- Global CIA table data --- !
   type(CIA_table), allocatable, dimension(:) :: CIA_tab
 
-  ! --- Global CIA table data --- !
+  ! --- Global cloud table data --- !
   type(nk_table), allocatable, dimension(:) :: cl_tab
+
+  ! --- Global xsec table data --- !
+  type(xsec_table), allocatable, dimension(:) :: xsec_tab
 
 end module optools_data_mod

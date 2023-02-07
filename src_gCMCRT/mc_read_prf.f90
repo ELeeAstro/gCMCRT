@@ -53,7 +53,6 @@ contains
       & PG(grid%n_lay,grid%n_phi-1,grid%n_theta-1), MOL_W(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
     !allocate(VMR(ngas,grid%n_lay,grid%n_phi-1,grid%n_theta-1))
 
-
     if (oneD .eqv. .True. ) then
       do i = 1, nlay
         RH(i,:,:) = RH_1D(i)
@@ -85,12 +84,12 @@ contains
     end if
 
     open(newunit=u,file=trim(exp_name)//'.hprf',action='read',status='old',form='formatted')
-     allocate(H(grid%n_lev))
+    allocate(H(grid%n_lev))
     do i = 1, grid%n_lev
       read(u,*) lay(i), H(i)
     end do
 
-    allocate(H_d(nlev))
+    allocate(H_d(grid%n_lev))
     H_d(:) = H(:)
 
     ! 1D arrays have served their purpose, deallocate to save memory
@@ -212,7 +211,6 @@ contains
     gord_w_d(:) = gord_w(:)
 
     print*, '- Complete -'
-    close(u)
 
   end subroutine read_g_ord
 

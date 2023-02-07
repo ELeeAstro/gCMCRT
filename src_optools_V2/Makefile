@@ -24,6 +24,9 @@ lbl_tables_read.o \
 lbl_tables_interp.o \
 lbl_tables_combine.o \
 lbl_tables_mod.o \
+xsec_tables_read.o \
+xsec_tables_interp.o \
+xsec_tables_mod.o \
 cloud_tables_read.o \
 cloud_tables_interp.o \
 cloud_tables_emt.o \

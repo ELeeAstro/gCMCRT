@@ -357,7 +357,8 @@ subroutine exp_3D_sph_atm_em()
       end if
 
       if (do_images .eqv. .True.) then
-        f(:,:) = f_d(:,:) ; q(:,:) = q_d(:,:) ; u(:,:) = u_d(:,:) ; im_err(:,:) = im_err_d(:,:)
+        f(:,:) = f_d(:,:)/real(Nph_sum,dp) ; q(:,:) = q_d(:,:)/real(Nph_sum,dp) 
+        u(:,:) = u_d(:,:)/real(Nph_sum,dp) ; im_err(:,:) = im_err_d(:,:)
         call output_im(n,l)
       end if
 

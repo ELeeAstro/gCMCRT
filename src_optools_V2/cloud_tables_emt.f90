@@ -20,6 +20,11 @@ contains
     real(kind=dp), dimension(ncl) :: Vol
     logical :: errflag
 
+    if (ncl == 1) then
+      N_eff = cmplx(n_work(1),k_work(1),kind=dp)
+      return
+    end if
+
     Vol(:) = VMR_cl_lay(cl_tab(:)%iVMR,z)
 
     N_inc(:) = cmplx(n_work(:),k_work(:),kind=dp)
@@ -35,7 +40,7 @@ contains
       e_inc(s) = m2e(N_inc(s))
     end do
 
-    ! print*, sum(nd_cl_lay(:,z))
+    ! print*, nd_cl_lay(z)
     ! print*, N_inc
     ! print*, N_eff0
     ! print*, e_inc
@@ -71,7 +76,7 @@ contains
       stop
     end select
 
-! print*, N_eff
+!    print*, Vol(:), e_eff, N_eff, N_inc
 !
 ! stop
 

@@ -22,31 +22,19 @@ contains
     real(kind=dp) :: beta, alpha, var, aeff, const
 
     select case(idist)
-    case(0)
- 
-      ! Entire distribution is given via nmode parameter (Experimental!)
-      do m = 1, nmode
-        if (nd_cl_lay(m,z) < 1e-20) then
-           ifunc_k(m) = 1.0e-99_dp
-           ifunc_a(m) = 0.0_dp
-           ifunc_g(m) = 0.0_dp
-        else
-          nd_dist(m) = nd_cl_lay(m,z)/a_dist(m)
-          nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
-          call cl_mie(l,nd_dist(m),a_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
-        end if
-      end do
     case(1)
 
       ! Single particle size (idist = 1, nmode = 1)
-      call cl_mie(l,nd_cl_lay(1,z),a_cl_lay(1,z),eps_comb,cl_out_k,cl_out_a,cl_out_g)
+      call cl_mie(l,nd_cl_lay(z),a_cl_lay(z),eps_comb,cl_out_k,cl_out_a,cl_out_g)
+
+      !print*, l, nd_cl_lay(z),a_cl_lay(z),eps_comb,cl_out_k,cl_out_a,cl_out_g
 
     case(2)
 
       ! Small 3 size peaked size distribution @ 1% delta a to smooth Mie ressonance bumps
-      call cl_mie(l,nd_cl_lay(1,z),a_cl_lay(1,z)*0.99_dp,eps_comb,cl_out_k2(1),cl_out_a2(1),cl_out_g2(1))
-      call cl_mie(l,nd_cl_lay(1,z),a_cl_lay(1,z),eps_comb,cl_out_k2(2),cl_out_a2(2),cl_out_g2(2))
-      call cl_mie(l,nd_cl_lay(1,z),a_cl_lay(1,z)*1.01_dp,eps_comb,cl_out_k2(3),cl_out_a2(3),cl_out_g2(3))
+      call cl_mie(l,nd_cl_lay(z),a_cl_lay(z)*0.99_dp,eps_comb,cl_out_k2(1),cl_out_a2(1),cl_out_g2(1))
+      call cl_mie(l,nd_cl_lay(z),a_cl_lay(z),eps_comb,cl_out_k2(2),cl_out_a2(2),cl_out_g2(2))
+      call cl_mie(l,nd_cl_lay(z),a_cl_lay(z)*1.01_dp,eps_comb,cl_out_k2(3),cl_out_a2(3),cl_out_g2(3))
 
       cl_out_k = sum(cl_out_k2(:))/3.0_dp
       cl_out_a = sum(cl_out_a2(:))/3.0_dp
@@ -59,14 +47,16 @@ contains
 
       do m = 1, ndist
         ! Distribution in cm-3 um-1
-        nd_dist(m) = (nd_cl_lay(1,z)  / (a_dist(m) * sqrt(twopi) * lsig)) * &
-          & exp(-(log(a_dist(m)/a_cl_lay(1,z))**2)/(2.0_dp * lsig**2))
+        nd_dist(m) = (nd_cl_lay(z)  / (a_dist(m) * sqrt(twopi) * lsig)) * &
+          & exp(-(log(a_dist(m)/a_cl_lay(z))**2)/(2.0_dp * lsig**2))
 
         ! Limiter for very low numbers
         nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
 
         ! Call mie theory routine for this distribution point
         call cl_mie(l,nd_dist(m),a_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
+
+        !print*, l, m, nd_dist(m), ,a_dist(m), 
 
       end do
 
@@ -75,16 +65,16 @@ contains
       !! Gamma distribution - particle size in prf sets the parameters of the distribution
       !! Use an eff_fac to give varience as width of mean particle size, typically 0 < eff_fac << 1 (~0.1)
 
-      var = sqrt(eff_fac * a_cl_lay(1,z)**2)
+      var = sqrt(eff_fac * a_cl_lay(z)**2)
 
       !! Via substitution beta = var / mean
-      beta = a_cl_lay(1,z)/var
-      alpha = a_cl_lay(1,z)**2/var
+      beta = a_cl_lay(z)/var
+      alpha = a_cl_lay(z)**2/var
 
       do m = 1, ndist
         ! Distribution in cm-3 um-1
         !nd_dist(m) = nd_cl_lay(1,z) * beta**2 * a_dist(m) * exp(-beta * a_dist(m))
-        nd_dist(m) = (nd_cl_lay(1,z) * beta**(alpha))/gamma(alpha) * a_dist(m)**(alpha-1.0_dp) * exp(-beta*a_dist(m))
+        nd_dist(m) = (nd_cl_lay(z) * beta**(alpha))/gamma(alpha) * a_dist(m)**(alpha-1.0_dp) * exp(-beta*a_dist(m))
 
         ! Limiter for very low numbers
         nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
@@ -99,15 +89,15 @@ contains
       !! Inverse-Gamma distribution - particle size in prf sets the paramaters of the distribution
       !! Use an eff_fac to give varience as width of mean particle size, typically 0 < eff_fac << 1 (~0.1)
 
-      var = sqrt(eff_fac * a_cl_lay(1,z)**2)
+      var = sqrt(eff_fac * a_cl_lay(z)**2)
 
       !! Via substitution alpha = mean**2/var + 2
-      alpha = a_cl_lay(1,z)**2/var + 2.0_dp
-      beta = a_cl_lay(1,z)**3/var + a_cl_lay(1,z)
+      alpha = a_cl_lay(z)**2/var + 2.0_dp
+      beta = a_cl_lay(z)**3/var + a_cl_lay(z)
 
       do m = 1, ndist
         ! Distribution in cm-3 um-1
-        nd_dist(m) = (nd_cl_lay(1,z) * beta**(alpha))/gamma(alpha) * a_dist(m)**(-alpha-1.0_dp) * exp(-beta/a_dist(m))
+        nd_dist(m) = (nd_cl_lay(z) * beta**(alpha))/gamma(alpha) * a_dist(m)**(-alpha-1.0_dp) * exp(-beta/a_dist(m))
 
         ! Limiter for very low numbers
         nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
@@ -122,11 +112,11 @@ contains
       !! Rayleigh distribution - particle size in prf sets the sigma of the distribution
 
       !! sig is directly related to the distribution mean
-      sig = a_cl_lay(1,z)/sqrt(pi/2.0_dp)
+      sig = a_cl_lay(z)/sqrt(pi/2.0_dp)
 
       do m = 1, ndist
         ! Distribution in cm-3 um-1
-        nd_dist(m) = (nd_cl_lay(1,z) * a_dist(m))/sig**2 * exp(-(a_dist(m)**2)/(2.0_dp * sig**2))
+        nd_dist(m) = (nd_cl_lay(z) * a_dist(m))/sig**2 * exp(-(a_dist(m)**2)/(2.0_dp * sig**2))
 
         ! Distribution in cm-3 ln(um-1) - EXPERIMENTAL!
 
@@ -145,8 +135,8 @@ contains
 
       !! variables related to the effective size and effective varience
       !! veff is a namelist variable!
-      aeff = a_cl_lay(1,z)
-      const = nd_cl_lay(1,z) / gamma((1.0_dp - 2.0_dp*veff)/veff) * &
+      aeff = a_cl_lay(z)
+      const = nd_cl_lay(z) / gamma((1.0_dp - 2.0_dp*veff)/veff) * &
         & (aeff*veff)**((2.0_dp*veff - 1.0_dp)/veff)
 
       do m = 1, ndist

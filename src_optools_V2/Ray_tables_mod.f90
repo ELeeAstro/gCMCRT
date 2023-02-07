@@ -44,7 +44,6 @@ contains
   subroutine calc_Ray_table()
     implicit none
 
-
     integer :: i, j, l, z, s
     logical :: exists
     real(kind=dp) :: Ray_H2O
