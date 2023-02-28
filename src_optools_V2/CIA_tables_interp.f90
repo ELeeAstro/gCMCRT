@@ -115,38 +115,38 @@ contains
 
       if (T <= CIA_tab(s)%Tmin(sn)) then
         ! Interpolate at minimum T for set
-        ka(1) = CIA_tab(s)%tab(sn,iwn1,1)
-        ka(2) = CIA_tab(s)%tab(sn,iwn2,1)
-        ka(3) = CIA_tab(s)%tab(sn,iwn3,1)
+        ka(1) = CIA_tab(s)%ltab(sn,iwn1,1)
+        ka(2) = CIA_tab(s)%ltab(sn,iwn2,1)
+        ka(3) = CIA_tab(s)%ltab(sn,iwn3,1)
         call Bezier_interp(wna(:), ka(:), 3, wn(l), iCIA)
-        CIA_work = CIA_work +  iCIA &
+        CIA_work = CIA_work +  10.0_dp**iCIA &
           & * VMR_lay(CIA_tab(s)%iVMR(1),z) * N_lay(z) &
           & * VMR_lay(CIA_tab(s)%iVMR(2),z) * N_lay(z)
       else if (T >= CIA_tab(s)%Tmax(sn)) then
         ! Interpolate at maximum T for set
-        ka(1) = CIA_tab(s)%tab(sn,iwn1,CIA_tab(s)%nT(1))
-        ka(2) = CIA_tab(s)%tab(sn,iwn2,CIA_tab(s)%nT(1))
-        ka(3) = CIA_tab(s)%tab(sn,iwn3,CIA_tab(s)%nT(1))
+        ka(1) = CIA_tab(s)%ltab(sn,iwn1,CIA_tab(s)%nT(1))
+        ka(2) = CIA_tab(s)%ltab(sn,iwn2,CIA_tab(s)%nT(1))
+        ka(3) = CIA_tab(s)%ltab(sn,iwn3,CIA_tab(s)%nT(1))
         call Bezier_interp(wna(:), ka(:), 3, wn(l), iCIA)
-        CIA_work = CIA_work +  iCIA &
+        CIA_work = CIA_work +  10.0_dp**iCIA &
           & * VMR_lay(CIA_tab(s)%iVMR(1),z) * N_lay(z) &
           & * VMR_lay(CIA_tab(s)%iVMR(2),z) * N_lay(z)
       else
         ! Both wavenumber and temperature are within table bounds, perform Bezier interpolation 4 times
-        ka(1) = CIA_tab(s)%tab(sn,iwn1,iT1)
-        ka(2) = CIA_tab(s)%tab(sn,iwn2,iT1)
-        ka(3) = CIA_tab(s)%tab(sn,iwn3,iT1)
+        ka(1) = CIA_tab(s)%ltab(sn,iwn1,iT1)
+        ka(2) = CIA_tab(s)%ltab(sn,iwn2,iT1)
+        ka(3) = CIA_tab(s)%ltab(sn,iwn3,iT1)
         call Bezier_interp(wna(:), ka(:), 3, wn(l), ka_cia(1)) ! Result at T1, wn_in
-        ka(1) = CIA_tab(s)%tab(sn,iwn1,iT2)
-        ka(2) = CIA_tab(s)%tab(sn,iwn2,iT2)
-        ka(3) = CIA_tab(s)%tab(sn,iwn3,iT2)
+        ka(1) = CIA_tab(s)%ltab(sn,iwn1,iT2)
+        ka(2) = CIA_tab(s)%ltab(sn,iwn2,iT2)
+        ka(3) = CIA_tab(s)%ltab(sn,iwn3,iT2)
         call Bezier_interp(wna(:), ka(:), 3, wn(l), ka_cia(2)) ! Result at T2, wn_in
-        ka(1) = CIA_tab(s)%tab(sn,iwn1,iT3)
-        ka(2) = CIA_tab(s)%tab(sn,iwn2,iT3)
-        ka(3) = CIA_tab(s)%tab(sn,iwn3,iT3)
+        ka(1) = CIA_tab(s)%ltab(sn,iwn1,iT3)
+        ka(2) = CIA_tab(s)%ltab(sn,iwn2,iT3)
+        ka(3) = CIA_tab(s)%ltab(sn,iwn3,iT3)
         call Bezier_interp(wna(:), ka(:), 3, wn(l), ka_cia(3)) ! Result at T3, wn_in
         call Bezier_interp(Ta(:), ka_cia(:), 3, T, iCIA) ! Result at T_in, wn_in
-        CIA_work = CIA_work +  iCIA &
+        CIA_work = CIA_work +  10.0_dp**iCIA &
           & * VMR_lay(CIA_tab(s)%iVMR(1),z) * N_lay(z) &
           & * VMR_lay(CIA_tab(s)%iVMR(2),z) * N_lay(z)
       end if

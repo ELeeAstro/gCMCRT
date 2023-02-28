@@ -5,7 +5,7 @@ F90LINKER    = nvfortran
 #===================
 DEFS      =
 #FFLAGS    = -O0 -g -traceback
-FFLAGS    = -mp -fast -Mipa=fast
+FFLAGS    = -mp -fast -O3 -Mipa=fast
 INCLUDES  =
 LFLAGS    =
 

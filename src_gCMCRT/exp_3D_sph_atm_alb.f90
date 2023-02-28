@@ -150,18 +150,26 @@ subroutine exp_3D_sph_atm_albedo()
   implicit none
 
 
-  integer :: Nph, l, uT, iscat, istat
+  integer :: Nph, l, iscat, istat, s_wl, n
+  integer, allocatable, dimension(:) :: uT
   integer, device :: l_d, Nph_d
   integer :: n_theta, n_phi, n_lay
-  real(dp) :: viewthet, viewphi
+  character (len=8) :: fmt
+  character (len=3) :: n_str
+  real(dp) :: viewthet
   real(dp) :: pl, pc, sc
+  real(dp), allocatable, dimension(:) :: viewphi
 
   type(dim3) :: blocks, threads
 
 
-  namelist /sph_3D_alb/ Nph, n_wl, pl, pc, sc, n_theta, n_phi, n_lay, viewthet, viewphi, iscat
+  namelist /sph_3D_alb/ Nph, s_wl, n_wl, pl, pc, sc, n_theta, n_phi, n_lay, viewthet, viewphi, iscat
+
+  allocate(uT(n_phase),viewphi(n_phase))
 
   read(u_nml, nml=sph_3D_alb)
+
+  fmt = '(I3.3)'
 
   ! Give namelist paramaters to equilvanet values inside gCMCRT
   grid%n_lay = n_lay
@@ -169,8 +177,19 @@ subroutine exp_3D_sph_atm_albedo()
   grid%n_theta = n_theta
   grid%n_phi = n_phi
 
+  if (cmd_vphi .eqv. .False.) then
+    print*, 'Using namelist vphi'
+    im%vphi = viewphi(1)
+    !write(vphi_arg , *) viewphi
+  else
+    print*, 'Using cmdline vphi'
+    viewphi(:) = im%vphi
+  end if
+  print*, im%vphi, viewphi(:)
+
   im%vtheta = viewthet
-  im%vphi = viewphi
+
+  im%vtheta = viewthet
 
   pl_d = pl
   pc_d = pc
@@ -188,72 +207,81 @@ subroutine exp_3D_sph_atm_albedo()
   call read_g_ord()
 
   call set_grid()
-  call set_image()
-
 
   ! Send data to GPU data containers
-  im_d = im
   grid_d = grid
 
   allocate(alb_out(n_wl),alb_out_d(n_wl))
 
-  ! Grid for GPU threads/blocks
-  threads = dim3(128,1,1)
-  blocks = dim3(ceiling(real(Nph)/threads%x),1,1)
+  do n = 1, n_phase
+    write(n_str,fmt) n
+    open(newunit=uT(n),file='Alb_'//trim(n_str)//'.txt',action='readwrite')
+    write(uT(n),*) n_wl, H(1), H(grid%n_lev), viewphi(n)
+    call flush(uT(n))
+  end do
 
-  print*, Nph, threads, blocks
+  call read_next_opac(s_wl)
 
+  print*, 'starting loop'
 
-  open(newunit=uT,file='Albedo.txt',action='readwrite')
-  write(uT,*) n_wl, H(1), H(grid%n_lev)
-
-
-  call read_next_opac(1)
-
-  do l = 1, n_wl
-
+  do l = s_wl, n_wl
+ 
     call set_grid_opac()
 
-    im%fsum = 0.0_dp
-    im%qsum = 0.0_dp
-    im%usum = 0.0_dp
-    im%fail_pscat = 0
-    im%fail_pemit = 0
+    do n = 1, n_phase
 
-    nscat_tot = 0
-    nscat_tot_d = nscat_tot
+      if (cmd_vphi .eqv. .False.) then
+        im%vphi = viewphi(n)
+      else
+        viewphi(n) = im%vphi
+      end if
+      im%vtheta = viewthet
 
-    alb_out(l) = 0.0_dp
-    alb_out_d(l) = alb_out(l)
+      call set_image()
 
-    f(:,:) = 0.0_dp ; q(:,:) = 0.0_dp ; u(:,:) = 0.0_dp ; im_err(:,:) = 0.0_dp
-    f_d(:,:) = f(:,:) ; q_d(:,:) = q(:,:) ; u_d(:,:) = u(:,:) ; im_err_d(:,:) = im_err(:,:)
+      im%fsum = 0.0_dp
+      im%qsum = 0.0_dp
+      im%usum = 0.0_dp
+      im%fail_pscat = 0
+      im%fail_pemit = 0
 
-    l_d = l
-    im_d = im
-    call exp_3D_sph_atm_albedo_k<<<blocks, threads>>>(l_d, Nph_d)
+      im_d = im
+       
+      nscat_tot = 0
+      nscat_tot_d = nscat_tot
 
-    call read_next_opac(l+1)
+      alb_out(l) = 0.0_dp
+      alb_out_d(l) = alb_out(l)
 
-    istat = cudaDeviceSynchronize()
+      f(:,:) = 0.0_dp ; q(:,:) = 0.0_dp ; u(:,:) = 0.0_dp ; im_err(:,:) = 0.0_dp
+      f_d(:,:) = f(:,:) ; q_d(:,:) = q(:,:) ; u_d(:,:) = u(:,:) ; im_err_d(:,:) = im_err(:,:)
 
-    im = im_d
-    nscat_tot = nscat_tot_d
+      l_d = l
+      call exp_3D_sph_atm_albedo_k<<<blocks, threads>>>(l_d, Nph_d)
 
-    ! Give fsum back to CPU
-    alb_out(l) = im%fsum / real(Nph,dp) * pi
+      if (n == n_phase) then
+        call read_next_opac(l+1)
+      end if
 
-    write(uT,*) wl(l), alb_out(l)
-    call flush(uT)
+      im = im_d
+      nscat_tot = nscat_tot_d
 
-    if (do_images .eqv. .True.) then
-      f(:,:) = f_d(:,:) ; q(:,:) = q_d(:,:) ; u(:,:) = u_d(:,:) ; im_err(:,:) = im_err_d(:,:)
-      call output_im(1,l)
-    end if
+      ! Give fsum back to CPU
+      alb_out(l) = im%fsum / real(Nph,dp) * pi
 
-    print*, l, wl(l), alb_out(l)
-    print*, 'pscat failures and nscat_tot: ', im%fail_pscat, nscat_tot
+      write(uT(n),*) wl(l), alb_out(l)
+      !call flush(uT)
 
+      if (do_images .eqv. .True.) then
+        f(:,:) = f_d(:,:)/real(Nph,dp) ; q(:,:) = q_d(:,:)/real(Nph,dp)
+        u(:,:) = u_d(:,:)/real(Nph,dp) ; im_err(:,:) = im_err_d(:,:)
+        call output_im(n,l)
+      end if
+
+      print*, n, l, real(wl(l)), alb_out(l)
+      print*, n, 'pscat failures and nscat_tot: ', im%fail_pscat, nscat_tot
+
+    end do
   end do
 
 end subroutine exp_3D_sph_atm_albedo

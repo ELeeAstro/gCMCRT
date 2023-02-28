@@ -298,7 +298,7 @@ contains
 
         CIA_tab(s)%nset = 1
         allocate(CIA_tab(s)%nT(CIA_tab(s)%nset))
-        CIA_tab(s)%nT(1) = 7
+        CIA_tab(s)%nT(1) = 10
 
       case('CH4-He','He-CH4')
         CIA_tab(s)%sp_con(1) = 'CH4'

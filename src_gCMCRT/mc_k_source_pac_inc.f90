@@ -96,7 +96,7 @@ contains
 
     ! Rotate illumination for planet at a phase not at 0
     ! rotate according to given viewing angle
-    if (im_d%vphi /= 180.0_dp) then
+    if (im_d%vphi /= 180.0_dp .and. do_trans_d .eqv. .True.) then
       rot_angle = im_d%vphi * pi/180.0_dp - pi
       xp_help = ph%xp*cos(rot_angle) - ph%yp*sin(rot_angle)
       yp_help = ph%xp*sin(rot_angle) + ph%yp*cos(rot_angle)

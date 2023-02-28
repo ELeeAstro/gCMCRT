@@ -92,6 +92,7 @@ contains
         end if
         CIA_tab(s)%T(j,n) = temp_r
         CIA_tab(s)%lT(j,n) = log10(CIA_tab(s)%T(j,n))
+        !print*, j, n, CIA_tab(s)%T(j,n)
         ! Check if end of file reached
         if (stat == iostat_end) then
           print*,'Reached end of HITRAN CIA file: ', j, n, CIA_tab(s)%sp, CIA_tab(s)%path

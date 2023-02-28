@@ -4,9 +4,9 @@ F90LINKER    = nvfortran
 # for nvfortran Compiler
 #===================
 DEFS      =
-#FFLAGS   = -O0 -g -traceback -cuda
+#FFLAGS   = -O0 -g -C -traceback -cuda -cudalib=curand
 #FFLAGS   = -fast -g -traceback -cuda
-FFLAGS    = -cuda -fast -cudalib=curand 
+FFLAGS    = -fast -O3 -cuda -cudalib=curand 
 INCLUDES  =
 LFLAGS    = $(FFLAGS)
 
