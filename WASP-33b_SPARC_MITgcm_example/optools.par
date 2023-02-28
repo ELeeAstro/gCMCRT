@@ -6,11 +6,12 @@ SPARC-MITgcm
 !
 ! ---- Main Switches ---- !
 !
-.False.  ! Correlated-k
+.True.  ! Correlated-k
 .False.  ! `lbl' (single wavelength)
 .True.  ! CIA Continuum
 .True.  ! Rayleigh Scattering
 .False.  ! Cloud/Haze Opacity
+.False. ! xsec opacity
 !
 ! ---- Gas Opacity Properties ---- !
 ! ! Number of corr-k line opacity species followed by names
@@ -55,3 +56,8 @@ He-
 ! ! Number of cloud species followed by names
 1
 Al2O3
+!
+! ---- xsec Species  ---- !
+! ! Number of xsec species followed by names
+1
+CH4

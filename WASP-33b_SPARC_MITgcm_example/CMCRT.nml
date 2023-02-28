@@ -8,14 +8,15 @@ oneD = .False.
 threeD = .True.
 
 do_moments = .False.
-do_images = .True.
-do_cf = .True.
+do_images = .False.
+do_cf = .False.
 
 inc_ck = .True.
 inc_lbl = .False.
 inc_CIA = .True.
 inc_Ray = .True.
 inc_cld = .False.
+inc_xsec = .False.
 
 do_scat_loop = .False.
 do_g_bias = .True.
@@ -48,7 +49,7 @@ Rs = 0.805
 inc = 85.51
 phase = 0.005
 
-n_phase = 2
+n_phase = 1
 
 /
 
@@ -65,7 +66,7 @@ n_theta = 31
 n_phi = 65
 n_lay = 53
 viewthet = 90.0
-viewphi = 0.0, 180.0
+viewphi = 0.0
 xi_emb = 0.99
 
 /
@@ -85,6 +86,23 @@ n_lay = 53
 viewthet = 90.0
 viewphi = 180.0
 nb_cf = 301
+
+/
+
+&sph_3D_alb
+
+Nph = 1024000
+s_wl = 1
+n_wl = 503
+pl = 0.51
+pc = 0.39
+sc = 1.0
+iscat = 3
+n_theta = 31
+n_phi = 65
+n_lay = 53
+viewthet = 90.0
+viewphi = 0.0
 
 /
 

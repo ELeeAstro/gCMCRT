@@ -69,3 +69,10 @@ fmax = 0.95
 
 /
 
+&xsec_nml
+
+iopts = 1
+form = 2
+paths = '../data/xsec_tables/CH4.txt',
+
+/
