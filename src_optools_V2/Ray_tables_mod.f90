@@ -20,7 +20,7 @@ module Ray_tables_mod
 
   ! Global work arrays
   real(kind=dp), allocatable, dimension(:) :: Ray_work
-  real(kind=dp), allocatable, dimension(:) :: n_ref, King, nd_stp
+  real(kind=dp), allocatable, dimension(:) :: n_ref, King, nd_stp, a_vol
   integer, allocatable, dimension(:) :: iVMR
   real(kind=dp) :: Ray_xsec
   logical :: first_call = .True.
@@ -49,7 +49,7 @@ contains
     real(kind=dp) :: Ray_H2O
 
     ! Allocate work arrays
-    allocate(Ray_work(nRay), n_ref(nRay), iVMR(nRay), King(nRay), nd_stp(nRay))
+    allocate(Ray_work(nRay), n_ref(nRay), iVMR(nRay), King(nRay), nd_stp(nRay), a_vol(nRay))
     Ray_work(:) = 0.0_dp
 
     ! Allocate sp CMCRT output array
@@ -252,7 +252,7 @@ contains
 
         nd_stp(s) = 2.546899e19_dp
 
-     case('NH3')
+      case('NH3')
 
         ! Use Irwin (2009)+ paramaters
         A = 37.0e-5_dp ; B = 12.0e-3_dp ; Dpol = 0.0922_dp
@@ -285,6 +285,40 @@ contains
 
         nd_stp(s) = 2.546899e19_dp
 
+
+      !! https://cccbdb.nist.gov/pollistx.asp
+      case('HCl')
+        n_ref(s) = -2
+        a_vol(s) = 2.515_dp / (1e8_dp)**3
+        King(s) = 1.0_dp
+      case('HCN')
+        n_ref(s) = -2
+        a_vol(s) = 2.593_dp / (1e8_dp)**3
+        King(s) = 1.0_dp
+      case('H2S')
+        n_ref(s) = -2
+        a_vol(s) = 3.631_dp / (1e8_dp)**3
+        King(s) = 1.0_dp 
+      case('OCS')
+        n_ref(s) = -2
+        a_vol(s) = 5.090_dp / (1e8_dp)**3
+        King(s) = 1.0_dp
+      case('SO2')
+        n_ref(s) = -2
+        a_vol(s) = 3.882_dp / (1e8_dp)**3
+        King(s) = 1.0_dp
+      case('C2H2')
+        n_ref(s) = -2
+        a_vol(s) = 3.487_dp / (1e8_dp)**3
+        King(s) = 1.0_dp
+      case('PH3')
+        n_ref(s) = -2
+        a_vol(s) = 4.237_dp / (1e8_dp)**3
+        King(s) = 1.0_dp
+      case('SO3')
+        n_ref(s) = -2
+        a_vol(s) = 4.297_dp / (1e8_dp)**3
+        King(s) = 1.0_dp
       case default
         print*, 'ERROR - Rayleigh species not found in refrace_index_calc - STOPPING'
         print*, 'Species: ', Ray_name(s)
@@ -347,10 +381,13 @@ contains
     ! Find the cross section for each species following Sneep & Ubachs (2005)
     do s = 1, nRay
 
-      if (n_ref(s) < 0) then
+      if (n_ref(s) == -1) then
         ! Special cases
         call Ray_xsec_special(l, s, Ray_spec)
         Ray_work(s) = Ray_spec
+      else if (n_ref(s) == -2) then
+        ! Calculate xsec from volume polarisability
+        Ray_work(s) = 128.0_dp/3.0_dp * pi**5 * a_vol(s)**2 * wn(l)**4 * King(s) 
       else
         ! Normal cases
         Ray_work(s) = ((24.0_dp * pi**3 * wn(l)**4)/(nd_stp(s)**2)) &
