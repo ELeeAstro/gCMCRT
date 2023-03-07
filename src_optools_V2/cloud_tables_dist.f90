@@ -2,6 +2,7 @@ module cloud_tables_dist
   use optools_data_mod
   use optools_aux, only : trapz
   use cloud_tables_mie, only : cl_mie
+  use ieee_arithmetic
   implicit none
 
   private
@@ -17,11 +18,17 @@ contains
     real(kind=dp), intent(out) :: cl_out_k, cl_out_a, cl_out_g
     real(kind=dp), dimension(ndist) :: nd_dist, ifunc_k, ifunc_a, ifunc_g
 
-    integer :: m
+    integer :: m, idist_m
     real(kind=dp), dimension(3) :: cl_out_k2, cl_out_a2, cl_out_g2
-    real(kind=dp) :: beta, alpha, var, aeff, const
+    real(kind=dp) :: beta, alpha,  aeff, const, Ev, Var, muu, sigg, lam
 
-    select case(idist)
+
+    Ev = a_cl_lay(z)
+    Var = var_cl_lay(z)
+
+    idist_m = idist
+
+    select case(idist_m)
     case(1)
 
       ! Single particle size (idist = 1, nmode = 1)
@@ -45,10 +52,17 @@ contains
       !! log normal distribution - particle size in prf is the geometric mean, median and mode size
       !! sig = std. deviation - lsig = ln(sig), typically 1 < lsig < 2
 
+      muu = log(Ev/sqrt(Var/Ev**2 + 1.0_dp))
+      sigg = sqrt(log(Var/Ev**2 + 1.0_dp))
+
       do m = 1, ndist
-        ! Distribution in cm-3 um-1
-        nd_dist(m) = (nd_cl_lay(z)  / (a_dist(m) * sqrt(twopi) * lsig)) * &
-          & exp(-(log(a_dist(m)/a_cl_lay(z))**2)/(2.0_dp * lsig**2))
+        ! Distribution in cm-3 cm-1
+        nd_dist(m) = (nd_cl_lay(z)  / (a_dist(m) * sqrt(twopi) * sigg)) * &
+          & exp(-(log(a_dist(m)) - muu)**2/(2.0_dp * sigg**2))
+
+        if ((ieee_is_nan(nd_dist(m)) .eqv. .True.) .or. (ieee_is_finite(nd_dist(m)) .eqv. .False.)) then
+          nd_dist(m) = 1.0e-99_dp
+        end if
 
         ! Limiter for very low numbers
         nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
@@ -65,16 +79,18 @@ contains
       !! Gamma distribution - particle size in prf sets the parameters of the distribution
       !! Use an eff_fac to give varience as width of mean particle size, typically 0 < eff_fac << 1 (~0.1)
 
-      var = sqrt(eff_fac * a_cl_lay(z)**2)
+      alpha = Ev**2/Var
+      beta = Ev/Var
 
-      !! Via substitution beta = var / mean
-      beta = a_cl_lay(z)/var
-      alpha = a_cl_lay(z)**2/var
+      const = nd_cl_lay(z) * (beta**(alpha)/gamma(alpha))
 
       do m = 1, ndist
-        ! Distribution in cm-3 um-1
-        !nd_dist(m) = nd_cl_lay(1,z) * beta**2 * a_dist(m) * exp(-beta * a_dist(m))
-        nd_dist(m) = (nd_cl_lay(z) * beta**(alpha))/gamma(alpha) * a_dist(m)**(alpha-1.0_dp) * exp(-beta*a_dist(m))
+        ! Distribution in cm-3 cm-1
+        nd_dist(m) = const * a_dist(m)**(alpha-1.0_dp) * exp(-beta*a_dist(m))
+
+        if ((ieee_is_nan(nd_dist(m)) .eqv. .True.) .or. (ieee_is_finite(nd_dist(m)) .eqv. .False.)) then
+          nd_dist(m) = 1.0e-99_dp
+        end if
 
         ! Limiter for very low numbers
         nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
@@ -89,15 +105,18 @@ contains
       !! Inverse-Gamma distribution - particle size in prf sets the paramaters of the distribution
       !! Use an eff_fac to give varience as width of mean particle size, typically 0 < eff_fac << 1 (~0.1)
 
-      var = sqrt(eff_fac * a_cl_lay(z)**2)
+      alpha = Ev**2/Var + 2.0_dp
+      beta = Ev*(alpha - 1.0_dp)
 
-      !! Via substitution alpha = mean**2/var + 2
-      alpha = a_cl_lay(z)**2/var + 2.0_dp
-      beta = a_cl_lay(z)**3/var + a_cl_lay(z)
+      const = nd_cl_lay(z) * (beta**(alpha)/gamma(alpha))
 
       do m = 1, ndist
-        ! Distribution in cm-3 um-1
-        nd_dist(m) = (nd_cl_lay(z) * beta**(alpha))/gamma(alpha) * a_dist(m)**(-alpha-1.0_dp) * exp(-beta/a_dist(m))
+        ! Distribution in cm-3 cm-1
+        nd_dist(m) = const * (1.0_dp/a_dist(m))**(alpha+1.0_dp) * exp(-beta/a_dist(m))
+
+        if ((ieee_is_nan(nd_dist(m)) .eqv. .True.) .or. (ieee_is_finite(nd_dist(m)) .eqv. .False.)) then
+          nd_dist(m) = 1.0e-99_dp
+        end if
 
         ! Limiter for very low numbers
         nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
@@ -111,14 +130,17 @@ contains
 
       !! Rayleigh distribution - particle size in prf sets the sigma of the distribution
 
-      !! sig is directly related to the distribution mean
-      sig = a_cl_lay(z)/sqrt(pi/2.0_dp)
+      !! sig is directly related to the distribution mean or varience
+      sig = Ev/sqrt(pi/2.0_dp)
+      !sig = sqrt(Var/(2.0_dp - pi/2.0_dp))
 
       do m = 1, ndist
-        ! Distribution in cm-3 um-1
-        nd_dist(m) = (nd_cl_lay(z) * a_dist(m))/sig**2 * exp(-(a_dist(m)**2)/(2.0_dp * sig**2))
+        ! Distribution in cm-3 cm-1
+        nd_dist(m) = nd_cl_lay(z) * (a_dist(m)/sig**2) * exp(-a_dist(m)**2/(2.0_dp * sig**2))
 
-        ! Distribution in cm-3 ln(um-1) - EXPERIMENTAL!
+        if ((ieee_is_nan(nd_dist(m)) .eqv. .True.) .or. (ieee_is_finite(nd_dist(m)) .eqv. .False.)) then
+          nd_dist(m) = 1.0e-99_dp
+        end if
 
         ! Limiter for very low numbers
         nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
@@ -135,14 +157,43 @@ contains
 
       !! variables related to the effective size and effective varience
       !! veff is a namelist variable!
+
       aeff = a_cl_lay(z)
-      const = nd_cl_lay(z) / gamma((1.0_dp - 2.0_dp*veff)/veff) * &
-        & (aeff*veff)**((2.0_dp*veff - 1.0_dp)/veff)
+      veff = var_cl_lay(z)
+
+      const = nd_cl_lay(z) / (gamma((1.0_dp - 2.0_dp*veff)/veff) * &
+        & (aeff*veff)**((2.0_dp*veff - 1.0_dp)/veff))
 
       do m = 1, ndist
-        ! Distribution in cm-3 um-1
+        ! Distribution in cm-3 cm-1
         nd_dist(m) =  const * a_dist(m)**((1.0_dp - 3.0_dp*veff)/veff) * &
           & exp(-(a_dist(m)/(aeff*veff)))
+
+        if ((ieee_is_nan(nd_dist(m)) .eqv. .True.) .or. (ieee_is_finite(nd_dist(m)) .eqv. .False.)) then
+          nd_dist(m) = 1.0e-99_dp
+        end if
+
+        ! Limiter for very low numbers
+        nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
+
+        ! Call mie theory routine for this distribution point
+        call cl_mie(l,nd_dist(m),a_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
+
+      end do
+
+    case(8)
+
+      !! Exponential distribution
+
+      lam = 1.0_dp/Ev
+
+      do m = 1, ndist
+        ! Distribution in cm-3 cm-1
+        nd_dist(m) = nd_cl_lay(z) * (lam * exp(-lam*a_dist(m)))
+
+        if ((ieee_is_nan(nd_dist(m)) .eqv. .True.) .or. (ieee_is_finite(nd_dist(m)) .eqv. .False.)) then
+          nd_dist(m) = 1.0e-99_dp
+        end if
 
         ! Limiter for very low numbers
         nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
@@ -154,7 +205,7 @@ contains
 
     case default
       print*, 'ERROR - idist size distribution selection integer not valid - STOPPING'
-      print*, 'idist: ', idist
+      print*, 'idist: ', idist_m
       stop
     end select
 
@@ -167,14 +218,14 @@ contains
     ! Lastly, if we have a distribution, integrate the distribution to find:
     ! 1. Total kappa value, 2. effective SSA, 3. effective g
 
-    if (idist == 0) then
+    if (idist_m == 0) then
 
-    else if (idist > 2) then
+    else if (idist_m > 2) then
 
       select case(idist_int)
 
       case(1)
-        ! Use trapezoid rule - function in [cm-3 um-1]
+        ! Use trapezoid rule - function in [cm-3 cm-1]
         ! Total extinction = integral over all sizes
         cl_out_k = trapz(a_dist(:),ifunc_k(:))
         ! effective SSA = integral for k_sca / k_ext =  integral(k_ext * a) / k_ext

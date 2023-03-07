@@ -17,7 +17,8 @@ module cloud_tables_mod
   integer, allocatable, dimension(:) :: form
   character(len=150), allocatable, dimension(:) :: paths
 
-  character(len=20), dimension(0:7) :: cdist
+  character(len=20), dimension(0:8) :: cdist
+  character(len=20), dimension(6) :: mie_meth
 
   logical :: cld_tab_read = .False.
 
@@ -100,8 +101,8 @@ contains
     if (idist > 2) then
       allocate(a_dist(ndist))
       !! sample ndist grain sizes between amin and amax in log 10 space
-      amin = amin
-      amax = amax
+      amin = amin * 1e-4_dp
+      amax = amax * 1e-4_dp
       lamin = log10(amin)
       lamax = log10(amax)
       do a = 1, ndist
@@ -121,10 +122,12 @@ contains
 
     cdist(0) = 'full' ; cdist(1) = 'delta peak' ; cdist(2) = 'tri- well peaked'
     cdist(3) = 'log-normal' ; cdist(4) = 'gamma' ; cdist(5) = 'inverse-gamma'
-    cdist(6) = 'Rayleigh' ; cdist(7) = 'Hansen'
+    cdist(6) = 'Rayleigh' ; cdist(7) = 'Hansen' ; cdist(8) = 'exponential'
     print*, ' -- Assuming a '//trim(cdist(idist))//' distribution: ', idist
 
-
+    mie_meth(1) = 'MieX' ; mie_meth(2) = 'MieExt' ;  mie_meth(3) = 'BHMIE'
+    mie_meth(4) = 'DHS'; mie_meth(5) = 'BHCOAT' ; mie_meth(6) = 'LX-MIE'
+    print*, ' -- Using the '//trim(mie_meth(imie))//' method: ', imie
 
     !! Begin openMP loops
     !$omp parallel default (none), &
@@ -151,7 +154,7 @@ contains
 
         if (idist > 0) then
 
-          if (nd_cl_lay(z) < 1e-20_dp) then
+          if (nd_cl_lay(z) < 1e-10_dp) then
             cl_out_k(z) = 1e-99_dp
             cl_out_a(z) = 0.0_dp
             cl_out_g(z) = 0.0_dp
@@ -171,7 +174,7 @@ contains
 
       end do
       !$omp end do
-
+ 
       !$omp single
       ! Output CMCRT formatted cl table for layers
       call output_cl_table(l)

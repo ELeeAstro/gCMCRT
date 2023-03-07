@@ -111,7 +111,7 @@ contains
     !nterms= 550000000
 
     ! Accuracy to be achieved
-    eps    = 1.0e-16_r2
+    eps    = 1.0e-12_r2
 
     ! Minimum size parameter
     xmin   = 1.0e-6_r2

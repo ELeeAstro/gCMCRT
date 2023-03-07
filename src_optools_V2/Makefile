@@ -6,12 +6,31 @@ F90LINKER    = nvfortran
 DEFS      =
 #FFLAGS    = -O0 -g -traceback
 FFLAGS    = -mp -fast -O3 -Mipa=fast
+#FFLAGS    = -fast -O3 -Mipa=fast
+#FFLAGS = -O2 -C -g -traceback
+INCLUDES  =
+LFLAGS    =
+
+#F90          = gfortran
+#F90LINKER    = gfortran
+
+# for gfortran Compiler
+#===================
+DEFS      =
+#FFLAGS    = -Og -g -pipe -Wall -Wextra -fbacktrace -fcheck=all -ffpe-trap=invalid,zero,overflow
+#FFLAGS    = 
+#FFLAGS   = 
 INCLUDES  =
 LFLAGS    =
 
 OBJECTS = \
 MIEX.o \
-q_dhs.o \
+mieext_mod.o \
+bhmie_mod.o \
+bhcoat_mod.o \
+DMiLay.o \
+dhs_mod.o \
+lxmie_mod.o \
 optools_table_class.o \
 optools_data_mod.o \
 optools_aux.o \
@@ -44,6 +63,7 @@ CIA_tables_mod.o \
 Ray_tables_mod.o \
 optools.o
 
+#dhs_mod.o: FFLAGS = -mp -O1
 
 # executable statement
 EXECS  = ../goptools

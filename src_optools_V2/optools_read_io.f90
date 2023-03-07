@@ -154,7 +154,7 @@ contains
       ! Read in wavelengths [um]
       read(u,*) iwl(l), wl(l)
       ! Convert to cm
-      wl_cm(l) = wl(l) / 1.0e4_dp
+      wl_cm(l) = wl(l) * 1.0e-4_dp
       ! Convert to A
       wl_A(l) = wl(l) * 1.0e4_dp
       ! Convert to wavenumber [cm-1]
@@ -225,7 +225,7 @@ contains
     implicit none
 
     integer :: u, i, j, k, l, sdum
-    real(kind=dp) :: a_dum, nd_dum
+    real(kind=dp) :: a_dum, var_dum, nd_dum
     real(kind=dp), allocatable, dimension(:) :: VMR_dum, a_dum_C, nd_dum_C
 
 
@@ -239,7 +239,7 @@ contains
     read(u,*)
     read(u,*) ndust
 
-    allocate(ilay2(nlay), nd_cl_lay(nlay), a_cl_lay(nlay))
+    allocate(ilay2(nlay), nd_cl_lay(nlay), a_cl_lay(nlay),var_cl_lay(nlay))
     allocate(VMR_cl_lay(ndust,nlay), d_name(ndust))
     allocate(VMR_dum(ndust))
 
@@ -251,9 +251,10 @@ contains
     read(u,*); read(u,*)
     if (nmode == 1) then
       do i = 1, nlay
-        read(u,*) ilay2(i), a_dum, nd_dum , (VMR_dum(l), l=1,ndust)
+        read(u,*) ilay2(i), a_dum, var_dum, nd_dum , (VMR_dum(l), l=1,ndust)
         VMR_cl_lay(:,i) = VMR_dum(:)
-        a_cl_lay(i) = a_dum
+        a_cl_lay(i) = a_dum * 1e-4_dp
+        var_cl_lay(i) = var_dum
         nd_cl_lay(i) = nd_dum
       end do
     else
@@ -262,7 +263,7 @@ contains
       allocate(a_C_cl_lay(ndust,nmode))
       do i = 1, ndust
          read(u,*) (a_dum_C(j), j=1,nmode)
-         a_C_cl_lay(i,:) = a_dum_C(:)
+         a_C_cl_lay(i,:) = a_dum_C(:) * 1e-4_dp
          !print*, a_C_cl_lay(i,:)
       end do
       do i = 1, nlay

@@ -82,7 +82,7 @@ module optools_data_mod
   real(kind=dp), allocatable, dimension(:) :: N_lay
   real(kind=dp), allocatable, dimension(:) :: mu_lay
   real(kind=dp), allocatable, dimension(:,:) :: VMR_lay
-  real(kind=dp), allocatable, dimension(:) :: nd_cl_lay, a_cl_lay, la_cl_lay
+  real(kind=dp), allocatable, dimension(:) :: nd_cl_lay, a_cl_lay, la_cl_lay, var_cl_lay
   real(kind=dp), allocatable, dimension(:,:) :: VMR_cl_lay
   real(kind=dp), allocatable, dimension(:,:) :: a_C_cl_lay
   real(kind=dp), allocatable, dimension(:,:,:) :: nd_C_cl_lay
