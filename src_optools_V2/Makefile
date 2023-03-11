@@ -31,6 +31,7 @@ bhcoat_mod.o \
 DMiLay.o \
 dhs_mod.o \
 lxmie_mod.o \
+mie_approx_mod.o \
 optools_table_class.o \
 optools_data_mod.o \
 optools_aux.o \

@@ -18,7 +18,7 @@ module cloud_tables_mod
   character(len=150), allocatable, dimension(:) :: paths
 
   character(len=20), dimension(0:8) :: cdist
-  character(len=20), dimension(6) :: mie_meth
+  character(len=20), dimension(0:6) :: mie_meth
 
   logical :: cld_tab_read = .False.
 
@@ -125,7 +125,7 @@ contains
     cdist(6) = 'Rayleigh' ; cdist(7) = 'Hansen' ; cdist(8) = 'exponential'
     print*, ' -- Assuming a '//trim(cdist(idist))//' distribution: ', idist
 
-    mie_meth(1) = 'MieX' ; mie_meth(2) = 'MieExt' ;  mie_meth(3) = 'BHMIE'
+    mie_meth(0) = 'Limiting' ; mie_meth(1) = 'MieX' ; mie_meth(2) = 'MieExt' ;  mie_meth(3) = 'BHMIE'
     mie_meth(4) = 'DHS'; mie_meth(5) = 'BHCOAT' ; mie_meth(6) = 'LX-MIE'
     print*, ' -- Using the '//trim(mie_meth(imie))//' method: ', imie
 
@@ -154,7 +154,7 @@ contains
 
         if (idist > 0) then
 
-          if (nd_cl_lay(z) < 1e-10_dp) then
+          if (nd_cl_lay(z) < 1e-6_dp) then
             cl_out_k(z) = 1e-99_dp
             cl_out_a(z) = 0.0_dp
             cl_out_g(z) = 0.0_dp

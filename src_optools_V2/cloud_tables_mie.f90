@@ -6,11 +6,10 @@ module cloud_tables_mie
   use bhcoat_mod, only : BHCOAT
   use dhs_mod, only : q_dhs
   use lxmie_mod, only : lxmie
+  use mie_approx_mod, only : adt, rayleigh, rayleigh_gans, geo_optics
   use ieee_arithmetic
   implicit none
 
-
-  private
   public :: cl_mie
 
 contains
@@ -51,10 +50,10 @@ contains
 
     x = (twopi * a)/wl_cm(l)
 
-    if (x > 1000.0_dp) then
+    if (x > 100.0_dp) then
       !cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.0_dp
       !return
-      x = 1000.0_dp
+      x = 100.0_dp
     else if (x < 1.00001e-6_dp) then
       x = 1.00001e-6_dp
     end if
@@ -62,6 +61,31 @@ contains
     rier = 0
 
     select case(imie)
+
+    case(0)
+      !! Special limiting cases for efficency
+      x = (twopi * a)/wl_cm(l) ! Unlimit size parameter
+
+      if (x < 0.01_dp) then
+        !! Use rayleigh scattering approximation
+        call rayleigh(x, eps, rQabs, rQsca, rQext)
+        rg = 0.0_dp
+      else if (x > 100.0_dp) then
+        call adt(x, eps, rQabs, rQsca, rQext)
+        rg = 0.9_dp ! Guess g for large particles
+      else
+        !! Call LX-MIE with negative k value
+        eps_in = cmplx(real(eps,dp),-aimag(eps))
+        call lxmie(eps_in, x, rQext, rQsca, rQabs, rg)
+      end if
+
+      cl_out_k = rQext * xsec * nd
+      cl_out_a = rQsca/rQext
+      cl_out_g = rg
+
+      if ((ieee_is_nan(cl_out_a) .eqv. .True.) .or. (rier /= 0)) then
+        print*, 'Special: NaN: ', l, real(wl(l)), rQext, a, x, eps
+      end if
 
     case(1)
 
@@ -202,6 +226,5 @@ contains
     end select
 
   end subroutine cl_mie
-
 
 end module cloud_tables_mie
