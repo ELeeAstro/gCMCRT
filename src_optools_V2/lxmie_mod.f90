@@ -1,7 +1,7 @@
-!!! E.K.H. Lee -  Translation into fortran 90 of the c++ code LX-ME from Kitzmann & Heng (2018)
+!!! E.K.H. Lee -  Translation into fortran 90 of the c++ code LX-MIE from Kitzmann & Heng (2018)
 !!! original comments have been retained
-!!! - input : ri - refractive index (with negative k), x size parameter
-!!! - output : q_ext, qsca, q_abs efficencies and assymetry parameter (g)
+!!! - input : ri - refractive index (with negative k, m = n - k), x size parameter
+!!! - output : q_ext, qsca, q_abs efficencies and asymmetry parameter (g)
 !!! - 
 module lxmie_mod
   use, intrinsic :: iso_fortran_env ! Requires fortran 2008
@@ -9,12 +9,12 @@ module lxmie_mod
 
   integer, parameter :: dp = REAL64
 
-  integer :: cf_max_terms = 10000001
-  real(dp) :: cf_epsilon = 1.0e-10_dp
+  integer, parameter :: cf_max_terms = 10000001
+  real(dp), parameter :: cf_epsilon = 1.0e-10_dp
 
   public :: lxmie
   private :: calcMieCoefficients, calcMieEfficiencies, calcAsymmetryParameter, &
-    an, anReal, startingANcontinuedFractions, startingANcontinuedFractionsReal
+    & an, anReal, startingANcontinuedFractions, startingANcontinuedFractionsReal
 
 contains
 
@@ -221,7 +221,7 @@ contains
     end do
 
     startingANcontinuedFractions = function_numerator/function_denominator &
-      & -  real(nb,dp)/mx
+      & - real(nb,dp)/mx
 
   end function startingANcontinuedFractions
 
