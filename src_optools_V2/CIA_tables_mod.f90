@@ -121,8 +121,8 @@ contains
       do z = 1, nlay
 
         ! Find the CIA opacity for this layer from tables
-        !call interp_CIA_tables(l,z,CIA_work)
-        call interp_CIA_tables_Bezier(l,z,CIA_work)
+        call interp_CIA_tables(l,z,CIA_work)
+        !call interp_CIA_tables_Bezier(l,z,CIA_work)
         ! Convert interpolated result to cm2 g-1 of atmosphere and add to output array
         CIA_out(z) = CIA_work/RH_lay(z)
 

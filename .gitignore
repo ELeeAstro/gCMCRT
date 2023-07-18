@@ -1,3 +1,11 @@
+# Avoid pushing opacity data from these directories
+data/k_tables/R100_ck_data_g16_UV/*
+data/CIA_tables/HITRAN/*.cia
+data/CE_interp/*.txt
+
+WASP-39b_1D_VULCAN_CARMA_example
+MALBEC_benchmark_examples
+
 # Prerequisites
 *.d
 

@@ -126,7 +126,11 @@ contains
       call scatt_pac(ph)
       call RR_test(ph)
 
-      nscat =  nscat + 1
+      nscat = nscat + 1
+
+      if (nscat > 1e4) then
+        exit
+      end if 
 
     end do
 

@@ -49,7 +49,7 @@ Rs = 0.805
 inc = 85.51
 phase = 0.005
 
-n_phase = 1
+n_phase = 2
 
 /
 
@@ -66,7 +66,7 @@ n_theta = 31
 n_phi = 65
 n_lay = 53
 viewthet = 90.0
-viewphi = 0.0
+viewphi = 0.0, 180.0
 xi_emb = 0.99
 
 /

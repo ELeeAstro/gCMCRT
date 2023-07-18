@@ -72,7 +72,7 @@ contains
      else if (threeD .eqv. .True.) then
 
        ! Calculate
-       itau3(:,:) = grid%n_lev - 1
+       itau3(:,:) = 1 !grid%n_lev - 1
        do k = 1, grid%n_theta-1
          do j = 1, grid%n_phi-1
            tau_sum = 0.0_dp
@@ -88,9 +88,9 @@ contains
                end if
                tau_sum = tau_sum + densav * abs((H(i)-H(i-1)))
                 if (tau_sum > tau_cuttoff) then
-                  if (itaul < itau3(j,k)) then
+                  !if (itaul < itau3(j,k)) then
                     itau3(j,k) = itaul
-                  end if
+                  !end if
                   exit
                 end if
             end do

@@ -84,9 +84,11 @@ contains
     print*, '-----'
 
     print*, corr_k, 'corr_k'
+    print*, lbl, 'lbl'
     print*, conti, 'conti'
     print*, Ray_scat, 'Ray_scat'
     print*, cloud_opc, 'cloud_opc'
+    print*, xsec_opc, 'xsec_opac'
 
     print*, '-----'
 
@@ -121,6 +123,11 @@ contains
     print*, 'Cloud species: '
     do c = 1, ncl
       print*, cl_name(c)
+    end do
+
+    print*, 'Xsec species: '
+    do c = 1, nxsec
+      print*, xsec_name(c)
     end do
 
     print*, '-----'
