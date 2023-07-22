@@ -1,0 +1,67 @@
+! Fortran namelist for optools
+
+&CK_nml
+
+
+pre_mixed = .False.
+interp_wl = .False.
+iopts = 1
+form = 2,2,2,2,2,2,2,2,2,2,2,2,2
+nG = 16
+paths = '../data/k_tables/R100_ck_data_g16_UV/H2O_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16_UV/CO_ck_HELIOSK_R100.txt'
+'../data/k_tables/R100_ck_data_g16_UV/CO2_ck_HELIOSK_R100.txt'
+'../data/k_tables/R100_ck_data_g16_UV/Na_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16_UV/K_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16_UV/NH3_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16_UV/H2S_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16_UV/HCN_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16_UV/HCl_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16_UV/PH3_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16_UV/OH_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16_UV/C2H2_ck_HELIOSK_R100.txt',
+'../data/k_tables/R100_ck_data_g16_UV/CH4_ck_HELIOSK_R100.txt'
+/
+
+&lbl_nml
+
+interp_wl = .False.
+iopts = 1
+form = 0
+paths = '../data/lbl_tables/Kband_H2O.dat'
+
+/
+
+&CIA_nml
+
+iopts = 1
+form = 4, 4
+paths = '../data/CIA_tables/HITRAN/H2-H2_2011.cia',
+'../data/CIA_tables/HITRAN/H2-He_2011.cia'
+/
+
+&Rayleigh_nml
+
+iopts = 1
+
+/
+
+&cl_nml
+
+iopts = 1
+imix = 1
+idist = 3
+ndist = 101
+idist_int = 1
+imie = 1
+form = 5
+paths = '../data/nk_tables/Al2O3[s].dat',
+sig = 2.71828182846
+eff_fac = 0.125
+veff = 0.125
+amin = 1.0e-2
+amax = 100.0
+fmax = 0.95
+
+/
+

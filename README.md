@@ -3,19 +3,23 @@
 WARNING - this code is not a black box and requires some getting used to, that said it typically takes a student a few hours of tinkering to get a first spectra. Once the model works the first time, further tinkering with options/physics etc becomes more simple.
 The best way to learn the code is to use it! And feel free to contact Elsie or other experianced users if stuck or confused.
 
+! If you need the code to do more fancy things than explained here, contact an experianced user or Elsie, usually most fancy things are possible to perform or calculate.
+
 More extensive documentation is in the making, for now here are some bare bones instructions.
 
 Two example models are provided:
 
-1. A WASP-33b SPARC/MITgcm GCM model emission example - which includes chemical abundances
-2. A WASP-39b Exo-FMS GCM model transmission example - uses chemical equilibirum abundance table interpolation
-3. A WASP-39b 1D VULCAN + CARMA output example - uses VULCAN
+1. A 3D WASP-33b SPARC/MITgcm GCM model emission example - which extracts chemical abundances at CE from the file
+2. A 3D 10x Solar WASP-39b Exo-FMS GCM model transmission example - uses chemical equilibirum abundance table interpolation
+3. A 1D WASP-39b 1D VULCAN + CARMA output example - example extracting 1D chemical and cloud data
+4. Several MALBEC 1D benchmark models - examples for using the code in 1D
 
 ## k-tables and CE data
 
 k-tables and chemical equilibirum interpolation tables can be found here:
 https://drive.google.com/drive/folders/1HVa9xWK_GqOqknIErcXVszzhhztACExw?usp=sharing
 
+! There will be periodic updates to the k-tabls and CE interpolation tables. A more flexible option to extract data from the tables is under development.
 
 ## To compile
 
@@ -37,12 +41,16 @@ You will need to install the CUDA hpc sdk: https://developer.nvidia.com/hpc-sdk
 
 .iprf (if CE interpolation required)
 
+wavelengths.wl (central band wavelenths of calculation)
+
 # How to operate optools
 
 To compile cd to src_optoools_V2 and enter 'make'.
 To de-compile enter 'make clean'.
 
-optools uses a fortran namelist and parameter file to communicate with the code.
+Compile options can be altered in the Makefile
+
+optools uses a fortran namelist (.nml) and parameter (.par) file to communicate with the code.
 
 ## optools.par file
 
@@ -97,22 +105,23 @@ iopts - Integer option number (dev-only)
 
 iopts - Integer option number (dev-only)
 
-imix = 1
+imix = 1 (Bruggeman optical constant mixing), 2 (LLL method)
 
-idist - 0 (Read bin model results), 1 (single particle size), 2 (3 size peaked near mean size), 3 (log-normal), 4 (Gamma), 5 (Inv. Gamma), 6 (Rayleigh), 7 (Hansen)
+idist - 0 (Read bin model results), 1 (single particle size), 2 (3 size peaked near mean size), 3 (log-normal), 4 (Gamma), 5 (Inv. Gamma), 6 (Rayleigh), 7 (Hansen), 8 (Exoponential)
 
 ndist - number of size distibution points (log-spaced between amin and amax)
 
 idist_int - 1 (Trapezium rule integration)
 
-imie - 1 (MieX solver), 2 (DHS solver)
+imie - 0 (Size limiting method), 1 (MieX), 2 (MieExt), 3 (BHMIE), 4 (DHS), 5 (BHCOAT), 6 (LX-MIE)
+[Note, some of these are experimental, 0 or 6 typicaly reccomended]
 
 form - 5 (DIHRT format nk-tables)
 
 paths - list of paths to the nk data
 \NOTE: THESE PATHS MUST BE IN THE SAME SPECIES ORDER AS THE SPECIES IN THE optools FILE !!!
 
-sig - ln sigma value (log-normal)
+sig -  (log-normal sigma value (note, not ln(sigma) the actual sigma))
 
 eff_fac - effetive mean size varience
 
@@ -126,3 +135,38 @@ fmax - parameter for DHS theory
 
 
 # How to operate gCMCRT
+
+To compile cd to src_gCMCRT and enter 'make'.
+To de-compile enter 'make clean'.
+
+Compile options can be altered in the Makefile
+
+gCMCRT uses a fortran namelist (.nml) file to communicate with the code.
+
+# What is output and how do I make synthetic observations?
+
+# Example tutorials
+
+## WASP-33b GCM dayside and nightside emission spectrum (with details on phase curve operation)
+
+Example using a SPARC/MITgcm WASP-33b model. In this example we produce a dayside and nightside spectra. 
+1. Use the extract script to extract the GCM data into the gCMCRT .hprf and .prf format, chemical abundances are extracted alongside.
+2. Run goptools to produce the corr-k, CIA and Rayleigh opacity files.
+3. Run gCMCRT to produce Em_001.txt (dayside) and Em_002.txt (nightside) output files
+4. Run em_spec.py to convert the output to synthetic observations, Fp/Fs, Fp and Tb. This file contains useful information on how to produce emission spectra.
+
+This example can be extended easily to produce phase curves.
+
+## WASP-39b GCM transmision spectrum (with details on using CE interpolation tables)
+
+Example using an Exo-FMS WASP-39b model. In this example we produce a transmission spectrum.
+1. Use the extract script to extract the GCM data into the gCMCRT .hprf and .iprf format
+2. Use interp_iprf.py to interpolate the CE abundances to the T,p of the GCM and produce the .prf file.
+3. Run goptools to produce the corr-k, CIA and Rayleigh opacity files.
+4. Run gCMCRT to produce 
+5. Run trans_spec.py to convert the output to synthetic observations, Rp/Rs. (This file contains useful information on transmission spectrum fitting etc)
+
+## WASP-39b 1D VULCAN + CARMA model (with details on using the code in 1D)
+
+## MALBEC benchmarks (further examples on 1D code use and comparing to other codes)
+
