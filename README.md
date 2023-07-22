@@ -148,52 +148,79 @@ gCMCRT uses a fortran namelist (.nml) file to communicate with the code.
 ###  &main
 
 exp_name - name of experiment
+
 xper - Required mode of gCMCRT (see gCMCRT.f90 main file)
+
 do_trans - .True. = Transmission limb sampling (for transit spectra), .False. = Normal sampling
 
 oneD - Use a 1D profile as input
+
 threeD - Use a 3D profile as input
 
 do_moments - experimental not in use
+
 do_images - produce pixel images of the output (warning, can be a large file)
+
 do_cf - calculate the contribution functions for emission or transmission (transmission is experimental)
 
 inc_ck - .True. = Read in CK.cmcrt file (corr-k mode)
+
 inc_lbl - .True. = Read in lbl.cmcrt file (lbl mode)
+
 inc_CIA - .True. = Read in CIA.cmcrt file (inc. CIA opacity)
+
 inc_Ray - .True. = Read in Ray.cmcrt file (inc. Rayleigh opacity)
+
 inc_cld - .True. = Read in cld.cmcrt file (inc. Cloud opacity and scattering properties)
+
 inc_xsec - .True. = Read in xsec.cmcrt file (inc. xsec opacity)
 
 do_scat_loop - .True. = Allow multiple scattering (usually .False. unless needed)
+
 do_g_bias - .True. = Use biasing when sampling g-ordinance (typically .True.)
+
 wght_deg - experimental do not use
+
 do_BB_band - experimental do not use
 
 lbl - .True. (lbl mode), .False. (corr-k mode)
+
 ck - .True. (corr-k mode), .False. (lbl mode)
 
 ! Wind paramaters for hi-res los velocity (lbl mode only)
+
 doppler_on - .True. = Apply doppler shifting to local opacity
+
 winds_on - .True. = Apply doppler shifting due to winds
+
 rotation_on - .True. = Apply doppler shifting due to rotation
+
 orbit_on - .True. = Apple doppler shifting due to orbital motion
+
 orbital_period - X  orbital period (days)
+
 systemic_velocity -  X  Systematic velocity (km s-1)
+
 sm_ax -  X semi-major axis (AU)
 
 xpix -  number of pixels in x direction for pixel maps
+
 ypix - number of pixels in y direction for pixel maps
 
 do_Draine - .True. = Perform the Draine G value calculation
+
 Draine_alp - Alpha value for the Draine G calculation (typically around 0.5)
 
 do_LD - .True. = Applying the limb darkening scheme (lbl mode only)
+
 ilimb - Integer limb darking law selection
+
 LD_c - Limb darkening coefficents
 
 Rs - Radius of star (Solar units, for LD only) 
+
 inc - Inclination in degrees (for LD only)
+
 phase - phase (for LD only)
 
 n_phase - Number of phases to calculate (= 1 for single phase)
@@ -201,19 +228,31 @@ n_phase - Number of phases to calculate (= 1 for single phase)
 ### &sph_3D_em
 
 Nph_tot = Number of photon packets per phase
+
 s_wl = Start wavelength integer
+
 n_wl = End wavelength integer
+
 pl = 0.51 (polarisation parameter; experimental)
+
 pc = 0.39 (polarisation parameter; experimental)
+
 sc = 1.0 (polarisation parameter; experimental)
+
 iscat = Scattering phase function choice (See mc_k_scatt.f90)
+
 n_theta = Number of latitudes + 1 in GCM (i.e. number of latitude edges)
+
 n_phi = Number of longitudes + 1 in GCM (i.e. number of latitude edges)
+
 n_lay = Number of layers in GCM (NOTE: not levels)
+
 viewthet = Viewing angle in latitude (typically 90 = edge on)
+
 viewphi = Viewing angle(s) in longitude (typically 0 = dayside, 180 = nightside)
 
 Emission only option:
+
 xi_emb = Emission biasing (typically ~0.99)
 
 ### &sph_3D_trans
