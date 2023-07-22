@@ -1,28 +1,41 @@
+# Import needed packages
 import numpy as np
 import matplotlib.pylab as plt
 from scipy.stats import binned_statistic
 
+# Nice fints (not required)
 plt.rc('font', family='sans-serif')
 plt.rc('font', serif='Helvetica Neue')
 plt.rc('text', usetex='false')
 
+# Number of phases and wavelength points
 n_ph = 2
 nwl = 503
 
 # Calculate planetary flux from Em_* files
 Fp = np.zeros((n_ph,nwl))
 
+# Cycle through each phase, reading the emission data
 for n in range(n_ph):
   fname = 'Em_'+str(n+1).zfill(3)+'.txt'
   print(fname)
   head = np.loadtxt(fname,max_rows=1)
+  # Phase (longitude degree)
   ph = int(head[3])
+  # Radius of planet at surface
   Rp = float(head[1])
+  # Radius of planet + atmosphere top
   Rp2 = float(head[2])
   data = np.loadtxt(fname,skiprows=1)
+  # Read wavelength
   wl = data[:,0]
+  # Read the escaped energy fraction
   frac = data[:,1]
+  # Read total energy
   Ltot = data[:,2]
+  # Calculate the flux of the planet toward phase n
+  # Remember, flux is defined as the energy passing through a surface, so here the surface can be 
+  # scaled between Rp and Rp2 at will, but we typically use Rp2 or Rp
   Fp[n,:] = (frac[:] * Ltot[:]) / (Rp2**2) # erg s-1 cm-2 cm-1
 
 
@@ -33,23 +46,26 @@ kb = 1.3080662e-16
 
 wl_cm = wl * 1e-4
 
+# Brightness temperature calculation
 BT = np.zeros((n_ph,nwl))
 for n in range(n_ph):
   BT[n,:] = (h*c0)/(kb*wl_cm) / np.log(1.0 +  ((2.0*h*c0**2)/(Fp[n,:]/np.pi * wl_cm**5)))
 
 # Calculate the Fp/Fs
-
 data = np.loadtxt('wavelengths_R100_UV_edge.txt',skiprows=1)
 wl_ed = data[:,1]
 
+# Stellar properties
 Rsun = 6.957e10
 Rs = 1.444 * Rsun
 
+# Read in stellar fluxes and convert to same units
 fname = 'WASP-33_stellar_spectrum.txt'
 data = np.loadtxt(fname,skiprows=1)
 wl_s = data[:,0]
 Fs = data[:,1] * 1e4  #in erg/s/cm2/um to erg/s/cm2/cm
 
+# Find the averaged stellar flux in each wavelength bin
 Fs_binned, bin_edges, binnumber = binned_statistic(wl_s,Fs,bins=wl_ed)
 
 

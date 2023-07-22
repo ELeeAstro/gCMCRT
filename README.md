@@ -163,8 +163,8 @@ Example using an Exo-FMS WASP-39b model. In this example we produce a transmissi
 1. Use the extract script to extract the GCM data into the gCMCRT .hprf and .iprf format
 2. Use interp_iprf.py to interpolate the CE abundances to the T,p of the GCM and produce the .prf file.
 3. Run goptools to produce the corr-k, CIA and Rayleigh opacity files.
-4. Run gCMCRT to produce 
-5. Run trans_spec.py to convert the output to synthetic observations, Rp/Rs. (This file contains useful information on transmission spectrum fitting etc)
+4. Run gCMCRT to produce the Transmission.txt file 
+5. Run trans_spec.py to convert the output to synthetic observations, Rp/Rs and compare to G395H and SOSS observations. (This file contains useful information on transmission spectrum fitting etc)
 
 ## WASP-39b 1D VULCAN + CARMA model (with details on using the code in 1D)
 
