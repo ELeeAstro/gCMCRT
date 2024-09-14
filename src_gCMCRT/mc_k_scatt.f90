@@ -58,6 +58,7 @@ contains
 
     real(dp) :: cost_norm, sint_norm, rp
 
+    integer :: nsamp
 
     ! Normalise polarisation fractions to I stokes parameter
     f_norm = ph%fi
@@ -264,7 +265,7 @@ contains
         ! Combined HG and Rayleigh function from Draine (2003)
         ! Sample from Draine (2003) phase function using the Gibbs sampling method of Zhang (2019)
 
-        zeta1 = (1.0 + Draine_alp_d * Dmut_d(ph%c(1),ph%c(2),ph%c(3))**2) * curand_uniform(ph%iseed) ! Scale between 0 and 1 + alp*mut**2 limit
+        zeta1 = (1.0_dp + Draine_alp_d * Dmut_d(ph%c(1),ph%c(2),ph%c(3))**2) * curand_uniform(ph%iseed) ! Scale between 0 and 1 + alp*mut**2 limit
         zeta2 = curand_uniform(ph%iseed)
 
         G1 = Dgg_d(ph%c(1),ph%c(2),ph%c(3))
@@ -272,12 +273,17 @@ contains
 
         Dmut_d(ph%c(1),ph%c(2),ph%c(3)) = 1.0_dp/(2.0_dp*G1) * ((1.0_dp + G2) - ((1.0_dp - G2)/ &
         & (1.0_dp + G1*(2.0_dp*zeta2 - 1.0_dp)))**2)
+   
+        nsamp = 0
 
-        do while ((1.0 + Draine_alp_d * Dmut_d(ph%c(1),ph%c(2),ph%c(3))**2) < zeta1)
+        do while (((1.0_dp + Draine_alp_d * Dmut_d(ph%c(1),ph%c(2),ph%c(3))**2) < zeta1) .or. (nsamp > 100))
           zeta2 = curand_uniform(ph%iseed)
           Dmut_d(ph%c(1),ph%c(2),ph%c(3)) = 1.0_dp/(2.0_dp*G1) * ((1.0_dp + G2) - ((1.0_dp - G2)/ &
           & (1.0_dp + G1*(2.0_dp*zeta2 - 1.0_dp)))**2)
+          nsamp = nsamp + 1
         end do
+
+        
 
         bmu = Dmut_d(ph%c(1),ph%c(2),ph%c(3))
 

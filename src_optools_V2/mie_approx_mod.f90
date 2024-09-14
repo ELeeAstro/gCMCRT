@@ -86,11 +86,10 @@ contains
 
     !! Follow Bohren and Huffman (1983) approximations
     q_sca = 8.0_dp/3.0_dp * x**4 * abs(alp)**2
-    q_ext = 4.0_dp * x * &
-      & aimag(alp * (1.0_dp + x**2/15.0_dp*alp * ((ri**4+27.0_dp*ri**2+38.0_dp)/(2.0_dp*ri**2+3.0_dp)))) + &
-      & 8.0_dp/3.0_dp * x**4 * real(alp**2,dp)
+    q_abs = 4.0_dp * x * &
+      & aimag(alp * (1.0_dp + x**2/15.0_dp*alp * ((ri**4+27.0_dp*ri**2+38.0_dp)/(2.0_dp*ri**2+3.0_dp))))
 
-    q_abs = q_ext - q_sca
+    q_ext = q_abs + q_sca
 
   end subroutine rayleigh
 

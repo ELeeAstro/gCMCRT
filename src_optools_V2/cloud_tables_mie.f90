@@ -50,11 +50,7 @@ contains
 
     x = (twopi * a)/wl_cm(l)
 
-    if (x > 100.0_dp) then
-      !cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.0_dp
-      !return
-      x = 100.0_dp
-    else if (x < 1.00001e-6_dp) then
+    if (x < 1.00001e-6_dp) then
       x = 1.00001e-6_dp
     end if
 

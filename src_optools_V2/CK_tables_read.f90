@@ -58,7 +58,7 @@ contains
 
     integer :: np, nt, n_bins, ng,  l, u, i, j, p, t, g
     character(len=10) sp
-    real(kind=dp), allocatable, dimension(:) :: press, temp, wll, gx, gw
+    real(kind=dp), allocatable, dimension(:) :: press, temp, wll, wnn, gx, gw
     real(kind=dp), allocatable, dimension(:) :: k_abs
 
     ! Open CMCRT formatted file
@@ -76,31 +76,30 @@ contains
     CK_tab(s)%nG = ng
 
     ! Allocate local arrays
-    allocate(press(np),temp(nt),wll(n_bins),k_abs(ng),gx(ng),gw(ng))
+    allocate(press(np),temp(nt),wll(n_bins),wnn(n_bins),k_abs(ng),gx(ng),gw(ng))
 
     ! Allocate table arrays
     allocate(CK_tab(s)%T(CK_tab(s)%nT),CK_tab(s)%lT(CK_tab(s)%nT))
     allocate(CK_tab(s)%P(CK_tab(s)%nP),CK_tab(s)%lP(CK_tab(s)%nP))
-    allocate(CK_tab(s)%wl(CK_tab(s)%nwl),CK_tab(s)%wn(CK_tab(s)%nwl))
+    allocate(CK_tab(s)%wl(CK_tab(s)%nwl+1),CK_tab(s)%wn(CK_tab(s)%nwl+1))
     allocate(CK_tab(s)%Gx(CK_tab(s)%nG),CK_tab(s)%Gw(CK_tab(s)%nG))
     allocate(CK_tab(s)%k_abs(CK_tab(s)%nwl,CK_tab(s)%nP,CK_tab(s)%nT,CK_tab(s)%nG))
     allocate(CK_tab(s)%lk_abs(CK_tab(s)%nwl,CK_tab(s)%nP,CK_tab(s)%nT,CK_tab(s)%nG))
 
 
     ! Read pressure, temperature and wavenumbers
-    do t = 1, nt
-      read(u,*) temp(t)
-    end do
-    do p = 1, np
-      read(u,*) press(p)
-    end do
-    read(u,*) (wll(l),l = 1, CK_tab(s)%nwl)
+    read(u,*) temp(:)
+    read(u,*) press(:)
+    read(u,*)
+    read(u,*) (wll(l),l = 1, CK_tab(s)%nwl+1)
+    read(u,*) (wnn(l),l = 1, CK_tab(s)%nwl+1)
+    read(u,*)
     read(u,*) (gx(g),g = 1, CK_tab(s)%nG)
     read(u,*) (gw(g),g = 1, CK_tab(s)%nG)
 
     print*,'Min, max T: ', temp(1), temp(nt)
     print*,'Min, max P: ', press(1), press(np)
-    print*,'Min, max wl: ', wll(1), wll(n_bins)
+    print*,'Min, max wl: ', wll(n_bins+1), wll(1)
     print*,'1, ng gx: ', gx(1), gx(ng)
     print*,'1, ng gw: ', gw(1), gw(ng)
 
@@ -120,11 +119,10 @@ contains
 
     ! Reverse l index as table is in wavenumber order
     do l = 1, CK_tab(s)%nwl
-      CK_tab(s)%wl(l) = wll(l)
+      CK_tab(s)%wl(l) = wll(CK_tab(s)%nwl-l+1)
+      CK_tab(s)%wn(l) = wnn(CK_tab(s)%nwl-l+1)
     end do
 
-    ! Add wavenumber information to k table [cm-1]
-    CK_tab(s)%wn(:) = 1.0_dp/(CK_tab(s)%wl(:) * 1.0e-4_dp)
 
     ! print*, CK_tab(s)%nP, CK_tab(s)%nT, CK_tab(s)%nwl
     ! print*, CK_tab(s)%P(:)/bar

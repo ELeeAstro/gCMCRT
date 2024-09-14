@@ -46,7 +46,7 @@ contains
           k_tot_scat = k_gas_Ray(i,1,1) + cld_sca
           k_tot_ext(:) = k_tot_abs(:,i,1,1) +  k_gas_Ray(i,1,1) + cld_ext(i,1,1)
           rhokap(:,i,1,1) =  RH(i,1,1) * k_tot_ext(:) * grid%r_del
-          ssa(:,i,1,1) = min(k_tot_scat/k_tot_ext(:), 0.99_dp)
+          ssa(:,i,1,1) = min(k_tot_scat/k_tot_ext(:), 0.95_dp)
           gg(i,1,1) = cld_g(i,1,1)
           dorg(i,1,1) = k_gas_Ray(i,1,1)/k_tot_scat
       end do
@@ -71,7 +71,7 @@ contains
              k_tot_scat = k_gas_Ray(i,j,k) +  cld_sca
              k_tot_ext(:) = k_tot_abs(:,i,j,k) +  k_gas_Ray(i,j,k) + cld_ext(i,j,k)
              rhokap(:,i,j,k) =  RH(i,j,k) * k_tot_ext(:) * grid%r_del
-             ssa(:,i,j,k) = min(k_tot_scat/k_tot_ext(:), 0.99_dp)
+             ssa(:,i,j,k) = min(k_tot_scat/k_tot_ext(:), 0.95_dp)
              gg(i,j,k) = cld_g(i,j,k)!(cld_g(i,j,k)*cld_sca) / (cld_sca + k_gas_Ray(i,j,k))
              dorg(i,j,k) = k_gas_Ray(i,j,k)/k_tot_scat
            end do
@@ -112,7 +112,7 @@ contains
         open(newunit=u_k, file='CK.cmcrt', status='old', action='read',&
          & form='unformatted', asynchronous='yes', access='direct',recl=reclen)
 
-        print*, 'unit _k :', u_k
+        print*, 'unit _k :', u_k, reclen, ng, grid%n_cell, l
         print*, '- Complete -'
 
       else if (lbl .eqv. .True.) then

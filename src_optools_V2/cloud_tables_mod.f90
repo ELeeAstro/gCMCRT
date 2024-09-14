@@ -109,6 +109,8 @@ contains
         a_dist(a) = 10.0_dp**((lamax-lamin) * real(a-1,kind=dp) / real(ndist-1,kind=dp) + lamin)
       end do
 
+      print*, 'Cloud particle sizes [um]: ', ndist, a_dist(:) * 1e4_dp
+
       ! ln the sigma (or not, might be easier not to)
       lsig = log(sig)
  

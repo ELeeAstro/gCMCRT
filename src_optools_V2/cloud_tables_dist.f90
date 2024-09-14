@@ -49,16 +49,14 @@ contains
 
     case(3)
 
-      !! log normal distribution - particle size in prf is the geometric mean, median and mode size
+      !! log normal distribution - particle size in prf is the median/geometric mean size
       !! sig = std. deviation - lsig = ln(sig), typically 1 < lsig < 2
-
-      muu = log(Ev/sqrt(Var/Ev**2 + 1.0_dp))
-      sigg = sqrt(log(Var/Ev**2 + 1.0_dp))
+      !! Here, use Ev as the median grain size and Var as the sigma
 
       do m = 1, ndist
         ! Distribution in cm-3 cm-1
-        nd_dist(m) = (nd_cl_lay(z)  / (a_dist(m) * sqrt(twopi) * sigg)) * &
-          & exp(-(log(a_dist(m)) - muu)**2/(2.0_dp * sigg**2))
+        nd_dist(m) = (nd_cl_lay(z)  / (a_dist(m) * sqrt(twopi) * log(Var))) * &
+          & exp(-(log(a_dist(m)/Ev)**2/(2.0_dp * log(Var)**2)))
 
         if ((ieee_is_nan(nd_dist(m)) .eqv. .True.) .or. (ieee_is_finite(nd_dist(m)) .eqv. .False.)) then
           nd_dist(m) = 1.0e-99_dp

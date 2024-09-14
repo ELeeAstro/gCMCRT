@@ -44,9 +44,9 @@ contains
           cycle
         end if
 
-        xsec = pi * (a*1.0e-4_dp)**2
+        xsec = pi * a**2
 
-        x = (twopi * a)/wl(l)
+        x = (twopi * a*1e4_dp)/wl(l)
         if (x <= 1.00001e-6_dp) then
           x = 1.00001e-6_dp
         else if (x >= 100000.0_dp) then
