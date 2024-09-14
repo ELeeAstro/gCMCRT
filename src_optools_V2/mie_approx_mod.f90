@@ -7,78 +7,78 @@ module mie_approx_mod
   real(dp), parameter :: pi = 4.0_dp*atan(1.0_dp)
   real(dp), parameter :: gam = 0.577215665_dp
 
-  public :: adt, rayleigh, rayleigh_gans, geo_optics
+  public :: madt, rayleigh, rayleigh_gans, geo_optics
 
 contains
 
-  !! anomalous diffraction theory (ADT) valid for x >> 1, |m - 1| << 1
-  !! We follow the Draine et al. formulation
-  !! (Also known as the van de Hulst (1957) approximation)
-  subroutine adt(x, ri, q_abs, q_sca, q_ext)
+  !! modified anomalous diffraction theory (MADT) valid for x >> 1, |m - 1| << 1
+  subroutine madt(x, ri, q_abs, q_sca, q_ext, g)
     implicit none
 
     real(dp), intent(in) :: x
     complex(dp), intent(in) :: ri
 
-    real(dp), intent(out) :: q_abs, q_sca, q_ext
+    real(dp), intent(out) :: q_abs, q_sca, q_ext, g
 
-    real(dp) :: rho1, rho2, rho0, beta0, beta, fac, fac2
-    complex(dp) ::  rho
+    real(dp) :: n, k, rho, beta, tan_b
+    real(dp) :: C1, C2, eps, q_edge, Cm
 
-    rho = 2.0_dp * x * (ri - 1.0_dp)
-    rho0 = abs(rho)
-    rho1 = real(rho, dp)
-    rho2 = aimag(rho)
+    n = real(ri,dp)
+    k = aimag(ri)
 
-    if (abs(rho1) > 0.0_dp) then
-      beta0 = atan(abs(rho2)/abs(rho1))
-      if (rho1 < 0.0_dp .and. rho2 > 0.0_dp) then
-        beta = pi - beta0
-      else if (rho1 < 0.0_dp .and. rho2 < 0.0_dp) then
-        beta = pi + beta0
-      else if (rho1 > 0.0_dp .and. rho2 < 0.0_dp) then 
-        beta = 2.0_dp*pi - beta0
-      else 
-        beta = beta0 
-      endif     
+    rho = 2.0_dp*x*(n - 1.0_dp)
+    beta = atan(k/(n - 1.0_dp))
+    tan_b = tan(beta)
+
+    if (k < 1.0e-20_dp) then
+      q_sca = 2.0_dp - (4.0_dp/rho)*sin(rho) - (4.0_dp/rho**2)*(cos(rho) - 1.0_dp)
+      q_abs = 0.0_dp
+      q_ext = q_sca
     else
-      if (rho2 > 0.0_dp) then
-        beta = 0.5_dp*pi 
-      else
-        beta = 1.5_dp*pi
-      endif
-    end if
+      q_ext = 2.0_dp - 4.0_dp * exp(-rho*tan_b)*(cos(beta)/rho)*sin(rho-beta) &
+        & - 4.0_dp*exp(-rho*tan_b)*(cos(beta)/rho)**2*cos(rho-2.0_dp*beta) &
+        & + 4.0_dp*(cos(beta)/rho)**2*cos(2.0_dp*beta)
+      q_abs = 1.0_dp + 2.0_dp*(exp(-4.0_dp*k*x)/(4.0_dp*k*x)) &
+        & + 2.0_dp*((exp(-4.0_dp*k*x)-1.0_dp)/(4.0_dp*k*x)**2)
 
-    if (rho0 < 1.0e-1_dp) then
-      q_ext = (4.0_dp/3.0_dp)*rho2 + 0.5_dp*(rho1**2 - rho2**2)
-      q_abs = (4.0_dp/3.0_dp)*rho2 - rho2**2
-      q_sca = 0.5_dp*rho0**2
-    else
-      fac = exp(-rho2)
-      fac2 = fac**2
-      q_ext = 2.0_dp + (4.0_dp/rho0**2)*(cos(2.0_dp*beta) - fac*(cos(rho1 - 2*beta) + rho0*sin(rho1 - beta)))
-      q_abs = 1.0_dp + fac2/rho2 + (fac2 - 1.0_dp)/(2.0_dp*rho2**2)
+      C1 = 0.25_dp * (1.0_dp + exp(-1167.0_dp*k))*(1.0_dp - q_abs)
+
+      eps = 0.25_dp + 0.61_dp*(1.0_dp - exp(-(8.0_dp*pi/3.0_dp)*k))**2
+      C2 = sqrt(2.0_dp*eps*(x/pi))*exp(0.5_dp - eps*(x/pi))*(0.79393_dp*n - 0.6069_dp)
+
+      q_abs = (1.0_dp + C1 + C2)*q_abs
+
+      q_edge = (1.0_dp - exp(-0.06_dp*x))*x**(-2.0_dp/3.0_dp)
+
+      q_ext = (1.0_dp + 0.5_dp*C2)*q_ext + q_edge
+
       q_sca = q_ext - q_abs
+
     end if
 
-    if (x >= 10.0_dp) then
-      q_ext = q_ext + 2.0_dp * x**(-2.0_dp/3.0_dp)
+    !! Estimate g
+    if (k < 1.0e-20_dp) then
+      Cm = (6.0_dp + 5.0_dp*n**2 + n**4)/(45.0_dp*30.0_dp*n**2)
+    else
+      Cm = (-2.0_dp*k**6+k**4*(13.0_dp-2.0_dp*n**2)+k**2*(2.0_dp*n**4+2.0_dp*n**2-27.0_dp) &
+        & + 2.0_dp*n**6 + 13.0_dp*n**4 + 27.0_dp*n**2 + 18.0_dp) &
+        & /(15.0_dp * (4.0_dp*k**4 + 4.0_dp*k**2*(2.0_dp*n**2 - 3.0_dp) + (2.0_dp*n**2 + 3.0_dp)**2))
     end if
 
-    ! First Mie bump only:
-    !q_ext = q_ext * (1.1_dp + (real(ri,dp) - 1.2_dp)/3.0_dp)
+    !! Rayleigh regime, but limit to 0.9 to try get the constant region
+    g = min(Cm * x**2, 0.9_dp)
 
-  end subroutine adt
+  end subroutine madt
 
   !! Rayleigh scattering regime x << 1, |mx| << 1
   !! i.e. small particles with minimal field changes
-  subroutine rayleigh(x, ri, q_abs, q_sca, q_ext)
+  subroutine rayleigh(x, ri, q_abs, q_sca, q_ext, g)
     implicit none
 
     real(dp), intent(in) :: x
     complex(dp), intent(in) :: ri
 
-    real(dp), intent(out) :: q_abs, q_sca, q_ext
+    real(dp), intent(out) :: q_abs, q_sca, q_ext, g
 
     complex(dp) :: alp
 
@@ -90,6 +90,8 @@ contains
       & aimag(alp * (1.0_dp + x**2/15.0_dp*alp * ((ri**4+27.0_dp*ri**2+38.0_dp)/(2.0_dp*ri**2+3.0_dp))))
 
     q_ext = q_abs + q_sca
+
+    g = 0.0_dp
 
   end subroutine rayleigh
 

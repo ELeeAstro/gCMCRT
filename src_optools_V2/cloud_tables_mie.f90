@@ -6,7 +6,7 @@ module cloud_tables_mie
   use bhcoat_mod, only : BHCOAT
   use dhs_mod, only : q_dhs
   use lxmie_mod, only : lxmie
-  use mie_approx_mod, only : adt, rayleigh, rayleigh_gans, geo_optics
+  use mie_approx_mod, only : madt, rayleigh, rayleigh_gans, geo_optics
   use ieee_arithmetic
   implicit none
 
@@ -64,11 +64,9 @@ contains
 
       if (x < 0.01_dp) then
         !! Use rayleigh scattering approximation
-        call rayleigh(x, eps, rQabs, rQsca, rQext)
-        rg = 0.0_dp
+        call rayleigh(x, eps, rQabs, rQsca, rQext, rg)
       else if (x > 100.0_dp) then
-        call adt(x, eps, rQabs, rQsca, rQext)
-        rg = 0.9_dp ! Guess g for large particles
+        call madt(x, eps, rQabs, rQsca, rQext, rg)
       else
         !! Call LX-MIE with negative k value
         eps_in = cmplx(real(eps,dp),-aimag(eps))
@@ -97,7 +95,7 @@ contains
       if ((ieee_is_nan(cl_out_a) .eqv. .True.) .or. (rier /= 0)) then
         if (x > 100.0_dp) then
            print*, 'MieX: lx approx: ', l, real(wl(l)), rQext, a, x, eps
-           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.0_dp
+           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.9_dp
         else
           print*, 'MieX: zero approx: ', l, real(wl(l)), rQext, a, x, eps
           cl_out_k = 0.0_dp ; cl_out_a = 0.0_dp ; cl_out_g = 0.0_dp
@@ -118,7 +116,7 @@ contains
       if ((ieee_is_nan(cl_out_k) .eqv. .True.) .or. (rier /= 0)) then
         if (x > 100.0_dp) then
            print*, 'MieExt: lx approx: ', l, real(wl(l)), rQext, a, x, eps_in
-           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.0_dp
+           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.9_dp
         else
           print*, 'MieExt: zero approx: ', l, real(wl(l)), rQext, a, x, eps_in
           cl_out_k = 0.0_dp ; cl_out_a = 0.0_dp ; cl_out_g = 0.0_dp
@@ -137,7 +135,7 @@ contains
       if ((ieee_is_nan(cl_out_a) .eqv. .True.) .or. (rier /= 0)) then
         if (x > 100.0_dp) then
            print*, 'BHMIE: lx approx: ', l, real(wl(l)), rQext, a, x, eps
-           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.0_dp
+           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.9_dp
         else
           print*, 'BHMIE: zero approx: ', l, real(wl(l)), rQext, a, x, eps
           cl_out_k = 0.0_dp ; cl_out_a = 0.0_dp ; cl_out_g = 0.0_dp
@@ -163,7 +161,7 @@ contains
       if ((ieee_is_nan(cl_out_a) .eqv. .True.) .or. (rier /= 0)) then
         if (x > 100.0_dp) then
            print*, 'DHS: lx approx: ', l, real(wl(l)), rQext, a, x, eps
-           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.0_dp
+           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.9_dp
         else
           print*, 'DHS: zero approx: ', l, real(wl(l)), rQext, a, x, eps
           cl_out_k = 0.0_dp ; cl_out_a = 0.0_dp ; cl_out_g = 0.0_dp
@@ -189,7 +187,7 @@ contains
       if ((ieee_is_nan(cl_out_a) .eqv. .True.) .or. (rier /= 0)) then
         if (x > 100.0_dp) then
            print*, 'BHCOAT: lx approx: ', l, real(wl(l)), rQext, a, x, eps
-           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.0_dp
+           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.9_dp
         else
           print*, 'BHCOAT: zero approx: ', l, real(wl(l)), rQext, a, x, eps
           cl_out_k = 0.0_dp ; cl_out_a = 0.0_dp ; cl_out_g = 0.0_dp
@@ -209,7 +207,7 @@ contains
       if ((ieee_is_nan(cl_out_a) .eqv. .True.) .or. (rier /= 0)) then
         if (x > 100.0_dp) then
            print*, 'LX-MIE: lx approx: ', l, real(wl(l)), rQext, rQsca, a, x, eps
-           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.0_dp
+           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.9_dp
         else
           print*, 'LX-MIE: zero approx: ', l, real(wl(l)), rQext, rQsca, a, x, eps
           cl_out_k = 0.0_dp ; cl_out_a = 0.0_dp ; cl_out_g = 0.0_dp
