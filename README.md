@@ -13,11 +13,15 @@ Two example models are provided:
 2. A 3D 10x Solar WASP-39b Exo-FMS GCM model transmission example - uses chemical equilibirum abundance table interpolation
 3. A 1D WASP-39b 1D VULCAN + CARMA output example - example extracting 1D chemical and cloud data
 4. Several MALBEC 1D benchmark models - examples for using the code in 1D
+5. Y-dwarf example with KCl cloud opacity calculation
 
 ## k-tables and CE data
 
 k-tables and chemical equilibirum interpolation tables can be found here:
 https://drive.google.com/drive/folders/1HVa9xWK_GqOqknIErcXVszzhhztACExw?usp=sharing
+
+CIA tables can be downloaded from HITRAN:
+https://hitran.org/cia/
 
 ! There will be periodic updates to the k-tabls and CE interpolation tables. A more flexible option to extract data from the tables is under development.
 
