@@ -1,9 +1,9 @@
 # gCMCRT - 3D Monte Carlo Radiative Transfer for exoplanet atmospheres with GPUs
 
 WARNING - this code is not a black box and requires some getting used to, that said it typically takes a student a few hours of tinkering to get a first spectra. Once the model works the first time, further tinkering with options/physics etc becomes more simple.
-The best way to learn the code is to use it! And feel free to contact Elsie or other experianced users if stuck or confused.
+The best way to learn the code is to use it! And feel free to contact Elsie or other experienced users if stuck or confused.
 
-! If you need the code to do more fancy things than explained here, contact an experianced user or Elsie, usually most fancy things are possible to perform or calculate.
+! If you need the code to do more fancy things than explained here, contact an experienced user or Elsie, usually most fancy things are possible to perform or calculate.
 
 More extensive documentation is in the making, for now here are some bare bones instructions.
 
@@ -17,13 +17,13 @@ Two example models are provided:
 
 ## k-tables and CE data
 
-k-tables and chemical equilibirum interpolation tables can be found here:
+k-tables, chemical equilibirum interpolation tables and Y dwarf example can be found here:
 https://drive.google.com/drive/folders/1HVa9xWK_GqOqknIErcXVszzhhztACExw?usp=sharing
 
 CIA tables can be downloaded from HITRAN:
 https://hitran.org/cia/
 
-! There will be periodic updates to the k-tabls and CE interpolation tables. A more flexible option to extract data from the tables is under development.
+! There will be periodic updates to the k-tables and CE interpolation tables. A more flexible option to extract data from the tables is under development.
 
 ## To compile
 
