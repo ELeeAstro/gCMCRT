@@ -1,0 +1,92 @@
+&main
+
+exp_name = 'FMS'
+xper = '3D_sph_em'
+do_trans = .False.
+
+oneD = .False.
+threeD = .True.
+
+do_moments = .False.
+do_images = .False.
+do_cf = .False.
+
+inc_ck = .True.
+inc_lbl = .False.
+inc_CIA = .True.
+inc_Ray = .True.
+inc_cld = .True.
+
+do_scat_loop = .True.
+do_g_bias = .True.
+wght_deg = .False.
+do_BB_band = .False.
+
+lbl = .False.
+ck = .True.
+
+! Wind paramaters for hi-res los velocity
+doppler_on = .False.
+winds_on = .True.
+rotation_on = .True.
+orbit_on = .False.
+orbital_period = 1.81 ! orbital period (days)
+systemic_velocity = 0.0 ! Systematic velocity (km s-1)
+sm_ax = 0.024           ! semi-major axis (AU)
+
+xpix = 200
+ypix = 200
+
+do_Draine = .False.
+Draine_alp = 0.5
+
+
+do_LD = .False.
+ilimb = 2
+LD_c = 0.077, 0.311, 0.0, 0.0
+
+Rs = 0.805
+inc = 85.51
+phase = 0.005
+
+!n_phase = 36
+n_phase = 1
+
+/
+
+&sph_3D_em
+
+Nph_tot = 10240000
+s_wl = 1
+n_wl = 503
+pl = 0.51
+pc = 0.39
+sc = 1.0
+iscat = 4
+n_theta = 97  
+n_phi = 193
+n_lay = 60
+viewthet = 90.0
+viewphi = 0.0
+!viewphi = 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350
+xi_emb = 0.99
+
+/
+
+&sph_3D_trans
+
+Nph = 1024000
+s_wl = 1
+n_wl = 503
+pl = 0.51
+pc = 0.39
+sc = 1.0
+iscat = 6
+n_theta = 65
+n_phi = 129
+n_lay = 60
+viewthet = 90.0
+viewphi = 180.0
+nb_cf = 301
+
+/
