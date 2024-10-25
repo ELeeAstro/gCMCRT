@@ -59,7 +59,7 @@ module mc_class_grid
   real(dp), dimension(:), allocatable :: x, y, z, r, H
   real(dp), dimension(:), allocatable :: thetarr, phiarr, tan2thet, aarr, barr
   real(dp), dimension(:,:,:,:), allocatable :: rhokap, ssa
-  real(dp), dimension(:,:,:), allocatable :: gg, Dgg, Dmut
+  real(dp), dimension(:,:,:), allocatable :: gg, Dgg
   real(dp), dimension(:,:,:), allocatable :: cf
   real(dp), dimension(:,:,:), allocatable :: l_cell
   real(dp), dimension(:,:,:,:), allocatable :: l_cell_g
@@ -72,7 +72,7 @@ module mc_class_grid
   real(dp), dimension(:), allocatable, device :: x_d, y_d, z_d, r_d, H_d
   real(dp), dimension(:), allocatable, device :: theta_d, phi_d, tan2thet_d, aarr_d, barr_d
   real(dp), dimension(:,:,:,:), allocatable, device :: rhokap_d, ssa_d
-  real(dp), dimension(:,:,:), allocatable, device :: g_d, Dgg_d, Dmut_d
+  real(dp), dimension(:,:,:), allocatable, device :: g_d, Dgg_d
   real(dp), dimension(:,:,:), allocatable, device :: cf_d
   real(dp), dimension(:,:,:), allocatable, device :: dorg_d
 

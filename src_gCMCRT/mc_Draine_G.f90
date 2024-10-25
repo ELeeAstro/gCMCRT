@@ -21,11 +21,11 @@ contains
     real(dp) :: a1, b1, g, g2, g3
 
     if (first_call .eqv. .True.) then
+      ! Need to limit alpha to non-zero small value to avoid numerical issues
+      Draine_alp = max(1e-4_dp,Draine_alp)
       Draine_alp_d = Draine_alp
       allocate(Dgg(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
       allocate(Dgg_d(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
-      allocate(Dmut(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
-      allocate(Dmut_d(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
       first_call = .False.
     end if
 
@@ -50,10 +50,8 @@ contains
       end do
     end do
 
-    Dmut(:,:,:) = 1.0_dp
-
+    !! Draine G function
     Dgg_d(:,:,:) = Dgg(:,:,:)
-    Dmut_d(:,:,:) = Dmut(:,:,:)
 
   end subroutine Draine_G
 

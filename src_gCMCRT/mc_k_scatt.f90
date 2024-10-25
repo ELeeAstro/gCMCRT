@@ -54,11 +54,9 @@ contains
 
     real(dp) :: w1, w2, w3, g, h, l, w, g1, gf1, gf2, gb1, gb2
 
-    real(dp) :: zeta1, zeta2
-
+    real(dp) :: G4, t0, t1, t2, t3, t4, t5, t6, t7, t8, t9
+    
     real(dp) :: cost_norm, sint_norm, rp
-
-    integer :: nsamp
 
     ! Normalise polarisation fractions to I stokes parameter
     f_norm = ph%fi
@@ -214,16 +212,45 @@ contains
       !call Raymat_depol(p1,p2,p3,p4,bmu,cosb2,sinb2)
 
     case(4)
-
-        ! Sample from single HG function
+        ! HG function
         hgg = g_d(ph%c(1),ph%c(2),ph%c(3))
-        g2 = hgg**2
 
-        bmu = ((1.0_dp + g2) - &
-        & ((1.0_dp - g2) / (1.0_dp - hgg + 2.0_dp * hgg * curand_uniform(ph%iseed)))**2) &
-          & / (2.0_dp*hgg)
+        ! If near isotropic (g = 0), sample from isotropic phase function
+        if (abs(hgg) < 1e-4_dp) then
 
-        call dustmat_HG(p1,p2,p3,p4,bmu,bmu**2,hgg,g2)
+          ph%cost = 2.0_dp * curand_uniform(ph%iseed) - 1.0_dp
+          ph%sint = 1.0_dp - ph%cost**2
+          if (ph%sint <= 0.0_dp)then
+            ph%sint = 0.0_dp
+          else
+            ph%sint = sqrt(ph%sint)
+          endif
+
+          ph%phi = twopi * curand_uniform(ph%iseed)
+          ph%sinp = sin(ph%phi)
+          ph%cosp = cos(ph%phi)
+
+          ph%nxp = ph%sint * ph%cosp
+          ph%nyp = ph%sint * ph%sinp
+          ph%nzp = ph%cost
+
+          ! De-polarised packet
+          ph%fi = 1.0_dp
+          ph%fq = 0.0_dp
+          ph%fu = 0.0_dp
+          ph%fv = 0.0_dp
+
+          return
+
+        else
+          ! Sample HG function directly
+          g2 = hgg**2
+          bmu = ((1.0_dp + g2) - &
+           & ((1.0_dp - g2) / (1.0_dp - hgg + 2.0_dp * hgg * curand_uniform(ph%iseed)))**2) &
+           & / (2.0_dp*hgg)
+
+          call dustmat_HG(p1,p2,p3,p4,bmu,bmu**2,hgg,g2)
+       end if
 
     case(5)
 
@@ -262,32 +289,28 @@ contains
 
       case(6)
 
-        ! Combined HG and Rayleigh function from Draine (2003)
-        ! Sample from Draine (2003) phase function using the Gibbs sampling method of Zhang (2019)
-
-        zeta1 = (1.0_dp + Draine_alp_d * Dmut_d(ph%c(1),ph%c(2),ph%c(3))**2) * curand_uniform(ph%iseed) ! Scale between 0 and 1 + alp*mut**2 limit
-        zeta2 = curand_uniform(ph%iseed)
+        ! Combined HG and Rayleigh function from Draine (2003) -  = Cornette and Shanks 1992 when alpha = 1
+        ! Sample from Draine (2003) phase function using the analytical method from
+        ! Jendersie & d'Eon (2023) - An Approximate Mie Scattering Function for Fog and Cloud Rendering
 
         G1 = Dgg_d(ph%c(1),ph%c(2),ph%c(3))
         G2 = Dgg_d(ph%c(1),ph%c(2),ph%c(3))**2
-
-        Dmut_d(ph%c(1),ph%c(2),ph%c(3)) = 1.0_dp/(2.0_dp*G1) * ((1.0_dp + G2) - ((1.0_dp - G2)/ &
-        & (1.0_dp + G1*(2.0_dp*zeta2 - 1.0_dp)))**2)
-   
-        nsamp = 0
-
-        do while (((1.0_dp + Draine_alp_d * Dmut_d(ph%c(1),ph%c(2),ph%c(3))**2) < zeta1) .or. (nsamp > 100))
-          zeta2 = curand_uniform(ph%iseed)
-          Dmut_d(ph%c(1),ph%c(2),ph%c(3)) = 1.0_dp/(2.0_dp*G1) * ((1.0_dp + G2) - ((1.0_dp - G2)/ &
-          & (1.0_dp + G1*(2.0_dp*zeta2 - 1.0_dp)))**2)
-          nsamp = nsamp + 1
-        end do
-
-        
-
-        bmu = Dmut_d(ph%c(1),ph%c(2),ph%c(3))
+        G4 = Dgg_d(ph%c(1),ph%c(2),ph%c(3))**4
 
         alph = Draine_alp_d
+
+        t0 = alph - alph*G2
+        t1 = alph*G4 - alph
+        t2 = -3.0*(4.0*(G4 - G2) + t1*(1.0 + G2))
+        t3 = G1*(2.0*curand_uniform(ph%iseed) - 1.0)
+        t4 = 3.0*G2*(1.0+t3) + alph*(2.0+G2*(1.0+(1.0+2.0*G2)*t3))
+        t5 = t0*(t1*t2+t4**2)+t1**3
+        t6 = t0*4.0*(G4 - G2)
+        t7 = cbrt(t5 + sqrt(t5**2 - t6**3))
+        t8 = 2.0*(t1+t6/t7+t7)/t0
+        t9 = sqrt(6.0*(1.0+G2) + t8)
+
+        bmu = G1/2.0 + (1.0/(2.0*G1) - 1.0/(8.0*G1)*(sqrt(6.0*(1.0+G2) -  t8 + 8.0*t4/(t0*t9)) - t9)**2)
 
         call dustmat_Draine(p1,p2,p3,p4,bmu,bmu**2,G1,G2,alph) ! Use HG function for now
 
