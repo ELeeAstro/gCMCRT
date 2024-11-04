@@ -88,6 +88,10 @@ contains
     do p = 1, np
       read(u,*) press(p)
     end do
+
+    read(u,*)
+
+    read(u,*) (lbl_tab(s)%wl(l),l = 1, lbl_tab(s)%nwl)
     read(u,*) (wn(l),l = 1, lbl_tab(s)%nwl)
 
     print*,'Min, max T: ', temp(1), temp(nt)
@@ -102,11 +106,6 @@ contains
 
     lbl_tab(s)%lP(:) = log10(lbl_tab(s)%P(:))
     lbl_tab(s)%lT(:) = log10(lbl_tab(s)%T(:))
-
-    ! Reverse l index as table is in wavenumber order - convert wn to um
-    do l = 1, lbl_tab(s)%nwl
-      lbl_tab(s)%wl(l) = 1.0_dp/wn(n_bins-l+1) * 1e4_dp
-    end do
 
     ! print*, lbl_tab(s)%nP, lbl_tab(s)%nT, lbl_tab(s)%nwl
     ! print*, lbl_tab(s)%P(:)/bar
