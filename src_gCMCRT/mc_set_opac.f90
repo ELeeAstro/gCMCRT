@@ -35,16 +35,15 @@ contains
     implicit none
 
     integer :: k, j, i, g
-    real(dp) :: k_tot_ext(ng), k_tot_scat, cld_sca
+    real(dp) :: k_tot_ext(ng), k_tot_scat
 
 
     if (oneD .eqv. .True.) then
       ! If 1D, only need to do 1 vertical column for whole atmosphere and g loop for indexing
       do i = 1, grid%n_lay
-          cld_sca = cld_ssa(i,1,1)*cld_ext(i,1,1)
           k_tot_abs(:,i,1,1) = k_gas_abs(:,i,1,1) + (1.0_dp - cld_ssa(i,1,1))*cld_ext(i,1,1)
-          k_tot_scat = k_gas_Ray(i,1,1) + cld_sca
-          k_tot_ext(:) = k_tot_abs(:,i,1,1) +  k_gas_Ray(i,1,1) + cld_ext(i,1,1)
+          k_tot_scat = k_gas_Ray(i,1,1) + cld_ssa(i,1,1)*cld_ext(i,1,1)
+          k_tot_ext(:) = k_tot_abs(:,i,1,1) + k_tot_scat
           rhokap(:,i,1,1) =  RH(i,1,1) * k_tot_ext(:) * grid%r_del
           ssa(:,i,1,1) = min(k_tot_scat/k_tot_ext(:), 0.95_dp)
           gg(i,1,1) = cld_g(i,1,1)
@@ -66,13 +65,12 @@ contains
       do k = 1, grid%n_theta-1
         do j = 1, grid%n_phi-1
            do i = 1, grid%n_lay
-             cld_sca = cld_ssa(i,j,k)*cld_ext(i,j,k)
              k_tot_abs(:,i,j,k) = k_gas_abs(:,i,j,k) + (1.0_dp - cld_ssa(i,j,k))*cld_ext(i,j,k)
-             k_tot_scat = k_gas_Ray(i,j,k) +  cld_sca
-             k_tot_ext(:) = k_tot_abs(:,i,j,k) +  k_gas_Ray(i,j,k) + cld_ext(i,j,k)
+             k_tot_scat = k_gas_Ray(i,j,k) + cld_ssa(i,j,k)*cld_ext(i,j,k)
+             k_tot_ext(:) = k_tot_abs(:,i,j,k) + k_tot_scat
              rhokap(:,i,j,k) =  RH(i,j,k) * k_tot_ext(:) * grid%r_del
              ssa(:,i,j,k) = min(k_tot_scat/k_tot_ext(:), 0.95_dp)
-             gg(i,j,k) = cld_g(i,j,k)!(cld_g(i,j,k)*cld_sca) / (cld_sca + k_gas_Ray(i,j,k))
+             gg(i,j,k) = cld_g(i,j,k)
              dorg(i,j,k) = k_gas_Ray(i,j,k)/k_tot_scat
            end do
         end do
@@ -594,7 +592,7 @@ contains
 
    !! Shift opacities, unless dop_pad/2 within the wavelength grid edges
 
-   if (ll <= dop_pad/2 .or. ll >= (n_wl - dop_pad/2)) then
+   if ((ll <= dop_pad/2) .or. (ll >= (n_wl - dop_pad/2))) then
      ! We don't need to read any more data in - only increase ticker
    else
      ! We are at the center of padded wavelength region - shift everything in preparation for next loop
@@ -754,7 +752,7 @@ contains
              k_gas_Ray(z,j,k) = 0.0_dp
            end if
 
-           if (k_gas_abs(1,z,j,k) < 0.0_dp .or. ieee_is_nan(k_gas_abs(1,z,j,k)) .or. .not.ieee_is_finite(k_gas_abs(1,z,j,k))) then
+           if ((k_gas_abs(1,z,j,k) < 0.0_dp) .or. ieee_is_nan(k_gas_abs(1,z,j,k)) .or. .not.ieee_is_finite(k_gas_abs(1,z,j,k))) then
              print*, 'Encountered negative k_gas value --> check opacities'
              print*, z, j, k, k_gas_abs(1,z,j,k), wl_eff, wl_pad(wl_idx), wl_pad(wl_idx1), k_gas_abs_dop(wl_idx,z,j,k), k_gas_abs_dop(wl_idx1,z,j,k)
              stop
