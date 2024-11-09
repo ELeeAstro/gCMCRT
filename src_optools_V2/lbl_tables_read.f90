@@ -56,7 +56,7 @@ contains
     integer, intent(in) :: s
     integer :: np, nt, n_bins, l, u, i, j, p, t
     character(len=10) sp
-    real(kind=dp), allocatable, dimension(:) :: press, temp, wn
+    real(kind=dp), allocatable, dimension(:) :: press, temp, wnn, wll
     real(kind=dp), allocatable, dimension(:) :: k_abs
 
     ! Open gCMCRT's formatted file
@@ -73,30 +73,23 @@ contains
     lbl_tab(s)%nwl = n_bins
 
     ! Allocate local arrays
-    allocate(press(np),temp(nt),wn(n_bins),k_abs(n_bins))
+    allocate(press(np),temp(nt),wnn(n_bins),wll(n_bins),k_abs(n_bins))
 
     ! Allocate table arrays
     allocate(lbl_tab(s)%T(lbl_tab(s)%nT),lbl_tab(s)%lT(lbl_tab(s)%nT))
     allocate(lbl_tab(s)%P(lbl_tab(s)%nP),lbl_tab(s)%lP(lbl_tab(s)%nP))
-    allocate(lbl_tab(s)%wl(lbl_tab(s)%nwl))
+    allocate(lbl_tab(s)%wl(lbl_tab(s)%nwl),lbl_tab(s)%wn(lbl_tab(s)%nwl))
     allocate(lbl_tab(s)%lk_abs(lbl_tab(s)%nwl,lbl_tab(s)%nP,lbl_tab(s)%nT))
 
     ! Read pressure, temperature and wavenumbers
-    do t = 1, nt
-      read(u,*) temp(t)
-    end do
-    do p = 1, np
-      read(u,*) press(p)
-    end do
-
-    read(u,*)
-
-    read(u,*) (lbl_tab(s)%wl(l),l = 1, lbl_tab(s)%nwl)
-    read(u,*) (wn(l),l = 1, lbl_tab(s)%nwl)
+    read(u,*) (temp(t),t = 1, lbl_tab(s)%nT)
+    read(u,*) (press(p),p = 1, lbl_tab(s)%nP)
+    read(u,*) (wll(l),l = 1, lbl_tab(s)%nwl)
+    read(u,*) (wnn(l),l = 1, lbl_tab(s)%nwl)
 
     print*,'Min, max T: ', temp(1), temp(nt)
     print*,'Min, max P: ', press(1), press(np)
-    print*,'Min, max wn: ', wn(1), wn(n_bins)
+    print*,'Min, max wn: ', wnn(1), wnn(n_bins)
 
     read(u,*)
 
@@ -106,6 +99,12 @@ contains
 
     lbl_tab(s)%lP(:) = log10(lbl_tab(s)%P(:))
     lbl_tab(s)%lT(:) = log10(lbl_tab(s)%T(:))
+
+    ! Reverse l index as table is in wavenumber order - convert wn to um
+    do l = 1, lbl_tab(s)%nwl
+      lbl_tab(s)%wl(l) = wll(lbl_tab(s)%nwl-l+1)
+      lbl_tab(s)%wn(l) = wnn(lbl_tab(s)%nwl-l+1)
+    end do
 
     ! print*, lbl_tab(s)%nP, lbl_tab(s)%nT, lbl_tab(s)%nwl
     ! print*, lbl_tab(s)%P(:)/bar
@@ -124,7 +123,7 @@ contains
     end do
 
     ! Deallocate work arrays and close units
-    deallocate(press,temp,wn,k_abs)
+    deallocate(press,temp,wnn,wll,k_abs)
     close(u)
 
   end subroutine read_lbl_CMCRT
