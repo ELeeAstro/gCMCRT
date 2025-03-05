@@ -161,7 +161,7 @@ contains
       dn = real(n,dp)
       g = g + dn*(dn + 2.0_dp)/(dn + 1.0_dp) * real(mie_coeff_a(n) * conjg(mie_coeff_a(n+1)) + &
         & mie_coeff_b(n)*conjg(mie_coeff_b(n+1)),dp) + &
-        & (2.0_dp*dn + 1.0_dp)/(dn * (dn + 1.0_dp)) * real(mie_coeff_b(n)*conjg(mie_coeff_b(n)),dp)
+        & (2.0_dp*dn + 1.0_dp)/(dn * (dn + 1.0_dp)) * real(mie_coeff_a(n)*conjg(mie_coeff_b(n)),dp)
     end do 
 
     g = g * (4.0_dp/(x**2 * q_sca))
