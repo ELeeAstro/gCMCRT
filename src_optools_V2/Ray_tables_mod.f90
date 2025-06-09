@@ -215,10 +215,8 @@ contains
         nd_stp(s) = 2.546899e19_dp
 
       case('CH4')
-
-        ! Use He et al. (2021) expression
-        A = 3603.09_dp ; B = 4.40362e14_dp ; C = 1.1741e10_dp
-        n_ref(s) = n_func(wn(l),A,B,C)
+        ! Use Sneeps & Ubachs (2005) expression
+        n_ref(s) = (46662.0_dp + 4.02e-6_dp*wn(l)**2)/1e8_dp + 1.0_dp
         King(s) = 1.0_dp
 
         nd_stp(s) = 2.546899e19_dp
@@ -250,7 +248,7 @@ contains
           n_ref(s) = n_func(wn(l),A,B,C)
         end if
 
-        King(s) = 1.034_dp + 3.17e-12_dp*wn(l)**2
+        King(s) = 1.034_dp + 3.17e-12_dp*wn(l)
 
         nd_stp(s) = 2.546899e19_dp
 
@@ -273,29 +271,22 @@ contains
         nd_stp(s) = 2.546899e19_dp
 
       case('N2O')
-
-        ! Use He et al. (2021) expression - dpol from Sneeps & Ubachs (2005)
-        A = 22095.0_dp ; B = 1.66291e14_dp ; C = 6.75226e9_dp
-        n_ref(s) = n_func(wn(l),A,B,C)
+        ! Use Sneeps & Ubachs (2005) expression
+        n_ref(s) = (46890.0_dp + 4.12e-6_dp*wn(l)**2)/1e8_dp + 1.0_dp
         Dpol = 0.0577_dp + 11.8e-12_dp*wn(l)**2
-        King(s) = King_from_Dpol_2(DPol)
+        King(s) = King_from_Dpol_2(DPol) 
 
         nd_stp(s) = 2.546899e19_dp
 
       case('SF6')
-
-        ! Use He et al. (2021) expression
-        A = 18997.7_dp ; B = 8.27663e14_dp ; C = 1.56833e10_dp
-        n_ref(s) = n_func(wn(l),A,B,C)
+        ! Use Sneeps & Ubachs (2005) expression
+        n_ref(s) = (71517.0_dp + 4.996e-6_dp*wn(l)**2)/1e8_dp + 1.0_dp
         King(s) = 1.0_dp
 
         nd_stp(s) = 2.546899e19_dp
 
+
       !! https://cccbdb.nist.gov/pollistx.asp
-      case('O')
-        n_ref(s) = -2
-        a_vol(s) = 0.802_dp / (1e8_dp)**3
-        King(s) = 1.0_dp
       case('HCl')
         n_ref(s) = -2
         a_vol(s) = 2.515_dp / (1e8_dp)**3
@@ -327,10 +318,6 @@ contains
       case('SO3')
         n_ref(s) = -2
         a_vol(s) = 4.297_dp / (1e8_dp)**3
-        King(s) = 1.0_dp
-      case('OH')
-        n_ref(s) = -2
-        a_vol(s) = 6.965_dp / (1e8_dp)**3
         King(s) = 1.0_dp
       case default
         print*, 'ERROR - Rayleigh species not found in refrace_index_calc - STOPPING'

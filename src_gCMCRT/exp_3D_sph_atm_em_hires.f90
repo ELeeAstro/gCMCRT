@@ -206,12 +206,13 @@ subroutine exp_3D_sph_atm_em_hires()
   call set_iseed<<<blocks, threads>>>(Nph_pad_d)
 
   call read_1D_prf()
-  call read_1D_wprf()
+
   call read_wl()
 
   call set_grid()
 
   if (doppler_on .eqv. .True.) then
+    call read_1D_wprf()
     call compute_vlos(viewphi(:))
   end if
 

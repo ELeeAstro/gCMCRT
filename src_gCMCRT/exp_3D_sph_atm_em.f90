@@ -279,9 +279,11 @@ subroutine exp_3D_sph_atm_em()
 
             !Nph = Nph_tot*int(l_cell(i,j,k)/grid%lumtot)
             Nph_cell(i,j,k) = Nph
+             !Nph_cell(i,j,k) = 1000
 
             wght_start(i,j,k) = 1.0_dp / ((1.0_dp - xi_emb) + &
             & xi_emb*(grid%lumtot/n_cells/l_cell(i,j,k)))
+            ! wght_start(i,j,k) = 1.0_dp
 
           end do
         end do

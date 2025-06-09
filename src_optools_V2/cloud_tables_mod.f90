@@ -156,7 +156,7 @@ contains
 
         if (idist > 0) then
 
-          if (nd_cl_lay(z) < 1e-6_dp) then
+          if (nd_cl_lay(z) < 1e-9_dp) then
             cl_out_k(z) = 1e-99_dp
             cl_out_a(z) = 0.0_dp
             cl_out_g(z) = 0.0_dp

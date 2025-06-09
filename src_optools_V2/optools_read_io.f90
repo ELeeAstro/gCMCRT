@@ -214,7 +214,7 @@ contains
       read(u,*) ilay(i), PG_lay(i), TG_lay(i), mu_lay(i), (VMR_dum(j), j=1,ngas)
       VMR_lay(:,i) = VMR_dum(:)
       PG_lay(i) = PG_lay(i) * bar ! Convert to dyne
-      RH_lay(i) = (PG_lay(i) * mu_lay(i) * amu) / (kb * TG_lay(i)) ! Find density [g cm-3]
+      RH_lay(i) = (PG_lay(i) * mu_lay(i)) / (Rgas * TG_lay(i)) ! Find density [g cm-3]
       N_lay(i) = PG_lay(i) / (kb * TG_lay(i)) ! Find number density [cm-3]
     end do
 

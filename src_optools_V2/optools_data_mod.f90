@@ -20,6 +20,7 @@ module optools_data_mod
   real(kind=dp), parameter :: hp_bar = hp/twopi
   real(kind=dp), parameter :: c_s = 2.99792458e10_dp ! cm s-1 - Vacuum speed of light
   real(kind=dp), parameter :: amu = 1.66053906660e-24_dp ! g - Atomic mass unit
+  real(kind=dp), parameter :: Rgas = 8.31446261815324e7
   real(kind=dp), parameter :: m_el = 9.1093837015e-28_dp ! g - electron mass
   real(kind=dp), parameter :: N_A = 6.02214076e23_dp ! mol-1 - Avogadro's constant
   real(kind=dp), parameter :: a_fine = 7.2973525693e-3_dp ! fine structure constant

@@ -89,7 +89,7 @@ contains
 
     print*,'Min, max T: ', temp(1), temp(nt)
     print*,'Min, max P: ', press(1), press(np)
-    print*,'Min, max wn: ', wnn(1), wnn(n_bins)
+    print*,'Min, max wl: ', wll(1), wll(n_bins)
 
     read(u,*)
 
@@ -100,10 +100,9 @@ contains
     lbl_tab(s)%lP(:) = log10(lbl_tab(s)%P(:))
     lbl_tab(s)%lT(:) = log10(lbl_tab(s)%T(:))
 
-    ! Reverse l index as table is in wavenumber order - convert wn to um
     do l = 1, lbl_tab(s)%nwl
-      lbl_tab(s)%wl(l) = wll(lbl_tab(s)%nwl-l+1)
-      lbl_tab(s)%wn(l) = wnn(lbl_tab(s)%nwl-l+1)
+      lbl_tab(s)%wl(l) = wll(l)
+      lbl_tab(s)%wn(l) = wnn(l)
     end do
 
     ! print*, lbl_tab(s)%nP, lbl_tab(s)%nT, lbl_tab(s)%nwl
@@ -115,9 +114,9 @@ contains
     do i = 1, lbl_tab(s)%nT
       do j = 1, lbl_tab(s)%nP
         read(u,*) (k_abs(l), l = 1, n_bins)
-        ! Reverse l index as table is in wavenumber order & log values
+        ! Table is already in low to high wavelength order - log values
         do l = 1, n_bins
-          lbl_tab(s)%lk_abs(l,j,i) = log10(max(k_abs(n_bins-l+1),1e-99_dp))
+          lbl_tab(s)%lk_abs(l,j,i) = log10(max(k_abs(l),1e-99_dp))
         end do
       end do
     end do

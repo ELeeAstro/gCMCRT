@@ -27,6 +27,7 @@ contains
 
     ! weighting factor for isotropic emission
     wfac = 1.0_dp/fourpi
+    !wfac = 1.0_dp/pi
 
     ! Find tau from position to observation direction
     if (ray%geo == 1) then

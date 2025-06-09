@@ -8,7 +8,7 @@ module mc_k_RR
 
   real(dp), parameter :: RR_thresh = 0.1_dp
   real(dp), parameter :: RR_boost = 10.0_dp
-  real(dp), parameter :: iRR_cut = 1.0e-3_dp
+  real(dp), parameter :: iRR_cut = 1.0e-6_dp
 
 contains
 

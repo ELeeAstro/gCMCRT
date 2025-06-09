@@ -109,16 +109,16 @@ contains
          do k = 1, grid%n_theta-1
            do j = 1, grid%n_phi-1
 
-              !if (phiarr(j) > pi/2.0_dp .and. phiarr(j) < (pi + pi/2.0_dp)) then
-               !  l_cell(:,j,k) = 0.0_dp
-               !  cell_gord_cdf(:,:,j,k) = 0.0_dp
-               !  cell_gord_wght(:,:,j,k) = 0.0_dp
-               !  cycle
-               !end if
+              !if ((phiarr(j) > pi/2.0_dp) .and. (phiarr(j) < (pi + pi/2.0_dp))) then
+              !   l_cell(:,j,k) = 0.0_dp
+              !   cell_gord_cdf(:,:,j,k) = 0.0_dp
+              !   cell_gord_wght(:,:,j,k) = 0.0_dp
+              !   cycle
+              ! end if
 
              do i = 1, grid%n_lay
 
-               if (i <= itau3(j,k) .or. i == grid%n_lay) then
+               if (i <= itau3(j,k)) then
                  l_cell(i,j,k) = 0.0_dp
                  if (ck .eqv. .True.) then
                    cell_gord_cdf(:,i,j,k) = 0.0_dp
@@ -141,7 +141,7 @@ contains
 
                if (do_BB_band .eqv. .True.) then
                  !print*, TG(i,j,k), wl_e(l),wl_e(l+1)
-                 !BBf = (BB_band(wl_e(l),wl_e(l+1),TG(i,j,k)) * 1000.0_dp) / (wl(l) * 1.0e-4_dp)
+                 !BBf = (BB_band(wl_e(l),wl_e(l+1),TG(i,j,k)) * 1000.0_dp)
                  ! print*,'band', i, wl_e(l),wl_e(l+1), BBf
                  !BBf = (tplkavg(wl_e(l),wl_e(l+1),TG(i,j,k)) * 1000.0_dp) !/ (wl(l) * 1.0e-4_dp)
                  ! print*,'tplkavg', i, wl_e(l),wl_e(l+1), BBf
@@ -155,7 +155,7 @@ contains
                end if
 
               do g = 1, ng
-                l_cell_g(g,i,j,k) = gord_w(g) * fourpi * RH(i,j,k) * v_cell(i,j,k) * k_tot_abs(g,i,j,k) * BBf
+                l_cell_g(g,i,j,k) = gord_w(g) * k_tot_abs(g,i,j,k) * fourpi * RH(i,j,k) * v_cell(i,j,k) * BBf
               end do
               l_cell(i,j,k) = sum(l_cell_g(:,i,j,k))
               grid%lumtot = grid%lumtot + l_cell(i,j,k)
@@ -208,7 +208,7 @@ contains
 
     wl_cm = wl_in * 1.0e-4_dp
 
-    left = (2.0_dp * hpl * c_s**2)/(wl_cm)**5
+    left = (2.0_dp * hpl * c_s**2)/wl_cm**5
     right = 1.0_dp / (exp((hpl * c_s) / (wl_cm * kb * T_in)) - 1.0_dp)
     BB = left * right
 
@@ -246,7 +246,7 @@ contains
 
       wn1 = 1.0_dp/(wl1_in * 1e-4_dp)
 
-      x = c1 * 100.0_dp * wn1/T_in
+      x = c1 * (100.0_dp * wn1)/T_in
       x2 = x**2
       x3 = x**3
 
@@ -269,7 +269,7 @@ contains
 
       wn2 = 1.0_dp/(wl2_in * 1e-4_dp)
 
-      x = c1 * 100.0_dp * wn2/T_in
+      x = c1 * (100.0_dp * wn2)/T_in
       x2 = x**2
       x3 = x**3
 

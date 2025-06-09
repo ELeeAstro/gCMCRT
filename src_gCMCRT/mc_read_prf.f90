@@ -42,7 +42,7 @@ contains
       read(u,*) lay(i), PG_1D(i), TG_1D(i), MOL_W_1D(i)!, (VMR_dum(j), j=1,ngas)
       !VMR_1D(:,i) = VMR_dum(:)
       PG_1D(i) = PG_1D(i) * bar
-      RH_1D(i) = (PG_1D(i) * MOL_W_1D(i) * amu) / (kb * TG_1D(i))
+      RH_1D(i) = (PG_1D(i) * MOL_W_1D(i)) / (Rgas * TG_1D(i))
     end do
 
     close(u)

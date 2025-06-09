@@ -14,6 +14,7 @@ module mc_data_mod
   real(dp), parameter :: hpl = 6.62607015e-27_dp ! erg s - Planck's constant
   real(dp), parameter :: c_s = 2.99792458e10_dp ! cm s-1 - Vacuum speed of light
   real(dp), parameter :: amu = 1.660539040e-24_dp ! g - Atomic mass unit
+  real(dp), parameter :: Rgas = 8.31446261815324e7
   real(dp), parameter :: N_A = 6.022140857e23_dp ! mol-1 - Avogadro's constant
 
   !! Constants for BB_band function

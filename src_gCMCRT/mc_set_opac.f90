@@ -232,7 +232,7 @@ contains
 
       if (inc_ck .eqv. .True.) then
         read(u_k,rec=l) ck_dum_arr
-      else if (lbl .eqv. .True.) then
+      else if (inc_lbl .eqv. .True.) then
         read(u_k,rec=l) lbl_dum_arr
       end if
       if (inc_cld .eqv. .True.) then
@@ -257,7 +257,7 @@ contains
               k_gas_abs(g,z,:,:) = k_gas_abs(g,z,:,:) + real(ck_dum_arr(g,z),dp)
             end do
         end do
-      else if (lbl .eqv. .True.) then
+      else if (inc_lbl .eqv. .True.) then
         wait(u_k)
         do z = 1, grid%n_lay
             k_gas_abs(1,z,:,:) = k_gas_abs(1,z,:,:) + real(lbl_dum_arr(z),dp)
@@ -301,7 +301,7 @@ contains
 
      if (inc_ck .eqv. .True.) then
        read(u_k,rec=l) ck_dum_arr
-     else if (lbl .eqv. .True.) then
+     else if (inc_lbl .eqv. .True.) then
        read(u_k,rec=l) lbl_dum_arr
      end if
      if (inc_cld .eqv. .True.) then
@@ -334,7 +334,7 @@ contains
          end do
        end do
 
-     else if (lbl .eqv. .True.) then
+     else if (inc_lbl .eqv. .True.) then
        wait(u_k)
        !print*, 'lbl reading: ', lbl_dum_arr(1), lbl_dum_arr(grid%n_cell)
        n = 1
