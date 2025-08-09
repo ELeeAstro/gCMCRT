@@ -191,6 +191,8 @@ lbl - .True. (lbl mode), .False. (corr-k mode)
 
 ck - .True. (corr-k mode), .False. (lbl mode)
 
+LHS - .True. (use Latin Hypercube Sampling - currently for transmission limbs only)
+
 ! Wind paramaters for hi-res los velocity (lbl mode only)
 
 doppler_on - .True. = Apply doppler shifting to local opacity
