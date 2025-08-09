@@ -149,9 +149,15 @@ module mc_data_mod
   real(dp) :: T_surf, emis_surf, alb_surf
   real(dp), device :: alb_surf_d
 
+  !! Random value arrays for Latin Hypercube Sampling scheme
+  logical :: LHS
+  logical, device :: LHS_d
+  real(dp), allocatable, dimension(:) :: x_ran, y_ran, z_ran
+  real(dp), allocatable, dimension(:), device :: x_ran_d, y_ran_d, z_ran_d
+
   namelist /main/ xper, exp_name, oneD, threeD, do_infslab, do_diffuse, do_cart_3D, do_images, do_moments, do_trans &
     & lbl, ck, orbital_period, sm_ax, systemic_velocity, winds_on, rotation_on, orbit_on, doppler_on, &
     & inc_ck, inc_lbl, inc_CIA, inc_Ray, inc_cld, inc_xsec, do_cf, xpix, ypix, wght_deg, Draine_alp, do_Draine, &
-    & do_LD, ilimb, LD_c, Rs, inc, phase, do_g_bias, do_scat_loop, do_BB_band, n_phase, do_surf, T_surf, emis_surf, alb_surf
+    & do_LD, ilimb, LD_c, Rs, inc, phase, do_g_bias, do_scat_loop, do_BB_band, n_phase, do_surf, T_surf, emis_surf, alb_surf, LHS
 
 end module mc_data_mod

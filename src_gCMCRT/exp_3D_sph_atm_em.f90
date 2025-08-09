@@ -238,6 +238,8 @@ subroutine exp_3D_sph_atm_em()
 
   call read_next_opac(s_wl)
 
+  call random_seed()
+
   print*, 'starting loop'
 
   do l = s_wl, n_wl

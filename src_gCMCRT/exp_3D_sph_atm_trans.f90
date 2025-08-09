@@ -165,6 +165,7 @@ subroutine exp_3D_sph_atm_transmission()
   use exp_3D_sph_atm_transmission_kernel
   use mc_opacset
   use mc_read_prf
+  use LHS_sampling_mod, only : LHS_sample_2D
   use cudafor
   implicit none
 
@@ -178,7 +179,6 @@ subroutine exp_3D_sph_atm_transmission()
 
   integer :: istat
   type(dim3) :: blocks, threads
-
 
   namelist /sph_3D_trans/ Nph, s_wl, n_wl, pl, pc, sc, n_theta, n_phi, n_lay, viewthet, viewphi, iscat, nb_cf
 
@@ -273,6 +273,20 @@ subroutine exp_3D_sph_atm_transmission()
 
     l_d = l
     im_d = im
+
+    if (LHS .eqv. .True.) then
+      if (l == s_wl) then
+        ! Allocate CPU and GPU arrays if first call
+        allocate(x_ran(Nph),y_ran(Nph),x_ran_d(Nph),y_ran_d(Nph))
+        call random_seed()
+      end if
+      ! Generate Nph samples using Latin Hypercube Sampling 
+      call LHS_sample_2D(Nph, x_ran, y_ran, 'lhs', .False., 1000, 'random_cd')
+      ! Send samples to GPU memory
+      x_ran_d(:) = x_ran(:)
+      y_ran_d(:) = y_ran(:)
+    end if
+
     call exp_3D_sph_atm_transmission_k<<<blocks, threads>>>(l_d, Nph_d)
 
     call read_next_opac(l+1)

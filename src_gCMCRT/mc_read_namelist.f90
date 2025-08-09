@@ -30,6 +30,8 @@ subroutine read_namelist()
   do_surf_d = do_surf
   alb_surf_d = alb_surf
 
+  LHS_d = LHS
+
 end subroutine read_namelist
 
 

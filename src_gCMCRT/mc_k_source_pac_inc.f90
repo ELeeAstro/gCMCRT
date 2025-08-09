@@ -69,18 +69,38 @@ contains
 
     !! For incident packets in 3D the incident angle is from the direction of the star
 
-    ann_theta = curand_uniform(ph%iseed) * twopi
 
-    if (do_trans_d .eqv. .True.) then
-     ! Sample annulus
-     rr2 = sqrt(grid_d%r_min**2 + (grid_d%r_max**2 - grid_d%r_min**2)*curand_uniform(ph%iseed))
-     !rr2 = grid_d%r_min/grid_d%r_max + (1.0_dp - grid_d%r_min/grid_d%r_max)*sqrt(curand_uniform(ph%iseed))
-    else
-      ! Sample uniform sphere
-      rr2 = sqrt(grid_d%r_max**2*curand_uniform(ph%iseed))
-      ! For lambertian sphere sampling
-      !rr2 = sqrt(grid_d%r_min**2*curand_uniform(ph%iseed))
+    !! Use LHS samples via ph index if optioned
+    if (LHS_d .eqv. .False.) then
+
+      ann_theta = curand_uniform(ph%iseed) * twopi
+
+      if (do_trans_d .eqv. .True.) then
+       ! Sample annulus
+       rr2 = sqrt(grid_d%r_min**2 + (grid_d%r_max**2 - grid_d%r_min**2)*curand_uniform(ph%iseed))
+       !rr2 = grid_d%r_min/grid_d%r_max + (1.0_dp - grid_d%r_min/grid_d%r_max)*sqrt(curand_uniform(ph%iseed))
+      else
+        ! Sample uniform sphere
+        rr2 = sqrt(grid_d%r_max**2*curand_uniform(ph%iseed))
+        ! For lambertian sphere sampling
+        !rr2 = sqrt(grid_d%r_min**2*curand_uniform(ph%iseed))
+      end if
+    else if (LHS_d .eqv. .True.) then
+
+      ann_theta = x_ran_d(ph%id) * twopi
+
+      if (do_trans_d .eqv. .True.) then
+       ! Sample annulus
+       rr2 = sqrt(grid_d%r_min**2 + (grid_d%r_max**2 - grid_d%r_min**2)*y_ran_d(ph%id))
+       !rr2 = grid_d%r_min/grid_d%r_max + (1.0_dp - grid_d%r_min/grid_d%r_max)*sqrt(curand_uniform(ph%iseed))
+      else
+        ! Sample uniform sphere
+        rr2 = sqrt(grid_d%r_max**2*y_ran_d(ph%id))
+        ! For lambertian sphere sampling
+        !rr2 = sqrt(grid_d%r_min**2*curand_uniform(ph%iseed))
+      end if
     end if
+
 
     ph%zp = rr2 * cos(ann_theta)
     ph%yp = rr2 * sin(ann_theta)
