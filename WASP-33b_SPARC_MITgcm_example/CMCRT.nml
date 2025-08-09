@@ -26,6 +26,8 @@ do_BB_band = .False.
 lbl = .False.
 ck = .True.
 
+LHS = .True.
+
 ! Wind paramaters for hi-res los velocity
 doppler_on = .False.
 winds_on = .False.
