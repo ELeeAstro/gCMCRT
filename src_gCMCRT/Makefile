@@ -21,6 +21,7 @@ OBJECTS = \
     mc_class_pac.o \
     mc_class_grid.o \
     mc_class_imag.o \
+    mc_random.o \
     mc_k_aux.o \
     mc_k_moments.o \
     mc_k_vol_samp.o \

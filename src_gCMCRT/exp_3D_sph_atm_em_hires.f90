@@ -142,6 +142,8 @@ subroutine exp_3D_sph_atm_em_hires()
   use mc_opacset
   use mc_read_prf
   use mc_set_em
+  use LHS_sampling_mod, only : LHS_sample
+  use random_cpu
   use cudafor
   use mc_los_velocity
   implicit none
@@ -238,6 +240,9 @@ subroutine exp_3D_sph_atm_em_hires()
     call read_next_opac(1)
   end if
 
+  !call random_seed()
+  call rng_seed(321)
+
   do l = 1, n_wl
 
     do n = 1, n_phase
@@ -272,7 +277,8 @@ subroutine exp_3D_sph_atm_em_hires()
             temp2 = real(Nph_tot,dp) * (xi_emb / n_cells)
             diff = (temp + temp2) - int(temp + temp2)
 
-            call random_number(rand)
+            !call random_number(rand)
+            call rng_uniform(rand)
             if (rand < diff .and. diff > 0.0_dp) then
                Nph = int(temp+temp2)+1
             else

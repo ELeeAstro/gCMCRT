@@ -146,6 +146,8 @@ subroutine exp_3D_sph_atm_albedo()
   use exp_3D_sph_atm_albedo_kernel
   use mc_opacset
   use mc_read_prf
+  use LHS_sampling_mod, only : LHS_sample
+  use random_cpu
   use cudafor
   implicit none
 
@@ -257,6 +259,22 @@ subroutine exp_3D_sph_atm_albedo()
       f_d(:,:) = f(:,:) ; q_d(:,:) = q(:,:) ; u_d(:,:) = u(:,:) ; im_err_d(:,:) = im_err(:,:)
 
       l_d = l
+
+      if (LHS .eqv. .True.) then
+        if (l == s_wl) then
+          ! Allocate CPU and GPU arrays if first call
+          allocate(x_ran(Nph),y_ran(Nph),z_ran(Nph),x_ran_d(Nph),y_ran_d(Nph),z_ran_d(Nph))
+          !call random_seed()
+          call rng_seed(213)
+        end if
+        ! Generate Nph samples using Latin Hypercube Sampling
+        call LHS_sample(Nph, 2, x_ran, y_ran, z_ran, .False.)
+        ! Send samples to GPU memory
+        x_ran_d(:) = x_ran(:)
+        y_ran_d(:) = y_ran(:)
+        z_ran_d(:) = z_ran(:)
+      end if
+
       call exp_3D_sph_atm_albedo_k<<<blocks, threads>>>(l_d, Nph_d)
 
       if (n == n_phase) then

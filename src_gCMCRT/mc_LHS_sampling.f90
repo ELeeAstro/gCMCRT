@@ -1,5 +1,6 @@
 module LHS_sampling_mod
   use mc_precision
+  use random_cpu
   implicit none
 
   public :: LHS_sample
@@ -32,7 +33,7 @@ contains
     real(dp), dimension(N), intent(out) :: x, y, z
 
     integer :: i, k
-    real(dp), dimension(N) :: r
+    real(dp) :: r
     integer, dimension(N) :: perm
     logical :: use_center
 
@@ -45,9 +46,10 @@ contains
           samp(i,k) = (i - 0.5_dp) / real(N,dp)
         end do
       else
-        call random_number(r)
+        !call random_number(r)
         do i = 1, N
-          samp(i,k) = (i - 1 + r(i)) / real(N,dp)
+          call rng_uniform(r)
+          samp(i,k) = (i - 1 + r) / real(N,dp)
         end do
       end if
       call random_permutation(N, perm)
@@ -73,8 +75,12 @@ contains
 
   ! Fisher–Yates shuffle for 1..N
   subroutine random_permutation(N, perm)
+    implicit none
+
     integer, intent(in)  :: N
-    integer, intent(out) :: perm(N)
+
+    integer, dimension(N), intent(out) :: perm
+
     integer :: i, j, tmp
     real(dp) :: r
 
@@ -83,7 +89,8 @@ contains
     end do
 
     do i = N, 2, -1
-      call random_number(r)
+      !call random_number(r)
+      call rng_uniform(r)
       j = int(r * real(i,dp)) + 1   ! j in [1, i]
       tmp     = perm(i)
       perm(i) = perm(j)
