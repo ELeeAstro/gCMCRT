@@ -146,7 +146,7 @@ subroutine exp_3D_sph_atm_trans_hires()
   use exp_3D_sph_atm_trans_hires_kernel
   use mc_opacset
   use mc_read_prf
-  use LHS_sampling_mod, only : LHS_sample_2D
+  use LHS_sampling_mod, only : LHS_sample
   use cudafor
   use mc_los_velocity
   implicit none
@@ -276,14 +276,15 @@ subroutine exp_3D_sph_atm_trans_hires()
       if (LHS .eqv. .True.) then
         if (l == 1) then
           ! Allocate CPU and GPU arrays if first call
-          allocate(x_ran(Nph),y_ran(Nph),x_ran_d(Nph),y_ran_d(Nph))
+          allocate(x_ran(Nph),y_ran(Nph),z_ran(Nph),x_ran_d(Nph),y_ran_d(Nph),z_ran_d(Nph))
           call random_seed()
         end if
         ! Generate Nph samples using Latin Hypercube Sampling
-        call LHS_sample_2D(Nph, x_ran, y_ran, 'lhs', .False., 1000, 'random_cd')
+        call LHS_sample(Nph, 2, x_ran, y_ran, z_ran, .False.)
         ! Send samples to GPU memory
         x_ran_d(:) = x_ran(:)
         y_ran_d(:) = y_ran(:)
+        z_ran_d(:) = z_ran(:)
       end if
 
       call exp_3D_sph_atm_trans_hires_k<<<blocks, threads>>>(l_d,Nph_d)
