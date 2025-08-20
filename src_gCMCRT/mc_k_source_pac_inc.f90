@@ -231,7 +231,7 @@ contains
       Imus = 1.0_dp - LD_c_d(1)*(1.0_dp - mus**LD_c_d(2))
     case default
       print*, 'Invalid ilimb: ', ilimb_d
-      stop
+      !stop
     end select
 
     ph%wght = ph%wght * Imus

@@ -20,6 +20,7 @@ contains
 
     type(pac) :: ray
     integer :: xl, yl, istat
+    real(dp) :: rstat
     real(dp) :: wfac, peel_fac, contri
     real(dp) :: phot, photq, photu, ximage, yimage
 
@@ -27,8 +28,10 @@ contains
     !! leaving the origonal packet untouched
     ray = ph
 
+    wfac = 0.0_dp
+
     !! Find the weighting for wfac for this scattering type
-    call scat_peel(ray, wfac)
+    call scat_peel_test(ray, wfac)
 
     ! Find tau from position to observation direction
     if (ray%geo == 1) then
@@ -65,7 +68,7 @@ contains
     if (do_trans_d .eqv. .True.) then
       ray%bp = sqrt(ray%zp**2 + ray%yp**2)
       contri = peel_fac * ray%bp * H_d(1)
-      istat = atomicsub(T_trans_d,contri)
+      rstat = atomicadd(T_trans_d,-contri)
     end if
 
     phot = peel_fac * ray%fi
@@ -80,9 +83,9 @@ contains
 
     !! Add energy to total counters
     !istat = atomicadd(p_noise(ph%bin_idx,na), 1)
-    istat = atomicadd(im_d%fsum, phot)
-    istat = atomicadd(im_d%qsum, photq)
-    istat = atomicadd(im_d%usum, photu)
+    rstat = atomicadd(im_d%fsum, phot)
+    rstat = atomicadd(im_d%qsum, photq)
+    rstat = atomicadd(im_d%usum, photu)
 
     !! Add weighted peeloff energy to images
     if (do_images_d .eqv. .True.) then
@@ -105,12 +108,20 @@ contains
         return
       endif
       !print*, 'p', f_d(xl,yl), xl, yl, phot
-      istat = atomicadd(f_d(xl,yl), phot)
-      istat = atomicadd(q_d(xl,yl), photq)
-      istat = atomicadd(u_d(xl,yl), photu)
+      rstat = atomicadd(f_d(xl,yl), phot)
+      rstat = atomicadd(q_d(xl,yl), photq)
+      rstat = atomicadd(u_d(xl,yl), photu)
     end if
 
   end subroutine peeloff_scatt
+
+  attributes(device) subroutine scat_peel_test(ray, wfac)
+    implicit none
+
+    type(pac), intent(inout) :: ray
+    real(dp), intent(out) :: wfac
+  end subroutine scat_peel_test
+
 
   attributes(device) subroutine scat_peel(ray, wfac)
     implicit none
@@ -284,7 +295,7 @@ contains
       case default
 
         print*, "Can't do this yet!", ray%iscatt
-        stop
+        !stop
 
       end select
 

@@ -39,9 +39,9 @@ contains
     else if (cost_mom < 0.0_dp) then
       ! Packet travelling downward ('-ve'), add to minus moments at this level
 
-      istat = atomicsub(jm_d(ph%c(3)+1), 1.0_dp/cost_mom)
-      istat = atomicsub(hm_d(ph%c(3)+1), 1.0_dp)
-      istat = atomicsub(km_d(ph%c(3)+1), cost_mom)
+      istat = atomicadd(jm_d(ph%c(3)+1), -1.0_dp/cost_mom)
+      istat = atomicadd(hm_d(ph%c(3)+1), -1.0_dp)
+      istat = atomicadd(km_d(ph%c(3)+1), -cost_mom)
     end if
 
   end subroutine moments_1D

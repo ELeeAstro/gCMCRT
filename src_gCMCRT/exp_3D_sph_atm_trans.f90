@@ -50,7 +50,7 @@ contains
     type(pac) :: ph, ray
     integer :: seq, offset, i, n, istat, nscat
     integer :: b_cf_idx
-    real(dp) :: contri
+    real(dp) :: contri, rstat
 
     ! Set a random seed for this packet
     ph%id = (blockIdx%x - 1) * blockDim%x + threadIdx%x
@@ -92,12 +92,12 @@ contains
     call raytrace_sph_3D(ray)
 
     contri = ray%wght * (1.0_dp - exp(-ray%tau)) * ray%bp * H_d(1)
-    istat = atomicadd(T_trans_d(l),contri)
+    rstat = atomicadd(T_trans_d,contri)
 
     ! Do the contibution function for the binned b
     if (do_cf_d .eqv. .True.) then
       call locate(b_cf_grid_d,ray%bp*H_d(1),b_cf_idx)
-      istat = atomicadd(b_cf_d(b_cf_idx),ray%wght * (1.0_dp - exp(-ray%tau)) * ray%bp * H_d(1))
+      rstat = atomicadd(b_cf_d(b_cf_idx),ray%wght * (1.0_dp - exp(-ray%tau)) * ray%bp * H_d(1))
       istat = atomicadd(b_n_cf_d(b_cf_idx),1)
     end if
 
@@ -220,7 +220,7 @@ subroutine exp_3D_sph_atm_transmission()
   im_d = im
   grid_d = grid
 
-  allocate(T_trans(n_wl),T_trans_d(n_wl))
+  allocate(T_trans(n_wl))
 
   ! Grid for GPU threads/blocks
   threads = dim3(128,1,1)
@@ -270,7 +270,7 @@ subroutine exp_3D_sph_atm_transmission()
     end if
 
     T_trans(l) = 0.0_dp
-    T_trans_d(l) = T_trans(l)
+    T_trans_d = T_trans(l)
 
     l_d = l
     im_d = im
@@ -300,7 +300,7 @@ subroutine exp_3D_sph_atm_transmission()
     nscat_tot = nscat_tot_d
 
     ! Give T_trans_d back to CPU
-    T_trans(l) = T_trans_d(l)
+    T_trans(l) = T_trans_d
 
     if (do_cf .eqv. .True.) then
       b_cf(:) = b_cf_d(:)

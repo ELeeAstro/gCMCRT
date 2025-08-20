@@ -317,7 +317,7 @@ contains
       case default
 
         print*, "Can't do this yet!", ph%iscatt
-        stop
+        !stop
 
       end select
 

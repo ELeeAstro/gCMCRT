@@ -47,7 +47,7 @@ contains
     integer, intent(in) :: l, Nph
     type(pac) :: ph, ray
     integer :: seq, offset, i, n, istat, nscat
-    real(dp) :: contri
+    real(dp) :: contri, rstat
 
     ! Set a random seed for this packet
     ph%id = (blockIdx%x - 1) * blockDim%x + threadIdx%x
@@ -81,7 +81,7 @@ contains
     call raytrace_sph_3D(ray)
 
     contri = ray%wght * (1.0_dp - exp(-ray%tau)) * ray%bp * H_d(1)
-    istat = atomicadd(T_trans_d(l),contri)
+    rstat = atomicadd(T_trans_d,contri)
 
     if (do_scat_loop_d .eqv. .True.) then
       ph%p_flag = 0
@@ -216,7 +216,7 @@ subroutine exp_3D_sph_atm_trans_hires()
   im_d = im
   grid_d = grid
 
-  allocate(T_trans(n_wl),T_trans_d(n_wl))
+  allocate(T_trans(n_wl))
 
   ! Grid for GPU threads/blocks
   threads = dim3(128,1,1)
@@ -269,7 +269,7 @@ subroutine exp_3D_sph_atm_trans_hires()
       nscat_tot_d = nscat_tot
 
       T_trans(l) = 0.0_dp
-      T_trans_d(l) = T_trans(l)
+      T_trans_d = T_trans(l)
 
       l_d = l
       im_d = im
@@ -305,7 +305,7 @@ subroutine exp_3D_sph_atm_trans_hires()
       nscat_tot = nscat_tot_d
 
       ! Give T_trans_d back to CPU
-      T_trans(l) = T_trans_d(l)
+      T_trans(l) = T_trans_d
 
       T_trans(l) = (H(grid%n_lev) - H(1)) / real(Nph,dp) * T_trans(l)
       write(uT(n),*) wl(l), T_trans(l)
