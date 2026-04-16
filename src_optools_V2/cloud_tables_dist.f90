@@ -17,6 +17,7 @@ contains
     complex(kind=dp), intent(in) :: eps_comb
     real(kind=dp), intent(out) :: cl_out_k, cl_out_a, cl_out_g
     real(kind=dp), dimension(ndist) :: nd_dist, ifunc_k, ifunc_a, ifunc_g
+    real(kind=dp), dimension(ndist) :: z_tr, r_dist
 
     integer :: m, idist_m
     real(kind=dp), dimension(3) :: cl_out_k2, cl_out_a2, cl_out_g2
@@ -49,28 +50,38 @@ contains
 
     case(3)
 
-      !! log normal distribution - particle size in prf is the median/geometric mean size
-      !! sig = std. deviation - lsig = ln(sig), typically 1 < lsig < 2
-      !! Here, use Ev as the median grain size and Var as the sigma
+      !! log-normal distribution - transformed trapezoid rule
+      !! Substitution: r(z) = exp(ln(Ev) + sqrt(2)*ln(sig_g)*z), z in [-5, 5]
+      !! The log-normal integral transforms to:
+      !!   integral = (N/sqrt(pi)) * trapz( exp(-z^2) * C_ext(r(z)), z )
+      !! This removes the 1/r singularity and sig_g prefactor, giving a
+      !! well-conditioned Gaussian-weighted integral over uniform z-space.
+      !! Ev = median/geometric mean radius; Var = geometric standard deviation (sig_g)
 
       do m = 1, ndist
-        ! Distribution in cm-3 cm-1
-        nd_dist(m) = (nd_cl_lay(z)  / (a_dist(m) * sqrt(twopi) * log(Var))) * &
-          & exp(-(log(a_dist(m)/Ev)**2/(2.0_dp * log(Var)**2)))
+        ! Uniformly spaced z from -5 to 5
+        z_tr(m) = -5.0_dp + 10.0_dp * real(m-1, kind=dp) / real(ndist-1, kind=dp)
+        ! Transformed radius
+        r_dist(m) = exp(log(Ev) + sqrt(2.0_dp) * log(Var) * z_tr(m))
+        ! Effective number density weight: N/sqrt(pi) * exp(-z^2)
+        nd_dist(m) = (nd_cl_lay(z) / sqrt(pi)) * exp(-z_tr(m)**2)
 
         if ((ieee_is_nan(nd_dist(m)) .eqv. .True.) .or. (ieee_is_finite(nd_dist(m)) .eqv. .False.)) then
           nd_dist(m) = 1.0e-99_dp
         end if
 
-        ! Limiter for very low numbers
-        nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
+        nd_dist(m) = max(nd_dist(m), 1.0e-99_dp)
 
-        ! Call mie theory routine for this distribution point
-        call cl_mie(l,nd_dist(m),a_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
-
-        !print*, l, m, nd_dist(m), ,a_dist(m), 
+        ! Call mie theory routine at the transformed radius
+        call cl_mie(l, nd_dist(m), r_dist(m), eps_comb, ifunc_k(m), ifunc_a(m), ifunc_g(m))
 
       end do
+
+      ! Integrate in z-space (not r-space)
+      cl_out_k = trapz(z_tr(:), ifunc_k(:))
+      cl_out_a = trapz(z_tr(:), ifunc_k(:) * ifunc_a(:))
+      cl_out_g = trapz(z_tr(:), ifunc_k(:) * ifunc_a(:) * ifunc_g(:)) / cl_out_a
+      cl_out_a = cl_out_a / cl_out_k
 
     case(4)
 
@@ -218,7 +229,7 @@ contains
 
     if (idist_m == 0) then
 
-    else if (idist_m > 2) then
+    else if (idist_m > 2 .and. idist_m /= 3) then
 
       select case(idist_int)
 
