@@ -42,3 +42,5 @@ MALBEC_benchmark_examples
 # Cia data
 *.cia
 
+.DS_Store
+

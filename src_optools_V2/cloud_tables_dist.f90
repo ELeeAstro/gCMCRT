@@ -22,6 +22,7 @@ contains
     integer :: m, idist_m
     real(kind=dp), dimension(3) :: cl_out_k2, cl_out_a2, cl_out_g2
     real(kind=dp) :: beta, alpha,  aeff, const, Ev, Var, muu, sigg, lam
+    real(kind=dp) :: z_val
 
 
     Ev = a_cl_lay(z)
@@ -192,25 +193,36 @@ contains
 
     case(8)
 
-      !! Exponential distribution
-
-      lam = 1.0_dp/Ev
+      !! Exponential distribution - log-z transformed trapezoid rule
+      !! Substitution: u = log(z/z_center), z = r/Ev, z_center = 2.0
+      !! weight = exp(-z), jacobian = z  =>  nd_dist = N * exp(-z) * z
+      !! Matches Python: int_exp_ana_trapz_logz_psd.py
 
       do m = 1, ndist
-        ! Distribution in cm-3 cm-1
-        nd_dist(m) = nd_cl_lay(z) * (lam * exp(-lam*a_dist(m)))
+        ! Uniform grid in u = log(z/z_center), z_min=0.05, z_max=15.0, z_center=2.0
+        z_tr(m) = log(0.05_dp/2.0_dp) + (log(15.0_dp/2.0_dp) - log(0.05_dp/2.0_dp)) &
+                  * real(m-1, kind=dp) / real(ndist-1, kind=dp)
+        ! z = z_center * exp(u),  r = Ev * z
+        z_val = 2.0_dp * exp(z_tr(m))
+        r_dist(m) = Ev * z_val
+        ! nd = N * exp(-z) * z
+        nd_dist(m) = nd_cl_lay(z) * exp(-z_val) * z_val
 
         if ((ieee_is_nan(nd_dist(m)) .eqv. .True.) .or. (ieee_is_finite(nd_dist(m)) .eqv. .False.)) then
           nd_dist(m) = 1.0e-99_dp
         end if
 
-        ! Limiter for very low numbers
-        nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
+        nd_dist(m) = max(nd_dist(m), 1.0e-99_dp)
 
-        ! Call mie theory routine for this distribution point
-        call cl_mie(l,nd_dist(m),a_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
+        call cl_mie(l, nd_dist(m), r_dist(m), eps_comb, ifunc_k(m), ifunc_a(m), ifunc_g(m))
 
       end do
+
+      ! Integrate over u (stored in z_tr)
+      cl_out_k = trapz(z_tr(:), ifunc_k(:))
+      cl_out_a = trapz(z_tr(:), ifunc_k(:) * ifunc_a(:))
+      cl_out_g = trapz(z_tr(:), ifunc_k(:) * ifunc_a(:) * ifunc_g(:)) / cl_out_a
+      cl_out_a = cl_out_a / cl_out_k
 
     case default
       print*, 'ERROR - idist size distribution selection integer not valid - STOPPING'
@@ -229,7 +241,7 @@ contains
 
     if (idist_m == 0) then
 
-    else if (idist_m > 2 .and. idist_m /= 3) then
+    else if (idist_m > 2 .and. idist_m /= 3 .and. idist_m /= 8) then
 
       select case(idist_int)
 
