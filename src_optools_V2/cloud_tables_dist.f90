@@ -17,12 +17,12 @@ contains
     complex(kind=dp), intent(in) :: eps_comb
     real(kind=dp), intent(out) :: cl_out_k, cl_out_a, cl_out_g
     real(kind=dp), dimension(ndist) :: nd_dist, ifunc_k, ifunc_a, ifunc_g
-    real(kind=dp), dimension(ndist) :: z_tr, r_dist
+    real(kind=dp), dimension(ndist) :: z_tr, r_dist, wext, wsca
 
     integer :: m, idist_m
     real(kind=dp), dimension(3) :: cl_out_k2, cl_out_a2, cl_out_g2
-    real(kind=dp) :: beta, alpha,  aeff, const, Ev, Var, muu, sigg, lam
-    real(kind=dp) :: z_val
+    real(kind=dp) :: beta, alpha, aeff, const, Ev, Var, muu, sigg, lam
+    real(kind=dp) :: z_val, ext_int, sca_int
 
 
     Ev = a_cl_lay(z)
@@ -57,6 +57,10 @@ contains
       !!   integral = (N/sqrt(pi)) * trapz( exp(-z^2) * C_ext(r(z)), z )
       !! This removes the 1/r singularity and sig_g prefactor, giving a
       !! well-conditioned Gaussian-weighted integral over uniform z-space.
+      !! cl_mie is called with nd=1 to return pure cross-sections [cm2];
+      !! nd_dist holds the Gaussian shape weight exp(-z^2), and N/sqrt(pi)
+      !! is applied at the integration step. SSA and g are pure ratios so
+      !! the N/sqrt(pi) prefactor cancels there.
       !! Ev = median/geometric mean radius; Var = geometric standard deviation (sig_g)
 
       do m = 1, ndist
@@ -64,25 +68,24 @@ contains
         z_tr(m) = -5.0_dp + 10.0_dp * real(m-1, kind=dp) / real(ndist-1, kind=dp)
         ! Transformed radius
         r_dist(m) = exp(log(Ev) + sqrt(2.0_dp) * log(Var) * z_tr(m))
-        ! Effective number density weight: N/sqrt(pi) * exp(-z^2)
-        nd_dist(m) = (nd_cl_lay(z) / sqrt(pi)) * exp(-z_tr(m)**2)
+        ! Gaussian shape weight (N/sqrt(pi) applied at integration step below)
+        nd_dist(m) = exp(-z_tr(m)**2)
 
-        if ((ieee_is_nan(nd_dist(m)) .eqv. .True.) .or. (ieee_is_finite(nd_dist(m)) .eqv. .False.)) then
-          nd_dist(m) = 1.0e-99_dp
-        end if
-
-        nd_dist(m) = max(nd_dist(m), 1.0e-99_dp)
-
-        ! Call mie theory routine at the transformed radius
-        call cl_mie(l, nd_dist(m), r_dist(m), eps_comb, ifunc_k(m), ifunc_a(m), ifunc_g(m))
+        ! Call Mie routine with unit number density to obtain pure cross-sections
+        call cl_mie(l, 1.0_dp, r_dist(m), eps_comb, ifunc_k(m), ifunc_a(m), ifunc_g(m))
 
       end do
 
-      ! Integrate in z-space (not r-space)
-      cl_out_k = trapz(z_tr(:), ifunc_k(:))
-      cl_out_a = trapz(z_tr(:), ifunc_k(:) * ifunc_a(:))
-      cl_out_g = trapz(z_tr(:), ifunc_k(:) * ifunc_a(:) * ifunc_g(:)) / cl_out_a
-      cl_out_a = cl_out_a / cl_out_k
+      ! Pre-compute weighted extinction and scattering integrands once
+      wext(:) = ifunc_k(:) * nd_dist(:)
+      wsca(:) = wext(:) * ifunc_a(:)
+      ext_int  = trapz(z_tr(:), wext(:))
+      sca_int  = trapz(z_tr(:), wsca(:))
+
+      ! Integrate in z-space; N/sqrt(pi) only enters cl_out_k, cancels in SSA and g
+      cl_out_k = (nd_cl_lay(z) / sqrt(pi)) * ext_int
+      cl_out_a = sca_int / ext_int
+      cl_out_g = trapz(z_tr(:), wsca(:) * ifunc_g(:)) / sca_int
 
     case(4)
 
@@ -92,7 +95,7 @@ contains
       alpha = Ev**2/Var
       beta = Ev/Var
 
-      const = nd_cl_lay(z) * (beta**(alpha)/gamma(alpha))
+      const = nd_cl_lay(z) * exp(alpha*log(beta) - log_gamma(alpha))
 
       do m = 1, ndist
         ! Distribution in cm-3 cm-1
@@ -118,7 +121,7 @@ contains
       alpha = Ev**2/Var + 2.0_dp
       beta = Ev*(alpha - 1.0_dp)
 
-      const = nd_cl_lay(z) * (beta**(alpha)/gamma(alpha))
+      const = nd_cl_lay(z) * exp(alpha*log(beta) - log_gamma(alpha))
 
       do m = 1, ndist
         ! Distribution in cm-3 cm-1
@@ -171,8 +174,8 @@ contains
       aeff = a_cl_lay(z)
       veff = var_cl_lay(z)
 
-      const = nd_cl_lay(z) / (gamma((1.0_dp - 2.0_dp*veff)/veff) * &
-        & (aeff*veff)**((2.0_dp*veff - 1.0_dp)/veff))
+      lam = (1.0_dp - 2.0_dp*veff)/veff
+      const = nd_cl_lay(z) * exp(-log_gamma(lam) - lam*log(aeff*veff))
 
       do m = 1, ndist
         ! Distribution in cm-3 cm-1
@@ -195,7 +198,10 @@ contains
 
       !! Exponential distribution - log-z transformed trapezoid rule
       !! Substitution: u = log(z/z_center), z = r/Ev, z_center = 2.0
-      !! weight = exp(-z), jacobian = z  =>  nd_dist = N * exp(-z) * z
+      !! weight = exp(-z)*z (Jacobian from log-z sub)
+      !! cl_mie called with nd=1 to return pure cross-sections [cm2];
+      !! nd_dist holds the shape weight exp(-z)*z, and N is applied at
+      !! the integration step. SSA and g are pure ratios so N cancels there.
       !! Matches Python: int_exp_ana_trapz_logz_psd.py
 
       do m = 1, ndist
@@ -205,24 +211,24 @@ contains
         ! z = z_center * exp(u),  r = Ev * z
         z_val = 2.0_dp * exp(z_tr(m))
         r_dist(m) = Ev * z_val
-        ! nd = N * exp(-z) * z
-        nd_dist(m) = nd_cl_lay(z) * exp(-z_val) * z_val
+        ! Shape weight exp(-z)*z (N applied at integration step below)
+        nd_dist(m) = exp(-z_val) * z_val
 
-        if ((ieee_is_nan(nd_dist(m)) .eqv. .True.) .or. (ieee_is_finite(nd_dist(m)) .eqv. .False.)) then
-          nd_dist(m) = 1.0e-99_dp
-        end if
-
-        nd_dist(m) = max(nd_dist(m), 1.0e-99_dp)
-
-        call cl_mie(l, nd_dist(m), r_dist(m), eps_comb, ifunc_k(m), ifunc_a(m), ifunc_g(m))
+        ! Call Mie routine with unit number density to obtain pure cross-sections
+        call cl_mie(l, 1.0_dp, r_dist(m), eps_comb, ifunc_k(m), ifunc_a(m), ifunc_g(m))
 
       end do
 
-      ! Integrate over u (stored in z_tr)
-      cl_out_k = trapz(z_tr(:), ifunc_k(:))
-      cl_out_a = trapz(z_tr(:), ifunc_k(:) * ifunc_a(:))
-      cl_out_g = trapz(z_tr(:), ifunc_k(:) * ifunc_a(:) * ifunc_g(:)) / cl_out_a
-      cl_out_a = cl_out_a / cl_out_k
+      ! Pre-compute weighted extinction and scattering integrands once
+      wext(:) = ifunc_k(:) * nd_dist(:)
+      wsca(:) = wext(:) * ifunc_a(:)
+      ext_int  = trapz(z_tr(:), wext(:))
+      sca_int  = trapz(z_tr(:), wsca(:))
+
+      ! Integrate over u; N only enters cl_out_k, cancels in SSA and g
+      cl_out_k = nd_cl_lay(z) * ext_int
+      cl_out_a = sca_int / ext_int
+      cl_out_g = trapz(z_tr(:), wsca(:) * ifunc_g(:)) / sca_int
 
     case default
       print*, 'ERROR - idist size distribution selection integer not valid - STOPPING'
@@ -247,14 +253,12 @@ contains
 
       case(1)
         ! Use trapezoid rule - function in [cm-3 cm-1]
-        ! Total extinction = integral over all sizes
-        cl_out_k = trapz(a_dist(:),ifunc_k(:))
-        ! effective SSA = integral for k_sca / k_ext =  integral(k_ext * a) / k_ext
-        cl_out_a = trapz(a_dist(:),ifunc_k(:) * ifunc_a(:)) ! Store intermediate result for cl_out_g
-        ! effective g = itergral for k_sca * g / k_sca = integeral(k_sca * g) / k_sca
-        cl_out_g = trapz(a_dist(:),ifunc_k(:) * ifunc_a(:) * ifunc_g(:))/cl_out_a
-
-        cl_out_a = cl_out_a / cl_out_k ! Albedo is scattering/extinction
+        ! Pre-compute scattering integrand once to avoid duplicate array products
+        wsca(:) = ifunc_k(:) * ifunc_a(:)
+        cl_out_k = trapz(a_dist(:), ifunc_k(:))
+        sca_int  = trapz(a_dist(:), wsca(:))
+        cl_out_g = trapz(a_dist(:), wsca(:) * ifunc_g(:)) / sca_int
+        cl_out_a = sca_int / cl_out_k
 
       case(2)
         ! Use simpson 1/3 rule - function in [cm-3 um-1]
