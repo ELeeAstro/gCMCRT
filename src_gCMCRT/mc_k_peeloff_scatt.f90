@@ -119,7 +119,7 @@ contains
     implicit none
 
     type(pac), intent(inout) :: ray
-    real(dp), intent(out) :: wfac
+    real(dp), intent(inout) :: wfac
 
     real(dp) :: p1,p2,p3,p4
     real(dp) :: si,sq,su,sv
