@@ -31,7 +31,7 @@ contains
     wfac = 0.0_dp
 
     !! Find the weighting for wfac for this scattering type
-    call scat_peel(ray, wfac)
+    call scat_peel_2(ray, wfac)
 
     ! Find tau from position to observation direction
     if (ray%geo == 1) then
@@ -115,6 +115,189 @@ contains
 
   end subroutine peeloff_scatt
 
+  attributes(device) subroutine scat_peel_2(ray, wfac)
+    implicit none
+
+    type(pac), intent(inout) :: ray
+    real(dp), intent(inout) :: wfac
+
+    real(dp) :: calpha, cosmu, cosmu2, sinmu, sinmu2, nsinmu2
+    real(dp) :: f_norm
+
+    real(dp) :: p1, p2, p3, p4
+
+    real(dp) :: rp, cost_norm, sint_norm, phi_norm, cosp_norm, sinp_norm
+    real(dp) :: norm_nxp, norm_nyp, norm_nzp, cos_norm
+
+    real(dp) :: hgg, g2
+
+    real(dp) :: gf1, gf2, gb1, gb2, alph
+
+    real(dp) :: dg1, dg2
+
+    ! Normalise polarisation fractions to I stokes parameter
+    f_norm = ray%fi
+    ray%fi = 1.0_dp
+    ray%fq = ray%fq/f_norm
+    ray%fu = ray%fu/f_norm
+    ray%fv = ray%fv/f_norm
+
+
+    ! calculate calpha=cos(alpha), where alpha is angle between incident
+    ! and outgoing (i.e., observed) photon direction
+    calpha = ray%nxp * im_d%obsx + ray%nyp * im_d%obsy  + ray%nzp * im_d%obsz
+    ! change of variable: mu = alpha
+
+    ! work variables
+    cosmu = calpha
+    !! Start scattering matrix calculations
+    ! Limit cosmu to 1 and -1
+      if (cosmu >= 1.0_dp) then
+        cosmu = 1.0_dp
+        cosmu2 = 1.0_dp
+        sinmu = 0.0_dp
+        sinmu2 = 0.0_dp
+        nsinmu2 = 0.0_dp
+      else if (cosmu <= -1.0_dp) then
+        cosmu = -1.0_dp
+        cosmu2 = 1.0_dp
+        sinmu = 0.0_dp
+        sinmu2 = 0.0_dp
+        nsinmu2 = 0.0_dp
+      else
+        cosmu2 = cosmu**2
+        sinmu = sqrt(1.0_dp - cosmu2)
+        sinmu2 = sinmu**2
+        nsinmu2 = -sinmu2
+      end if
+
+    ! Find weight photon for:
+    ! Isotropic, Rayleigh, Thompson (electron), HG, TTHG or Mie scattering
+    ! Then use correct scattering matrix for each type of scattering
+    select case(ray%iscatt)
+
+    case(1)
+
+      wfac = 1.0_dp / fourpi
+      !call isomat(p1,p2,p3,p4)
+
+      ! De-polarised packet
+      ray%fi = 1.0_dp
+      ray%fq = 0.0_dp
+      ray%fu = 0.0_dp
+      ray%fv = 0.0_dp
+
+      return
+
+    case(2)
+
+      ! Cell vertical number is 1
+      ray%c(1) = 1
+      ! Grid vertical distance is at minimum distance
+      !ray%xp = grid_d%r_min
+      ray%xp = sqrt(grid_d%r_min**2 - ray%yp**2 - ray%zp**2) + 1.0e-6_dp
+
+      rp = grid_d%r_min + 1.0e-6_dp
+      ! get phi coordinate in the sphere
+      cost_norm = ray%zp/rp
+      sint_norm = sqrt(1.0_dp - cost_norm**2)
+
+      phi_norm = atan2(ray%yp,ray%xp)
+      cosp_norm = cos(phi_norm)
+      sinp_norm = sin(phi_norm)
+
+      ! Cartesian directional vectors
+      norm_nxp = sint_norm  * cosp_norm
+      norm_nyp = sint_norm  * sinp_norm
+      norm_nzp = cost_norm
+
+      !! Now we need the angle between the normal direction and the detector
+      cos_norm = norm_nxp * im_d%obsx + norm_nyp * im_d%obsy  + norm_nzp * im_d%obsz
+      if (cos_norm >= 0.0_dp) then
+        wfac = cos_norm / pi
+      else
+        wfac = 0.0_dp
+      end if
+
+      ! De-polarised packet
+      ray%fi = 1.0_dp
+      ray%fq = 0.0_dp
+      ray%fu = 0.0_dp
+      ray%fv = 0.0_dp
+
+      return
+
+
+    case(3)
+
+      wfac = (0.75_dp * (1.0_dp + cosmu2)) / fourpi
+
+      !call Raymat(p1,p2,p3,p4,cosmu,cosmu2)
+      !call Raymat_depol(p1,p2,p3,p4,bmu,cosb2,sinb2)
+
+    case(4)
+
+        hgg = g_d(ray%c(1),ray%c(2),ray%c(3))
+        g2 = hgg**2
+        wfac = ((1.0_dp - g2)/(1.0_dp + g2 - 2.0_dp*hgg*cosmu)**(1.5_dp)) / fourpi
+
+        !call dustmat_HG(p1,p2,p3,p4,cosmu,cosmu2,hgg,g2)
+
+    case(5)
+
+        !Cahoy et al. (2010)
+        !hggb = -hgg/2.0_dp
+        !alpha = 1 - hggb**2
+        !beta = hggb**2
+
+        hgg = g_d(ray%c(1),ray%c(2),ray%c(3))
+        if (hgg >= 0.0_dp) then
+          gf1 = hgg
+          gf2 = gf1**2
+          gb1 = -gf1/2.0_dp
+          gb2 = gb1**2
+          alph = 1.0_dp - gb2
+        else
+          gb1 = hgg
+          gb2 = gb1**2
+          gf1 = -gb1/2.0_dp
+          gf2 = gf1**2
+          alph = 1.0_dp - gb2
+        end if
+
+        wfac = ((alph * ((1.0_dp - gf2)/(1.0_dp + gf2 - 2.0_dp*gf1*cosmu)**1.5_dp)) &
+          & + ((1.0_dp - alph) * ((1.0_dp - gb2)/(1.0_dp + gb2 - 2.0_dp*gb1*cosmu)**1.5_dp))) &
+          & / fourpi
+
+        !call dustmat_TTHG(p1,p2,p3,p4,cosmu,cosmu2,gf1,gf2,gb1,gb2,alph)
+
+      case(6)
+
+        dg1 = Dgg_d(ray%c(1),ray%c(2),ray%c(3))
+        dg2 = Dgg_d(ray%c(1),ray%c(2),ray%c(3))**2
+
+        alph = Draine_alp_d
+
+        wfac = (((1.0_dp - dg1)/(1.0_dp + alph*(1.0_dp + 2.0_dp*dg2)/3.0_dp)) &
+        & * ((1.0_dp + alph*cosmu2)/(1.0_dp + dg2 - 2.0_dp*dg1*cosmu)**1.5_dp)) &
+        & / fourpi
+
+        !call dustmat_Draine(p1,p2,p3,p4,cosmu,cosmu2,G1,G2,alph)
+
+    case default
+      print*, "Can't do this yet!", ray%iscatt
+      stop
+
+    end select
+
+      ! De-polarised packet - stokes law calculation is broken currently
+      ray%fi = 1.0_dp
+      ray%fq = 0.0_dp
+      ray%fu = 0.0_dp
+      ray%fv = 0.0_dp
+
+  end subroutine scat_peel_2
+
   attributes(device) subroutine scat_peel(ray, wfac)
     implicit none
 
@@ -133,8 +316,8 @@ contains
     real(dp) :: rp, cost_norm, sint_norm, phi_norm, cosp_norm, sinp_norm
     real(dp) :: norm_nxp, norm_nyp, norm_nzp, cos_norm
 
-
-    real(dp) :: w1, w2, w3, g, h, l, w, g1, gf1, gf2, gb1, gb2
+    real(dp) :: gf1, gf2, gb1, gb2
+    real(dp) :: dg, dg2
 
     ! Normalise polarisation fractions to I stokes parameter
     f_norm = ray%fi
@@ -271,18 +454,18 @@ contains
 
         call dustmat_TTHG(p1,p2,p3,p4,cosmu,cosmu2,gf1,gf2,gb1,gb2,alph)
 
-      case(6)
+        !case(6)
 
-        G1 = Dgg_d(ray%c(1),ray%c(2),ray%c(3))
-        G2 = Dgg_d(ray%c(1),ray%c(2),ray%c(3))**2
+        !dg  = Dgg_d(ray%c(1), ray%c(2), ray%c(3))
+        !dg2 = dg * dg
+ 
+        !wfac = (((1.0_dp - dg2) / &
+         !&(1.0_dp + Draine_alp_d * (1.0_dp + 2.0_dp * dg2) / 3.0_dp)) &
+         !& * ((1.0_dp + Draine_alp_d * cosmu2) / &
+         !& (1.0_dp + dg2 - 2.0_dp * dg * cosmu)**1.5_dp)) / fourpi
 
-        wfac = (((1.0_dp - G2)/(1.0_dp + Draine_alp_d*(1.0_dp + 2.0_dp*G2)/3.0_dp)) &
-        & * ((1.0_dp + Draine_alp_d*cosmu2)/(1.0_dp + G2 - 2.0_dp*G1*cosmu)**1.5_dp)) &
-        & / fourpi
-
-        alph = Draine_alp_d
-
-        call dustmat_Draine(p1,p2,p3,p4,cosmu,cosmu2,G1,G2,alph)
+        !alph = Draine_alp_d
+        !call dustmat_Draine(p1,p2,p3,p4,cosmu,cosmu2,dg,dg2,alph)
 
       case default
 
