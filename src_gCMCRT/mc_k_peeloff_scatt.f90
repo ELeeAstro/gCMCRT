@@ -31,7 +31,7 @@ contains
     wfac = 0.0_dp
 
     !! Find the weighting for wfac for this scattering type
-    call scat_peel_test(ray, wfac)
+    call scat_peel(ray, wfac)
 
     ! Find tau from position to observation direction
     if (ray%geo == 1) then
@@ -114,14 +114,6 @@ contains
     end if
 
   end subroutine peeloff_scatt
-
-  attributes(device) subroutine scat_peel_test(ray, wfac)
-    implicit none
-
-    type(pac), intent(inout) :: ray
-    real(dp), intent(out) :: wfac
-  end subroutine scat_peel_test
-
 
   attributes(device) subroutine scat_peel(ray, wfac)
     implicit none

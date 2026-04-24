@@ -25,7 +25,8 @@ contains
     ph%c(3) = k
 
     ! Sample a random position inside the cell
-    r_samp = r_d(i) + cbrt(curand_uniform(ph%iseed)) * (r_d(i+1) - r_d(i))
+    ! r_samp = r_d(i) + cbrt(curand_uniform(ph%iseed)) * (r_d(i+1) - r_d(i)) - old biased scheme
+    r_samp = cbrt((r_d(i)**3 + curand_uniform(ph%iseed) * (r_d(i+1)**3 - r_d(i)**3)))
     phi_samp = phi_d(j) + curand_uniform(ph%iseed) * (phi_d(j+1) - phi_d(j))
     theta_samp = acos(cos(theta_d(k)) + curand_uniform(ph%iseed) * (cos(theta_d(k+1)) - cos(theta_d(k))))
 
