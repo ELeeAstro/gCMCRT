@@ -139,7 +139,7 @@ contains
       end if
 
       call peeloff_scatt(ph)
-      call scatt_pac(ph)
+      call scatt_pac_2(ph)
       call RR_test(ph)
 
       nscat =  nscat + 1

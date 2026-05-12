@@ -70,7 +70,7 @@ contains
       if (curand_uniform(ph%iseed) < ssa_1D_d(ph%c(3))) then
         !! Scatter packet isotropically
         ph%iscatt = 1
-        call scatt_pac(ph)
+        call scatt_pac_2(ph)
       else
         !! Remove packet from simulation
         exit

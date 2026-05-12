@@ -72,7 +72,7 @@ contains
         call peeloff_scatt(ph)
         ! New direction for packet
         ph%iscatt = 4
-        call scatt_pac(ph)
+        call scatt_pac_2(ph)
         !call scatt_pac(ph)
       else
         exit

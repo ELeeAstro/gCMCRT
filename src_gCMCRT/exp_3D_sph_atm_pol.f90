@@ -96,7 +96,7 @@ contains
         ph%iscatt = 2
         call peeloff_scatt(ph)
       !  call emit_iso_surf_sph(ph)
-        call scatt_pac(ph)
+        call scatt_pac_2(ph)
         ph%p_flag = 0
         nscat = nscat + 1
         cycle
@@ -115,7 +115,7 @@ contains
       ph%iscatt = 3
 
       call peeloff_scatt(ph)
-      call scatt_pac(ph)
+      call scatt_pac_2(ph)
       call RR_test(ph)
 
       nscat =  nscat + 1

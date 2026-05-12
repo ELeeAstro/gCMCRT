@@ -57,7 +57,7 @@ contains
       if (ph%p_flag == 2) then
         ! Scatter packet with Lambertian
         ph%iscatt = 2
-        call scatt_pac(ph)
+        call scatt_pac_2(ph)
         !call emit_iso_surf(ph)
         ph%p_flag = 0
         cycle

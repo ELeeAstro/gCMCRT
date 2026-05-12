@@ -13,6 +13,58 @@ module mc_k_peeloff_scatt
 
 contains
 
+  attributes(device) subroutine depolarise_ray(ray)
+    implicit none
+
+    type(pac), intent(inout) :: ray
+
+    ray%fi = 1.0_dp
+    ray%fq = 0.0_dp
+    ray%fu = 0.0_dp
+    ray%fv = 0.0_dp
+
+  end subroutine depolarise_ray
+
+  attributes(device) function hg_phase_pdf(cosmu, hgg) result(wfac)
+    implicit none
+
+    real(dp), intent(in) :: cosmu, hgg
+    real(dp) :: wfac
+    real(dp) :: g_safe, g2, denom
+
+    g_safe = max(-0.999999999999_dp, min(0.999999999999_dp, hgg))
+    g2 = g_safe*g_safe
+    denom = 1.0_dp + g2 - 2.0_dp*g_safe*cosmu
+
+    if (denom > 1.0e-300_dp) then
+      wfac = ((1.0_dp - g2) / denom**1.5_dp) / fourpi
+    else
+      wfac = 0.0_dp
+    end if
+
+  end function hg_phase_pdf
+
+  attributes(device) function draine_phase_pdf(cosmu, cosmu2, dg1, alph) result(wfac)
+    implicit none
+
+    real(dp), intent(in) :: cosmu, cosmu2, dg1, alph
+    real(dp) :: wfac
+    real(dp) :: g_safe, dg2, denom, norm
+
+    g_safe = max(-0.999999999999_dp, min(0.999999999999_dp, dg1))
+    dg2 = g_safe*g_safe
+    norm = 1.0_dp + alph*(1.0_dp + 2.0_dp*dg2)/3.0_dp
+    denom = 1.0_dp + dg2 - 2.0_dp*g_safe*cosmu
+
+    if ((norm > 1.0e-300_dp) .and. (denom > 1.0e-300_dp)) then
+      wfac = (((1.0_dp - dg2)/norm) * &
+              ((1.0_dp + alph*cosmu2)/denom**1.5_dp)) / fourpi
+    else
+      wfac = 0.0_dp
+    end if
+
+  end function draine_phase_pdf
+
   attributes(device) subroutine peeloff_scatt(ph)
     implicit none
 
@@ -33,6 +85,10 @@ contains
 
     !! Find the weighting for wfac for this scattering type
     call scat_peel_2(ray, wfac)
+
+    if ((wfac <= 0.0_dp) .or. (ieee_is_nan(wfac) .eqv. .True.)) then
+      return
+    end if
 
     ! Find tau from position to observation direction
     if (ray%geo == 1) then
@@ -122,55 +178,23 @@ contains
     type(pac), intent(inout) :: ray
     real(dp), intent(inout) :: wfac
 
-    real(dp) :: calpha, cosmu, cosmu2, sinmu, sinmu2, nsinmu2
-    real(dp) :: f_norm
-
-    real(dp) :: p1, p2, p3, p4
-
-    real(dp) :: hgg, g2
+    real(dp) :: calpha, cosmu, cosmu2
+    real(dp) :: hgg
 
     real(dp) :: gf1, gf2, gb1, gb2, alph
 
-    real(dp) :: dg1, dg2
+    real(dp) :: dg1
 
     real(dp) :: r_here
     real(dp) :: nx_norm, ny_norm, nz_norm
-
-    ! Normalise polarisation fractions to I stokes parameter
-    f_norm = ray%fi
-    ray%fi = 1.0_dp
-    ray%fq = ray%fq/f_norm
-    ray%fu = ray%fu/f_norm
-    ray%fv = ray%fv/f_norm
-
 
     ! calculate calpha=cos(alpha), where alpha is angle between incident
     ! and outgoing (i.e., observed) photon direction
     calpha = ray%nxp * im_d%obsx + ray%nyp * im_d%obsy  + ray%nzp * im_d%obsz
     ! change of variable: mu = alpha
 
-    ! work variables
-    cosmu = calpha
-    !! Start scattering matrix calculations
-    ! Limit cosmu to 1 and -1
-      if (cosmu >= 1.0_dp) then
-        cosmu = 1.0_dp
-        cosmu2 = 1.0_dp
-        sinmu = 0.0_dp
-        sinmu2 = 0.0_dp
-        nsinmu2 = 0.0_dp
-      else if (cosmu <= -1.0_dp) then
-        cosmu = -1.0_dp
-        cosmu2 = 1.0_dp
-        sinmu = 0.0_dp
-        sinmu2 = 0.0_dp
-        nsinmu2 = 0.0_dp
-      else
-        cosmu2 = cosmu**2
-        sinmu = sqrt(1.0_dp - cosmu2)
-        sinmu2 = sinmu**2
-        nsinmu2 = -sinmu2
-      end if
+    cosmu = max(-1.0_dp, min(1.0_dp, calpha))
+    cosmu2 = cosmu*cosmu
 
     ! Find weight photon for:
     ! Isotropic, Rayleigh, Thompson (electron), HG, TTHG or Mie scattering
@@ -182,11 +206,7 @@ contains
       wfac = 1.0_dp / fourpi
       !call isomat(p1,p2,p3,p4)
 
-      ! De-polarised packet
-      ray%fi = 1.0_dp
-      ray%fq = 0.0_dp
-      ray%fu = 0.0_dp
-      ray%fv = 0.0_dp
+      call depolarise_ray(ray)
 
       return
 
@@ -213,11 +233,7 @@ contains
         wfac = lambertian_peeloff_pdf(nx_norm, ny_norm, nz_norm, &
                                       im_d%obsx, im_d%obsy, im_d%obsz)
 
-        ! De-polarised packet
-        ray%fi = 1.0_dp
-        ray%fq = 0.0_dp
-        ray%fu = 0.0_dp
-        ray%fv = 0.0_dp
+        call depolarise_ray(ray)
 
         return
 
@@ -232,8 +248,7 @@ contains
     case(4)
 
         hgg = g_d(ray%c(1),ray%c(2),ray%c(3))
-        g2 = hgg**2
-        wfac = ((1.0_dp - g2)/(1.0_dp + g2 - 2.0_dp*hgg*cosmu)**(1.5_dp)) / fourpi
+        wfac = hg_phase_pdf(cosmu, hgg)
 
         !call dustmat_HG(p1,p2,p3,p4,cosmu,cosmu2,hgg,g2)
 
@@ -246,49 +261,41 @@ contains
 
         hgg = g_d(ray%c(1),ray%c(2),ray%c(3))
         if (hgg >= 0.0_dp) then
-          gf1 = hgg
+          gf1 = max(-0.999999999999_dp, min(0.999999999999_dp, hgg))
           gf2 = gf1**2
           gb1 = -gf1/2.0_dp
           gb2 = gb1**2
           alph = 1.0_dp - gb2
         else
-          gb1 = hgg
+          gb1 = max(-0.999999999999_dp, min(0.999999999999_dp, hgg))
           gb2 = gb1**2
           gf1 = -gb1/2.0_dp
           gf2 = gf1**2
           alph = 1.0_dp - gb2
         end if
 
-        wfac = ((alph * ((1.0_dp - gf2)/(1.0_dp + gf2 - 2.0_dp*gf1*cosmu)**1.5_dp)) &
-          & + ((1.0_dp - alph) * ((1.0_dp - gb2)/(1.0_dp + gb2 - 2.0_dp*gb1*cosmu)**1.5_dp))) &
-          & / fourpi
+        alph = min(1.0_dp, max(0.0_dp, alph))
+        wfac = alph*hg_phase_pdf(cosmu, gf1) + (1.0_dp - alph)*hg_phase_pdf(cosmu, gb1)
 
         !call dustmat_TTHG(p1,p2,p3,p4,cosmu,cosmu2,gf1,gf2,gb1,gb2,alph)
 
       case(6)
 
         dg1 = Dgg_d(ray%c(1),ray%c(2),ray%c(3))
-        dg2 = Dgg_d(ray%c(1),ray%c(2),ray%c(3))**2
-
         alph = Draine_alp_d
-
-        wfac = (((1.0_dp - dg2)/(1.0_dp + alph*(1.0_dp + 2.0_dp*dg2)/3.0_dp)) &
-        & * ((1.0_dp + alph*cosmu2)/(1.0_dp + dg2 - 2.0_dp*dg1*cosmu)**1.5_dp)) &
-        & / fourpi
+        wfac = draine_phase_pdf(cosmu, cosmu2, dg1, alph)
 
         !call dustmat_Draine(p1,p2,p3,p4,cosmu,cosmu2,G1,G2,alph)
 
     case default
-      print*, "Can't do this yet!", ray%iscatt
-      stop
+      wfac = 0.0_dp
+      call depolarise_ray(ray)
+      return
 
     end select
 
       ! De-polarised packet - stokes law calculation is broken currently
-      ray%fi = 1.0_dp
-      ray%fq = 0.0_dp
-      ray%fu = 0.0_dp
-      ray%fv = 0.0_dp
+      call depolarise_ray(ray)
 
   end subroutine scat_peel_2
 

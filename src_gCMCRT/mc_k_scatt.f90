@@ -39,6 +39,319 @@ contains
 
   end subroutine scatt_pac_iso
 
+  attributes(device) subroutine depolarise_pac(ph)
+    implicit none
+
+    type(pac), intent(inout) :: ph
+
+    ph%fi = 1.0_dp
+    ph%fq = 0.0_dp
+    ph%fu = 0.0_dp
+    ph%fv = 0.0_dp
+
+  end subroutine depolarise_pac
+
+  attributes(device) subroutine set_angles_from_dir(ph)
+    implicit none
+
+    type(pac), intent(inout) :: ph
+    real(dp) :: norm
+
+    norm = sqrt(ph%nxp*ph%nxp + ph%nyp*ph%nyp + ph%nzp*ph%nzp)
+
+    if (norm > 1.0e-300_dp) then
+      ph%nxp = ph%nxp / norm
+      ph%nyp = ph%nyp / norm
+      ph%nzp = ph%nzp / norm
+    else
+      ph%nxp = 0.0_dp
+      ph%nyp = 0.0_dp
+      ph%nzp = 1.0_dp
+    end if
+
+    ph%cost = max(-1.0_dp, min(1.0_dp, ph%nzp))
+    ph%sint = sqrt(max(1.0_dp - ph%cost*ph%cost, 0.0_dp))
+
+    if (ph%sint > 1.0e-14_dp) then
+      ph%cosp = ph%nxp / ph%sint
+      ph%sinp = ph%nyp / ph%sint
+      ph%phi = atan2(ph%sinp, ph%cosp)
+      if (ph%phi < 0.0_dp) ph%phi = ph%phi + twopi
+    else
+      ph%cosp = 1.0_dp
+      ph%sinp = 0.0_dp
+      ph%phi = 0.0_dp
+    end if
+
+  end subroutine set_angles_from_dir
+
+  attributes(device) subroutine rotate_direction_about_current(ph, bmu)
+    implicit none
+
+    type(pac), intent(inout) :: ph
+    real(dp), intent(in) :: bmu
+
+    real(dp) :: kx, ky, kz
+    real(dp) :: e1x, e1y, e1z
+    real(dp) :: e2x, e2y, e2z
+    real(dp) :: hx, hy, hz
+    real(dp) :: norm
+    real(dp) :: mu, sin_theta, phi, cphi, sphi
+
+    kx = ph%nxp
+    ky = ph%nyp
+    kz = ph%nzp
+
+    norm = sqrt(kx*kx + ky*ky + kz*kz)
+
+    if (norm > 1.0e-300_dp) then
+      kx = kx / norm
+      ky = ky / norm
+      kz = kz / norm
+    else
+      kx = 0.0_dp
+      ky = 0.0_dp
+      kz = 1.0_dp
+    end if
+
+    if (abs(kz) < 0.9_dp) then
+      hx = 0.0_dp
+      hy = 0.0_dp
+      hz = 1.0_dp
+    else
+      hx = 1.0_dp
+      hy = 0.0_dp
+      hz = 0.0_dp
+    end if
+
+    e1x = hy*kz - hz*ky
+    e1y = hz*kx - hx*kz
+    e1z = hx*ky - hy*kx
+
+    norm = sqrt(e1x*e1x + e1y*e1y + e1z*e1z)
+
+    if (norm > 1.0e-300_dp) then
+      e1x = e1x / norm
+      e1y = e1y / norm
+      e1z = e1z / norm
+    else
+      e1x = 1.0_dp
+      e1y = 0.0_dp
+      e1z = 0.0_dp
+    end if
+
+    e2x = ky*e1z - kz*e1y
+    e2y = kz*e1x - kx*e1z
+    e2z = kx*e1y - ky*e1x
+
+    norm = sqrt(e2x*e2x + e2y*e2y + e2z*e2z)
+
+    if (norm > 1.0e-300_dp) then
+      e2x = e2x / norm
+      e2y = e2y / norm
+      e2z = e2z / norm
+    else
+      e2x = 0.0_dp
+      e2y = 1.0_dp
+      e2z = 0.0_dp
+    end if
+
+    mu = max(-1.0_dp, min(1.0_dp, bmu))
+    sin_theta = sqrt(max(1.0_dp - mu*mu, 0.0_dp))
+
+    phi = twopi * curand_uniform(ph%iseed)
+    cphi = cos(phi)
+    sphi = sin(phi)
+
+    ph%nxp = mu*kx + sin_theta*cphi*e1x + sin_theta*sphi*e2x
+    ph%nyp = mu*ky + sin_theta*cphi*e1y + sin_theta*sphi*e2y
+    ph%nzp = mu*kz + sin_theta*cphi*e1z + sin_theta*sphi*e2z
+
+    call set_angles_from_dir(ph)
+
+  end subroutine rotate_direction_about_current
+
+  attributes(device) subroutine sample_hg_mu(ph, hgg, bmu)
+    implicit none
+
+    type(pac), intent(inout) :: ph
+    real(dp), intent(in) :: hgg
+    real(dp), intent(out) :: bmu
+
+    real(dp) :: g_safe, g2, xi, denom
+
+    g_safe = max(-0.999999999999_dp, min(0.999999999999_dp, hgg))
+
+    if (abs(g_safe) < 1.0e-8_dp) then
+      bmu = 2.0_dp * curand_uniform(ph%iseed) - 1.0_dp
+    else
+      g2 = g_safe*g_safe
+      xi = curand_uniform(ph%iseed)
+      denom = 1.0_dp - g_safe + 2.0_dp*g_safe*xi
+
+      if (abs(denom) <= 1.0e-300_dp) then
+        bmu = sign(1.0_dp, g_safe)
+      else
+        bmu = ((1.0_dp + g2) - ((1.0_dp - g2)/denom)**2) / (2.0_dp*g_safe)
+      end if
+    end if
+
+    bmu = max(-1.0_dp, min(1.0_dp, bmu))
+
+  end subroutine sample_hg_mu
+
+  attributes(device) subroutine scatt_pac_2(ph)
+    implicit none
+
+    type(pac), intent(inout) :: ph
+
+    real(dp) :: bmu
+    real(dp) :: hgg, gf1, gf2, gb1, gb2, alph
+    real(dp) :: q, u, xi
+    real(dp) :: dg1, dg2, dg4
+    real(dp) :: t0, t1, t2, t3, t4, t5, t6, t7, t8, t9
+    real(dp) :: rad1, rad2
+    real(dp) :: r_here, nx_norm, ny_norm, nz_norm, mu_lam
+
+    select case(ph%iscatt)
+
+    case(1)
+
+      call scatt_pac_iso(ph)
+      call depolarise_pac(ph)
+      return
+
+    case(2)
+
+      r_here = sqrt(ph%xp*ph%xp + ph%yp*ph%yp + ph%zp*ph%zp)
+
+      if (r_here > 1.0e-300_dp) then
+        nx_norm = ph%xp / r_here
+        ny_norm = ph%yp / r_here
+        nz_norm = ph%zp / r_here
+      else
+        nx_norm = 0.0_dp
+        ny_norm = 0.0_dp
+        nz_norm = 1.0_dp
+      end if
+
+      call sample_lambertian_dir(nx_norm, ny_norm, nz_norm, ph%iseed, &
+                                ph%nxp, ph%nyp, ph%nzp, mu_lam)
+      call set_angles_from_dir(ph)
+      call depolarise_pac(ph)
+      return
+
+    case(3)
+
+      q = 4.0_dp * curand_uniform(ph%iseed) - 2.0_dp
+      u = cbrt(-q + sqrt(1.0_dp + q*q))
+
+      if (abs(u) <= 1.0e-300_dp) then
+        bmu = 0.0_dp
+      else
+        bmu = u - 1.0_dp/u
+      end if
+
+      bmu = max(-1.0_dp, min(1.0_dp, bmu))
+      call rotate_direction_about_current(ph, bmu)
+      call depolarise_pac(ph)
+      return
+
+    case(4)
+
+      hgg = g_d(ph%c(1), ph%c(2), ph%c(3))
+      call sample_hg_mu(ph, hgg, bmu)
+      call rotate_direction_about_current(ph, bmu)
+      call depolarise_pac(ph)
+      return
+
+    case(5)
+
+      hgg = g_d(ph%c(1), ph%c(2), ph%c(3))
+
+      if (hgg >= 0.0_dp) then
+        gf1 = hgg
+        gb1 = -gf1/2.0_dp
+      else
+        gb1 = hgg
+        gf1 = -gb1/2.0_dp
+      end if
+
+      gf2 = gf1*gf1
+      gb2 = gb1*gb1
+      alph = min(1.0_dp, max(0.0_dp, 1.0_dp - gb2))
+
+      if (curand_uniform(ph%iseed) < alph) then
+        call sample_hg_mu(ph, gf1, bmu)
+      else
+        call sample_hg_mu(ph, gb1, bmu)
+      end if
+
+      call rotate_direction_about_current(ph, bmu)
+      call depolarise_pac(ph)
+      return
+
+    case(6)
+
+      dg1 = Dgg_d(ph%c(1), ph%c(2), ph%c(3))
+
+      if (abs(dg1) < 1.0e-8_dp) then
+        bmu = 2.0_dp * curand_uniform(ph%iseed) - 1.0_dp
+      else
+        dg2 = dg1*dg1
+        dg4 = dg2*dg2
+        alph = Draine_alp_d
+
+        t0 = alph * (1.0_dp - dg2)
+        t1 = alph * (dg4 - 1.0_dp)
+        t2 = -3.0_dp * (4.0_dp*(dg4 - dg2) + t1*(1.0_dp + dg2))
+        t3 = dg1 * (2.0_dp*curand_uniform(ph%iseed) - 1.0_dp)
+        t4 = 3.0_dp*dg2*(1.0_dp + t3) + &
+             alph*(2.0_dp + dg2*(1.0_dp + (1.0_dp + 2.0_dp*dg2)*t3))
+        t5 = t0*(t1*t2 + t4*t4) + t1**3
+        t6 = t0*4.0_dp*(dg4 - dg2)
+        rad1 = t5*t5 - t6**3
+
+        if ((abs(t0) <= 1.0e-300_dp) .or. (rad1 < 0.0_dp)) then
+          call sample_hg_mu(ph, dg1, bmu)
+        else
+          t7 = cbrt(t5 + sqrt(rad1))
+
+          if (abs(t7) <= 1.0e-300_dp) then
+            call sample_hg_mu(ph, dg1, bmu)
+          else
+            t8 = 2.0_dp * (t1 + t6/t7 + t7) / t0
+            t9 = sqrt(max(6.0_dp*(1.0_dp + dg2) + t8, 0.0_dp))
+
+            if (abs(t9) <= 1.0e-300_dp) then
+              call sample_hg_mu(ph, dg1, bmu)
+            else
+              rad2 = 6.0_dp*(1.0_dp + dg2) - t8 + 8.0_dp*t4/(t0*t9)
+              rad2 = max(rad2, 0.0_dp)
+
+              bmu = dg1/2.0_dp + &
+                    (1.0_dp/(2.0_dp*dg1) - &
+                    1.0_dp/(8.0_dp*dg1) * (sqrt(rad2) - t9)**2)
+            end if
+          end if
+        end if
+      end if
+
+      bmu = max(-1.0_dp, min(1.0_dp, bmu))
+      call rotate_direction_about_current(ph, bmu)
+      call depolarise_pac(ph)
+      return
+
+    case default
+
+      call scatt_pac_iso(ph)
+      call depolarise_pac(ph)
+      return
+
+    end select
+
+  end subroutine scatt_pac_2
+
   attributes(device) subroutine scatt_pac(ph)
     implicit none
 
