@@ -26,6 +26,7 @@ OBJECTS = \
     mc_k_moments.o \
     mc_k_vol_samp.o \
     mc_k_limb_dark.o \
+    mc_k_lambertian.o \
     mc_k_scatt_mat.o \
     mc_k_scatt.o \
     mc_k_findcell.o \

@@ -27,7 +27,7 @@ contains
     ray%p_flag = 0
     d = 0.0_dp
 
-    !Ray direction is now observation direction
+    ! Ray direction is now observation direction
     ray%nxp = im_d%obsx; ray%nyp = im_d%obsy ; ray%nzp = im_d%obsz
 
     ! calculate smax -- maximum distance photon can travel.  smax is

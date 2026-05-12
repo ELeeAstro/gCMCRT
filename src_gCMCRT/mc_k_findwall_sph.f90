@@ -36,6 +36,7 @@ contains
     real(dp), intent(out) :: dcell
     real(dp), dimension(3) :: dist
     real(dp) :: ds, R1, R2, A1, A2, B1, B2, C1, C2, D1, D2, T1, T2
+    real(dp) :: eps_face
 
     cell(1) = ph%c(1)
     cell(2) = ph%c(2)
@@ -86,10 +87,12 @@ contains
       end if
     end do
 
+    eps_face = max(1.0e-12_dp * max(1.0_dp, abs(dcell)), 1.0e-14_dp)
+
+    ioffset(:) = 0
     do i = 1, 3
-      ioffset(i) = 0
-      if (dist(i) == dcell) then
-        !"shortest distance" offsets are either -1 or 1
+      if ((dist(i) > 0.0_dp) .and. (abs(dist(i) - dcell) <= eps_face)) then
+        ! "shortest distance" offsets are either -1 or 1
         ioffset(i) = -1 + 2 * idist(i)
       end if
     end do

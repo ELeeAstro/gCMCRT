@@ -6,6 +6,7 @@ module mc_k_peeloff_scatt
   use mc_class_imag
   use mc_k_raytrace
   use mc_k_scatt_mat
+  use mc_k_lambertian, only: lambertian_peeloff_pdf
   use ieee_arithmetic
   use cudafor
   implicit none
@@ -126,14 +127,14 @@ contains
 
     real(dp) :: p1, p2, p3, p4
 
-    real(dp) :: rp, cost_norm, sint_norm, phi_norm, cosp_norm, sinp_norm
-    real(dp) :: norm_nxp, norm_nyp, norm_nzp, cos_norm
-
     real(dp) :: hgg, g2
 
     real(dp) :: gf1, gf2, gb1, gb2, alph
 
     real(dp) :: dg1, dg2
+
+    real(dp) :: r_here
+    real(dp) :: nx_norm, ny_norm, nz_norm
 
     ! Normalise polarisation fractions to I stokes parameter
     f_norm = ray%fi
@@ -191,41 +192,34 @@ contains
 
     case(2)
 
-      ! Cell vertical number is 1
-      ray%c(1) = 1
-      ! Grid vertical distance is at minimum distance
-      !ray%xp = grid_d%r_min
-      ray%xp = sqrt(grid_d%r_min**2 - ray%yp**2 - ray%zp**2) + 1.0e-6_dp
+        ! Lambertian surface peel-off.
+        !
+        ! Surface normal for a spherical lower boundary.
+        ! This assumes the outward normal points from the planet centre
+        ! into the atmosphere.
+        r_here = sqrt(ray%xp*ray%xp + ray%yp*ray%yp + ray%zp*ray%zp)
 
-      rp = grid_d%r_min + 1.0e-6_dp
-      ! get phi coordinate in the sphere
-      cost_norm = ray%zp/rp
-      sint_norm = sqrt(1.0_dp - cost_norm**2)
+        if (r_here > 1.0e-30_dp) then
+          nx_norm = ray%xp / r_here
+          ny_norm = ray%yp / r_here
+          nz_norm = ray%zp / r_here
+        else
+          nx_norm = 0.0_dp
+          ny_norm = 0.0_dp
+          nz_norm = 1.0_dp
+        end if
 
-      phi_norm = atan2(ray%yp,ray%xp)
-      cosp_norm = cos(phi_norm)
-      sinp_norm = sin(phi_norm)
+        ! Direction from event point toward observer.
+        wfac = lambertian_peeloff_pdf(nx_norm, ny_norm, nz_norm, &
+                                      im_d%obsx, im_d%obsy, im_d%obsz)
 
-      ! Cartesian directional vectors
-      norm_nxp = sint_norm  * cosp_norm
-      norm_nyp = sint_norm  * sinp_norm
-      norm_nzp = cost_norm
+        ! De-polarised packet
+        ray%fi = 1.0_dp
+        ray%fq = 0.0_dp
+        ray%fu = 0.0_dp
+        ray%fv = 0.0_dp
 
-      !! Now we need the angle between the normal direction and the detector
-      cos_norm = norm_nxp * im_d%obsx + norm_nyp * im_d%obsy  + norm_nzp * im_d%obsz
-      if (cos_norm >= 0.0_dp) then
-        wfac = cos_norm / pi
-      else
-        wfac = 0.0_dp
-      end if
-
-      ! De-polarised packet
-      ray%fi = 1.0_dp
-      ray%fq = 0.0_dp
-      ray%fu = 0.0_dp
-      ray%fv = 0.0_dp
-
-      return
+        return
 
 
     case(3)
@@ -278,7 +272,7 @@ contains
 
         alph = Draine_alp_d
 
-        wfac = (((1.0_dp - dg1)/(1.0_dp + alph*(1.0_dp + 2.0_dp*dg2)/3.0_dp)) &
+        wfac = (((1.0_dp - dg2)/(1.0_dp + alph*(1.0_dp + 2.0_dp*dg2)/3.0_dp)) &
         & * ((1.0_dp + alph*cosmu2)/(1.0_dp + dg2 - 2.0_dp*dg1*cosmu)**1.5_dp)) &
         & / fourpi
 

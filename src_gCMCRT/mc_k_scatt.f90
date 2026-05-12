@@ -5,6 +5,7 @@ module mc_k_scatt
   use mc_class_grid
   use mc_data_mod
   use mc_k_scatt_mat
+  use mc_k_lambertian, only: sample_lambertian_dir
   use curand_device
   use cudafor
   use ieee_arithmetic
@@ -58,6 +59,10 @@ contains
     
     real(dp) :: cost_norm, sint_norm, rp
 
+    real(dp) :: r_here
+    real(dp) :: nx_norm, ny_norm, nz_norm
+    real(dp) :: mu_lam
+
     ! Normalise polarisation fractions to I stokes parameter
     f_norm = ph%fi
     ph%fi = 1.0_dp
@@ -74,21 +79,7 @@ contains
 
       ! Isotropic scattering
 
-      ph%cost = 2.0_dp * curand_uniform(ph%iseed) - 1.0_dp
-      ph%sint = 1.0_dp - ph%cost**2
-      if (ph%sint <= 0.0_dp)then
-        ph%sint = 0.0_dp
-      else
-        ph%sint = sqrt(ph%sint)
-      endif
-
-      ph%phi = twopi * curand_uniform(ph%iseed)
-      ph%sinp = sin(ph%phi)
-      ph%cosp = cos(ph%phi)
-
-      ph%nxp = ph%sint * ph%cosp
-      ph%nyp = ph%sint * ph%sinp
-      ph%nzp = ph%cost
+      call scatt_pac_iso(ph)
 
       ! De-polarised packet
       ph%fi = 1.0_dp
@@ -100,30 +91,45 @@ contains
 
     case(2)
 
-      ! Lambertian surface scattering
+      ! Lambertian surface scattering.
+      !
+      ! For a spherical lower boundary, the outward surface normal is r / |r|.
+      ! This assumes xp, yp, zp are the packet position at the surface.
+      r_here = sqrt(ph%xp*ph%xp + ph%yp*ph%yp + ph%zp*ph%zp)
 
-      ! Cell vertical number is 1
-      ph%c(1) = 1
+      if (r_here > 1.0e-30_dp) then
+        nx_norm = ph%xp / r_here
+        ny_norm = ph%yp / r_here
+        nz_norm = ph%zp / r_here
+      else
+        nx_norm = 0.0_dp
+        ny_norm = 0.0_dp
+        nz_norm = 1.0_dp
+      end if
 
-      ! Grid vertical distance is at minimum distance
-      ph%xp = sqrt(grid_d%r_min**2 - ph%yp**2 - ph%zp**2) + 1.0e-6_dp
+      call sample_lambertian_dir(nx_norm, ny_norm, nz_norm, ph%iseed, &
+                                ph%nxp, ph%nyp, ph%nzp, mu_lam)
 
-      ! Sampled cosine from the normal
-      bmu = sqrt(curand_uniform(ph%iseed))
-      rp = grid_d%r_min + 1.0e-6_dp
-      cost_norm = ph%zp/rp
-      sint_norm = sqrt(1.0_dp - cost_norm**2)
+      ! Reconstruct angular variables from the sampled Cartesian direction.
+      ph%cost = max(-1.0_dp, min(1.0_dp, ph%nzp))
+      ph%sint = sqrt(max(1.0_dp - ph%cost*ph%cost, 0.0_dp))
 
-      ph%phi = twopi * curand_uniform(ph%iseed)
-      ph%sinp = sin(ph%phi)
-      ph%cosp = cos(ph%phi)
+      if (ph%sint > 1.0e-14_dp) then
+        ph%cosp = ph%nxp / ph%sint
+        ph%sinp = ph%nyp / ph%sint
+        ph%phi = atan2(ph%sinp, ph%cosp)
 
-      ph%cost = bmu*cost_norm - ph%sint*sint_norm*ph%cosp
-      ph%sint = sqrt(1.0_dp - ph%cost**2)
+        if (ph%phi < 0.0_dp) then
+          ph%phi = ph%phi + twopi
+        end if
+      else
+        ph%cosp = 1.0_dp
+        ph%sinp = 0.0_dp
+        ph%phi = 0.0_dp
+      end if
 
-      ph%nxp = ph%sint * ph%cosp
-      ph%nyp = ph%sint * ph%sinp
-      ph%nzp = ph%cost
+      ! Do not reconstruct nxp/nyp/nzp here.
+      ! sample_lambertian_dir already returned the normalised global direction.
 
       ! De-polarised packet
       ph%fi = 1.0_dp
@@ -218,21 +224,7 @@ contains
         ! If near isotropic (g = 0), sample from isotropic phase function
         if (abs(hgg) < 1e-4_dp) then
 
-          ph%cost = 2.0_dp * curand_uniform(ph%iseed) - 1.0_dp
-          ph%sint = 1.0_dp - ph%cost**2
-          if (ph%sint <= 0.0_dp)then
-            ph%sint = 0.0_dp
-          else
-            ph%sint = sqrt(ph%sint)
-          endif
-
-          ph%phi = twopi * curand_uniform(ph%iseed)
-          ph%sinp = sin(ph%phi)
-          ph%cosp = cos(ph%phi)
-
-          ph%nxp = ph%sint * ph%cosp
-          ph%nyp = ph%sint * ph%sinp
-          ph%nzp = ph%cost
+          call scatt_pac_iso(ph)
 
           ! De-polarised packet
           ph%fi = 1.0_dp
