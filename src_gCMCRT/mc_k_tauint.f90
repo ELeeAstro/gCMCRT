@@ -144,10 +144,12 @@ contains
 
     type(pac), intent(inout) :: ph
 
+    logical :: hit_surface
     integer, dimension(3) :: ioffset
     real(dp) :: taurun,taucell,d,dcell
     real(dp) :: r2,rcosa,r2min,smax
     real(dp) :: deps, dsx, dsy, dsz, xcur, ycur, zcur, d1
+    real(dp) :: r_surf2
 
     !! Begin the tau integration
     ph%tau = 0.0_dp
@@ -227,10 +229,12 @@ contains
 
     type(pac), intent(inout) :: ph
 
+    logical :: hit_surface
     integer, dimension(3) :: ioffset
     real(dp) :: taurun,taucell,dcell
     real(dp) :: r2,rcosa,r2min,smax
     real(dp) :: xcur, ycur, zcur, d1, d, deps
+    real(dp) :: r_surf2
 
     !! Begin the tau integration
     ph%tau = 0.0_dp
@@ -242,14 +246,19 @@ contains
     r2 = ph%xp**2 + ph%yp**2 + ph%zp**2
     rcosa = ph%xp*ph%nxp + ph%yp*ph%nyp + ph%zp*ph%nzp
     r2min = max(r2 - rcosa**2, 0.0_dp)
+    r_surf2 = grid_d%r_min * grid_d%r_min
 
-    if (rcosa > 0.0_dp) then  !Photon traveling outward
-      smax = sqrt(grid_d%r2_max-r2min) - rcosa !yes, find dist to rmax
-    else ! Photon traveling inward
-      if (r2min > 1.0_dp) then !does sight-line hit star?
-        smax = sqrt(grid_d%r2_max-r2min) - rcosa ! no, find dist to rmax
+    if (rcosa > 0.0_dp) then
+      ! Photon traveling outward
+      hit_surface = .False.
+      smax = sqrt(max(grid_d%r2_max-r2min, 0.0_dp)) - rcosa ! yes, find dist to rmax
+    else
+      if (r2min > r_surf2) then
+        hit_surface = .False.
+        smax = sqrt(max(grid_d%r2_max-r2min, 0.0_dp)) - rcosa ! no, find dist to rmax
       else
-        smax = -rcosa-sqrt(1.0_dp-r2min) !Yes, find dist to core
+        hit_surface = .True.
+        smax = -rcosa - sqrt(max(r_surf2-r2min, 0.0_dp))  ! Yes, find dist to core
       end if
     end if
 
@@ -343,6 +352,18 @@ contains
     if ((ph%c(3) >= grid_d%n_theta) .or. (ph%c(3) < 1)) then
       ! Terminate integration of packet
       ph%p_flag = -4
+    end if
+
+    ! If the integration stopped because the geometric path ended before
+    ! the sampled optical depth was reached, the packet did not scatter.
+    ! It either escaped or hit the inner boundary.
+    if ((ph%p_flag == 0) .and. (ph%tau < ph%tau_p) .and. (d >= 0.999990_dp*smax)) then
+      if (hit_surface .eqv. .True.) then
+        ph%p_flag = 1      ! inner boundary / surface
+      else
+        ph%p_flag = 2      ! escaped outer boundary
+      end if
+      return
     end if
 
 

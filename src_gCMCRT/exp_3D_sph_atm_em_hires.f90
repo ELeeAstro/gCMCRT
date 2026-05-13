@@ -104,6 +104,15 @@ contains
         exit
       end if
 
+      ! Defensive guard before indexing device arrays.
+      if ((ph%c(1) < 1) .or. (ph%c(1) >= grid_d%n_lev) .or. &
+          (ph%c(2) < 1) .or. (ph%c(2) >= grid_d%n_phi) .or. &
+          (ph%c(3) < 1) .or. (ph%c(3) >= grid_d%n_theta)) then
+
+        ph%p_flag = -777
+        exit
+      end if
+
       if (curand_uniform(ph%iseed) < dorg_d(ph%c(1),ph%c(2),ph%c(3))) then
         ! Gas scattering - Rayleigh scattering
         ph%wght = ph%wght * ssa_d(ph%ig,ph%c(1),ph%c(2),ph%c(3))
@@ -200,12 +209,18 @@ subroutine exp_3D_sph_atm_em_hires()
   sc_d = sc
   iscat_d = iscat
 
-  Nph_pad = int(real(Nph_tot*1.10_dp,dp))
+  Nph_pad = int(real(Nph_tot*10.0_dp,dp))
   threads = dim3(128, 1, 1)
   blocks = dim3(ceiling(real(Nph_pad,dp)/threads%x),1,1)
   allocate(iseed(Nph_pad))
   Nph_pad_d = Nph_pad
   call set_iseed<<<blocks, threads>>>(Nph_pad_d)
+
+  istat = cudaDeviceSynchronize()
+  if (istat /= 0) then
+    print*, 'ERROR after set_iseed:', istat
+    stop
+  end if
 
   call read_1D_prf()
 
@@ -351,7 +366,11 @@ subroutine exp_3D_sph_atm_em_hires()
         end if
       end if
 
-      !istat = cudaDeviceSynchronize()
+      istat = cudaDeviceSynchronize()
+      if (istat /= 0) then
+        print*, 'ERROR after exp_3D_sph_atm_em_hires_k:', istat
+        stop
+      end if
 
       im = im_d
       nscat_tot = nscat_tot_d
