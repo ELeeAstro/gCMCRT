@@ -51,7 +51,7 @@ contains
           dorg(i,1,1) = k_gas_Ray(i,1,1)/k_tot_scat
       end do
 
-      ! Copy relvent array data to 3D
+      ! Copy relevant array data to 3D
       do k = 1, grid%n_theta-1
         do j = 1, grid%n_phi-1
           k_tot_abs(:,:,j,k) = k_tot_abs(:,:,1,1)
@@ -65,20 +65,23 @@ contains
     else if (threeD .eqv. .True.) then
       do k = 1, grid%n_theta-1
         do j = 1, grid%n_phi-1
-           do i = 1, grid%n_lay
-             k_tot_abs(:,i,j,k) = k_gas_abs(:,i,j,k) + (1.0_dp - cld_ssa(i,j,k))*cld_ext(i,j,k)
-             k_tot_scat = k_gas_Ray(i,j,k) + cld_ssa(i,j,k)*cld_ext(i,j,k)
-             k_tot_ext(:) = k_tot_abs(:,i,j,k) + k_tot_scat
-             rhokap(:,i,j,k) =  RH(i,j,k) * k_tot_ext(:) * grid%r_del
-             ssa(:,i,j,k) = min(k_tot_scat/k_tot_ext(:), 0.98_dp)
-             gg(i,j,k) = cld_g(i,j,k)
-             dorg(i,j,k) = k_gas_Ray(i,j,k)/k_tot_scat
-           end do
+          do i = 1, grid%n_lay
+            k_tot_abs(:,i,j,k) = k_gas_abs(:,i,j,k) + (1.0_dp - cld_ssa(i,j,k))*cld_ext(i,j,k)
+            k_tot_scat = k_gas_Ray(i,j,k) + cld_ssa(i,j,k)*cld_ext(i,j,k)
+            k_tot_ext(:) = k_tot_abs(:,i,j,k) + k_tot_scat
+            rhokap(:,i,j,k) =  RH(i,j,k) * k_tot_ext(:) * grid%r_del
+            ssa(:,i,j,k) = min(k_tot_scat/k_tot_ext(:), 0.98_dp)
+            gg(i,j,k) = cld_g(i,j,k)
+            if (do_Draine .eqv. .True.) then
+              call Draine_G()
+            end if
+            dorg(i,j,k) = k_gas_Ray(i,j,k)/k_tot_scat
+          end do
         end do
       end do
-  end if
+    end if
 
-    !! Send relvant arrays to device memory
+    !! Send relevant arrays to device memory
     rhokap_d(:,:,:,:) = rhokap(:,:,:,:)
     ssa_d(:,:,:,:) = ssa(:,:,:,:)
     g_d(:,:,:) = gg(:,:,:)
@@ -416,10 +419,6 @@ contains
        end do
     end if
 
-   end if
-
-   if (do_Draine .eqv. .True.) then
-     call Draine_G()
    end if
 
   end subroutine read_next_opac
