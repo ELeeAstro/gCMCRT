@@ -72,13 +72,15 @@ contains
             rhokap(:,i,j,k) =  RH(i,j,k) * k_tot_ext(:) * grid%r_del
             ssa(:,i,j,k) = min(k_tot_scat/k_tot_ext(:), 0.98_dp)
             gg(i,j,k) = cld_g(i,j,k)
-            if (do_Draine .eqv. .True.) then
-              call Draine_G()
-            end if
             dorg(i,j,k) = k_gas_Ray(i,j,k)/k_tot_scat
           end do
         end do
       end do
+
+      if (do_Draine .eqv. .True.) then
+        call Draine_G()
+      end if
+
     end if
 
     !! Send relevant arrays to device memory
