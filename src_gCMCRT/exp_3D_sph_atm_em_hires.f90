@@ -346,6 +346,11 @@ subroutine exp_3D_sph_atm_em_hires()
       nscat_tot = 0
       nscat_tot_d = nscat_tot
 
+      if (do_images .eqv. .True.) then
+        f(:,:) = 0.0_dp ; q(:,:) = 0.0_dp ; u(:,:) = 0.0_dp ; im_err(:,:) = 0.0_dp
+        f_d(:,:) = f(:,:) ; q_d(:,:) = q(:,:) ; u_d(:,:) = u(:,:) ; im_err_d(:,:) = im_err(:,:)
+      end if
+
       im_d = im
 
       l_d = l
@@ -388,6 +393,12 @@ subroutine exp_3D_sph_atm_em_hires()
         cf(:,:,:) = cf_d(:,:,:)
         call output_cf(n,l)
         cf_d(:,:,:) = 0.0_dp
+      end if
+
+      if (do_images .eqv. .True.) then
+        f(:,:) = f_d(:,:)/real(Nph_sum,dp) ; q(:,:) = q_d(:,:)/real(Nph_sum,dp)
+        u(:,:) = u_d(:,:)/real(Nph_sum,dp) ; im_err(:,:) = im_err_d(:,:)
+        call output_im(n,l)
       end if
 
       deallocate(Nph_i,Nph_j,Nph_k)
