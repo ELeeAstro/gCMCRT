@@ -163,11 +163,14 @@ contains
     ph%cost = costi
     ph%sint = sinti
 
-    !x,y,z in units of stellar radius, add a small amount so
-    ! numerical precision doesn't place photon beneath surface
-    ph%xp = sin_lat*cos(lon_p)*grid_d%r_min + 1e-6_dp
-    ph%yp = sin_lat*sin(lon_p)*grid_d%r_min + 1e-6_dp
-    ph%zp = cos_lat*grid_d%r_min + 1e-6_dp
+    ! x,y,z in units of stellar radius.
+    ! Nudge radially outward rather than adding the same Cartesian offset to
+    ! all components.
+    rp = grid_d%r_min + max(1.0e-12_dp * grid_d%r_min, 1.0e-12_dp)
+
+    ph%xp = sin_lat * cos(lon_p) * rp
+    ph%yp = sin_lat * sin(lon_p) * rp
+    ph%zp = cos_lat * rp
 
     !print*, ph%id, ph%xp, ph%yp, ph%zp
 

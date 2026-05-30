@@ -48,7 +48,7 @@ contains
           rhokap(:,i,1,1) =  RH(i,1,1) * k_tot_ext(:) * grid%r_del
           ssa(:,i,1,1) = min(k_tot_scat/k_tot_ext(:), 0.98_dp)
           gg(i,1,1) = cld_g(i,1,1)
-          dorg(i,1,1) = k_gas_Ray(i,1,1)/k_tot_scat
+          dorg(i,1,1) = min(k_gas_Ray(i,1,1)/k_tot_scat, 1.0_dp)
       end do
 
       ! Copy relevant array data to 3D
@@ -72,7 +72,7 @@ contains
             rhokap(:,i,j,k) =  RH(i,j,k) * k_tot_ext(:) * grid%r_del
             ssa(:,i,j,k) = min(k_tot_scat/k_tot_ext(:), 0.98_dp)
             gg(i,j,k) = cld_g(i,j,k)
-            dorg(i,j,k) = k_gas_Ray(i,j,k)/k_tot_scat
+            dorg(i,j,k) = min(k_gas_Ray(i,j,k)/k_tot_scat, 1.0_dp)
           end do
         end do
       end do

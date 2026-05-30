@@ -112,7 +112,15 @@ contains
         exit
       end if
 
-      if (curand_uniform(ph%iseed) < dorg_d(ph%c(1),ph%c(2),ph%c(3))) then
+      ! Defensive guard before indexing device arrays.
+      if ((ph%c(1) < 1) .or. (ph%c(1) >= grid_d%n_lev) .or. &
+          (ph%c(2) < 1) .or. (ph%c(2) >= grid_d%n_phi) .or. &
+          (ph%c(3) < 1) .or. (ph%c(3) >= grid_d%n_theta)) then
+        ph%p_flag = -777
+        exit
+      end if
+
+      if (curand_uniform(ph%iseed) <= dorg_d(ph%c(1),ph%c(2),ph%c(3))) then
         ! Gas scattering - Rayleigh scattering
         ph%wght = ph%wght * ssa_d(ph%ig,ph%c(1),ph%c(2),ph%c(3))
         ph%iscatt = 3

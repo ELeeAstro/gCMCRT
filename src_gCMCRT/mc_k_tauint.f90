@@ -225,147 +225,184 @@ contains
 
 
   attributes(device) subroutine tauint_sph_3D(ph)
+
     implicit none
 
     type(pac), intent(inout) :: ph
 
     logical :: hit_surface
     integer, dimension(3) :: ioffset
-    real(dp) :: taurun,taucell,dcell
-    real(dp) :: r2,rcosa,r2min,smax
-    real(dp) :: xcur, ycur, zcur, d1, d, deps
-    real(dp) :: r_surf2
 
-    !! Begin the tau integration
-    ph%tau = 0.0_dp
+    real(dp) :: taucell
+    real(dp) :: dcell, dstep, dleft, dmove
+    real(dp) :: r2, rcosa, r2min, smax
+    real(dp) :: d, deps, d_absorb
+    real(dp) :: r_surf2, eps_path
+    real(dp) :: kappa, kappa_abs
+
+    ! Begin the tau integration.
+    ph%tau    = 0.0_dp
     ph%p_flag = 0
-    d = 0.0_dp
+    d         = 0.0_dp
 
-    ! Calc smax - max distance photon can travel
-    ! To core of planet or to outer envelope - direction dependent
-    r2 = ph%xp**2 + ph%yp**2 + ph%zp**2
-    rcosa = ph%xp*ph%nxp + ph%yp*ph%nyp + ph%zp*ph%nzp
-    r2min = max(r2 - rcosa**2, 0.0_dp)
+    ! Calculate maximum geometric distance.
+    r2     = ph%xp**2 + ph%yp**2 + ph%zp**2
+    rcosa  = ph%xp*ph%nxp + ph%yp*ph%nyp + ph%zp*ph%nzp
+    r2min  = max(r2 - rcosa**2, 0.0_dp)
+
     r_surf2 = grid_d%r_min * grid_d%r_min
 
     if (rcosa > 0.0_dp) then
-      ! Photon traveling outward
-      hit_surface = .False.
-      smax = sqrt(max(grid_d%r2_max-r2min, 0.0_dp)) - rcosa ! yes, find dist to rmax
+       hit_surface = .False.
+       smax = sqrt(max(grid_d%r2_max - r2min, 0.0_dp)) - rcosa
     else
-      if (r2min > r_surf2) then
-        hit_surface = .False.
-        smax = sqrt(max(grid_d%r2_max-r2min, 0.0_dp)) - rcosa ! no, find dist to rmax
-      else
-        hit_surface = .True.
-        smax = -rcosa - sqrt(max(r_surf2-r2min, 0.0_dp))  ! Yes, find dist to core
-      end if
+       if (r2min > r_surf2) then
+          hit_surface = .False.
+          smax = sqrt(max(grid_d%r2_max - r2min, 0.0_dp)) - rcosa
+       else
+          hit_surface = .True.
+          smax = -rcosa - sqrt(max(r_surf2 - r2min, 0.0_dp))
+       end if
     end if
 
-    ! if smax is small, tauflag = 1
-    ! Assume absoption/ exiting atmosphere
-    if (smax < 1.0e-12_dp) then
-      ph%p_flag = 555
-      return
+    eps_path = 1.0e-12_dp * max(1.0_dp, abs(smax))
+
+    if (smax <= eps_path) then
+       ph%p_flag = 555
+       return
     end if
 
+    do while (ph%tau < ph%tau_p .and. d < smax - eps_path)
 
-    ! integrate through grid ********
-    do while (ph%tau < ph%tau_p .and. (d < (0.999990_dp*smax)))
+       ! Defensive guard before accessing opacity and scattering arrays.
+       if ((ph%c(1) < 1) .or. (ph%c(1) >= grid_d%n_lev) .or. &
+           (ph%c(2) < 1) .or. (ph%c(2) >= grid_d%n_phi) .or. &
+           (ph%c(3) < 1) .or. (ph%c(3) >= grid_d%n_theta)) then
+          ph%p_flag = -777
+          return
+       end if
 
-      ! find distance to next cell, dcell  *
-      call findwall_sph(ph, ioffset, dcell)
+       call findwall_sph(ph, ioffset, dcell)
 
-      ! Distance is negative
-      if (dcell <= 0.0_dp .or. ieee_is_nan(dcell)) then
-        ph%p_flag = -2
-        print*, 'tauint : dcell < 0', dcell, ph%c(1), ioffset(1)
-        return
-      end if
+       if (dcell <= 0.0_dp .or. ieee_is_nan(dcell)) then
+          ph%p_flag = -2
+          print*, 'tauint_sph_3D: invalid dcell', dcell, ph%c(:), ioffset(:)
+          return
+       end if
 
-      ! update total optical depth.  optical depth to next cell wall is
-      ! taucell= (distance to cell)*(opacity of current cell)
-      taucell = dcell * rhokap_d(ph%ig,ph%c(1),ph%c(2),ph%c(3))
+       dleft = smax - d
+       dstep = min(dcell, dleft)
 
-      if ((ph%tau + taucell) >= ph%tau_p) then
-        d1 = (ph%tau_p-ph%tau)/rhokap_d(ph%ig,ph%c(1),ph%c(2),ph%c(3))
-        ph%xp = ph%xp + d1 * ph%nxp
-        ph%yp = ph%yp + d1 * ph%nyp
-        ph%zp = ph%zp + d1 * ph%nzp
+       kappa = rhokap_d(ph%ig, ph%c(1), ph%c(2), ph%c(3))
+       taucell = dstep * kappa
 
-        if (wght_deg_d .eqv. .True.) then
-          ph%wght = ph%wght * &
-          & exp(-(rhokap_d(ph%ig,ph%c(1),ph%c(2),ph%c(3)) * (1.0_dp - ssa_d(ph%ig,ph%c(1),ph%c(2),ph%c(3))) * d1))
-        end if
+       ! Sampled interaction occurs inside the current physical segment.
+       if ((ph%tau + taucell) >= ph%tau_p) then
 
-        exit
-      else
-        ! Small offset for dcell
-        deps = (r_d(ph%c(1)+1) - r_d(ph%c(1)))*1.0e-12_dp
-        deps = max(deps, 1.0e-12_dp)
-        d1 = dcell + deps
+          if (kappa <= 0.0_dp) then
+             ph%p_flag = -23
+             print*, 'tauint_sph_3D: non-positive kappa at sampled interaction', &
+                     ph%id, kappa, ph%c(:)
+             return
+          end if
 
-        if (wght_deg_d .eqv. .True.) then
-          ph%wght = ph%wght * &
-          & exp(-(rhokap_d(ph%ig,ph%c(1),ph%c(2),ph%c(3)) * (1.0_dp - ssa_d(ph%ig,ph%c(1),ph%c(2),ph%c(3))) * d1))
-        end if
+          d_absorb = (ph%tau_p - ph%tau) / kappa
 
-        ph%xp = ph%xp + d1 * ph%nxp
-        ph%yp = ph%yp + d1 * ph%nyp
-        ph%zp = ph%zp + d1 * ph%nzp
+          ph%xp = ph%xp + d_absorb * ph%nxp
+          ph%yp = ph%yp + d_absorb * ph%nyp
+          ph%zp = ph%zp + d_absorb * ph%nzp
 
-        ! update packet cell
-        ph%c(1) = ph%c(1) + ioffset(1)
-        ph%c(2) = ph%c(2) + ioffset(2)
-        ph%c(3) = ph%c(3) + ioffset(3)
+          if (wght_deg_d .eqv. .True.) then
+             kappa_abs = kappa * (1.0_dp - ssa_d(ph%ig, ph%c(1), ph%c(2), ph%c(3)))
+             ph%wght = ph%wght * exp(-kappa_abs * d_absorb)
+          end if
 
-        ph%tau = ph%tau + taucell
-        d = d + d1
-      end if
+          ph%tau = ph%tau_p
+          d = d + d_absorb
 
-      ! Detect if enetering surface or escaping atmosphere
-      if (ph%c(1) < 1) then
-        ph%p_flag = 1
-        exit
-      else if (ph%c(1) >= grid_d%n_lev) then
-        ph%p_flag = 2
-        exit
-      end if
+          exit
 
-      ! Detect if longitude passing from 1->NY or NY->1
-      if (ph%c(2) >= grid_d%n_phi) then
-         ph%c(2) = 1
-      else if (ph%c(2) < 1) then
-         ph%c(2) = grid_d%n_phi-1
-      end if
+       end if
 
-      ! Detect if out of latitude bounds
-      if ((ph%c(3) >= grid_d%n_theta) .or. (ph%c(3) < 1)) then
-        ! Terminate integration of packet
-        ph%p_flag = -4
-        exit
-      end if
+       ! No sampled interaction in this physical segment.
+       ph%tau = ph%tau + taucell
+
+       if (wght_deg_d .eqv. .True.) then
+          kappa_abs = kappa * (1.0_dp - ssa_d(ph%ig, ph%c(1), ph%c(2), ph%c(3)))
+          ph%wght = ph%wght * exp(-kappa_abs * dstep)
+       end if
+
+       ! If this segment ended at the geometric boundary rather than a cell
+       ! wall, classify the packet and stop.
+       if (dcell >= dleft) then
+
+          ph%xp = ph%xp + dstep * ph%nxp
+          ph%yp = ph%yp + dstep * ph%nyp
+          ph%zp = ph%zp + dstep * ph%nzp
+
+          d = smax
+
+          if (hit_surface .eqv. .True.) then
+             ph%p_flag = 1      ! inner boundary / surface
+          else
+             ph%p_flag = 2      ! escaped outer boundary
+          end if
+
+          return
+
+       end if
+
+       ! Normal cell-wall crossing: use a small numerical nudge for position
+       ! and cell-index transition only. Do not count it as physical optical
+       ! depth or physical path length.
+       deps = (r_d(ph%c(1)+1) - r_d(ph%c(1))) * 1.0e-12_dp
+       deps = max(deps, 1.0e-12_dp)
+
+       dmove = dstep + deps
+
+       ph%xp = ph%xp + dmove * ph%nxp
+       ph%yp = ph%yp + dmove * ph%nyp
+       ph%zp = ph%zp + dmove * ph%nzp
+
+       ph%c(1) = ph%c(1) + ioffset(1)
+       ph%c(2) = ph%c(2) + ioffset(2)
+       ph%c(3) = ph%c(3) + ioffset(3)
+
+       d = d + dstep
+
+       ! Radial boundary tests.
+       if (ph%c(1) < 1) then
+          ph%p_flag = 1
+          exit
+       else if (ph%c(1) >= grid_d%n_lev) then
+          ph%p_flag = 2
+          exit
+       end if
+
+       ! Periodic longitude wrapping.
+       if (ph%c(2) >= grid_d%n_phi) then
+          ph%c(2) = 1
+       else if (ph%c(2) < 1) then
+          ph%c(2) = grid_d%n_phi - 1
+       end if
+
+       ! Theta boundary test.
+       if ((ph%c(3) >= grid_d%n_theta) .or. (ph%c(3) < 1)) then
+          ph%p_flag = -4
+          exit
+       end if
 
     end do
 
-    ! Detect if out of latitude bounds
-    if ((ph%c(3) >= grid_d%n_theta) .or. (ph%c(3) < 1)) then
-      ! Terminate integration of packet
-      ph%p_flag = -4
+    ! If the loop ended geometrically before the sampled tau was reached,
+    ! classify by the precomputed geometric endpoint.
+    if ((ph%p_flag == 0) .and. (ph%tau < ph%tau_p) .and. (d >= smax - eps_path)) then
+       if (hit_surface .eqv. .True.) then
+          ph%p_flag = 1
+       else
+          ph%p_flag = 2
+       end if
     end if
-
-    ! If the integration stopped because the geometric path ended before
-    ! the sampled optical depth was reached, the packet did not scatter.
-    ! It either escaped or hit the inner boundary.
-    if ((ph%p_flag == 0) .and. (ph%tau < ph%tau_p) .and. (d >= 0.999990_dp*smax)) then
-      if (hit_surface .eqv. .True.) then
-        ph%p_flag = 1      ! inner boundary / surface
-      else
-        ph%p_flag = 2      ! escaped outer boundary
-      end if
-      return
-    end if
-
 
   end subroutine tauint_sph_3D
 
