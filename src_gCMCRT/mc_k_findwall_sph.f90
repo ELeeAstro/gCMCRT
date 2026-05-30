@@ -89,7 +89,9 @@ contains
 
     eps_face = max(1.0e-12_dp * max(1.0_dp, abs(dcell)), 1.0e-14_dp)
 
-    ioffset(:) = 0
+    ioffset(1) = 0
+    ioffset(2) = 0
+    ioffset(3) = 0
     do i = 1, 3
       if ((dist(i) > 0.0_dp) .and. (abs(dist(i) - dcell) <= eps_face)) then
         ! "shortest distance" offsets are either -1 or 1
@@ -260,7 +262,10 @@ contains
     real(kind=dp) :: eps_quad, eps_lin
 
     ! Initialise roots defensively.
-    root(:) = -999.0_dp
+    root(1) = -999.0_dp
+    root(2) = -999.0_dp
+    root(3) = -999.0_dp
+    root(4) = -999.0_dp
 
     if (tan2th2 < tan2th1) then
        tan2tha = tan2th2

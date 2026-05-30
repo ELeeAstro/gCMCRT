@@ -27,8 +27,8 @@ contains
 
     type(pac) :: ph
     integer :: seq, offset
-    integer :: l, istat, ix, iy
-    real(dp) :: xim, yim
+    integer :: l, ix, iy
+    real(dp) :: xim, yim, rstat
 
     ! Set a random seed for this packet
     ph%id = (blockIdx%x - 1) * blockDim%x + threadIdx%x
@@ -81,19 +81,19 @@ contains
     !! If packet exited top of atmosphere, collect it's angular distribution
     !! Add packet to image data
     if (ph%p_flag == 1) then
-      istat = atomicadd(erri_tot_d, 1.0_dp)
-      istat = atomicadd(energy_tot_d, 1.0_dp)
+      rstat = atomicadd(erri_tot_d, 1.0_dp)
+      rstat = atomicadd(energy_tot_d, 1.0_dp)
 
       l = int(real(n_mu,dp)*ph%cost) + 1
-      istat = atomicadd(erri_d(l), 1.0_dp)
-      istat = atomicadd(energy_d(l), 1.0_dp)
+      rstat = atomicadd(erri_d(l), 1.0_dp)
+      rstat = atomicadd(energy_d(l), 1.0_dp)
 
       xim = ph%yp*ph%cosp-ph%xp*ph%sinp
       yim = ph%zp*ph%sint-ph%yp*ph%cost*ph%sinp-ph%xp*ph%cost*ph%cosp
       ix = int((xim+grid_d%r_max)/fractx) + 1
       iy = int((yim+grid_d%r_max)/fractx) + 1
       if (ix<=nx.and.iy<=nx.and.ix>0.and.iy>0) then
-         istat = atomicadd(image_sph_d(ix,iy), 1.0_dp)
+         rstat = atomicadd(image_sph_d(ix,iy), 1.0_dp)
       else
          print*,'error in making image ', ix, iy
       endif

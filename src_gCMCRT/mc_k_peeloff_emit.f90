@@ -18,6 +18,7 @@ contains
 
     type(pac) :: ray
     integer :: xl, yl, istat
+    real(dp) :: rstat
     real(dp) :: wfac, peel_fac
     real(dp) :: phot, photq, photu, ximage, yimage
 
@@ -74,9 +75,9 @@ contains
 
     !! Add energy to total counters
     !istat = atomicadd(p_noise(ph%bin_idx,na), 1)
-    istat = atomicadd(im_d%fsum, phot)
-    istat = atomicadd(im_d%qsum, photq)
-    istat = atomicadd(im_d%usum, photu)
+    rstat = atomicadd(im_d%fsum, phot)
+    rstat = atomicadd(im_d%qsum, photq)
+    rstat = atomicadd(im_d%usum, photu)
 
     if (do_images_d .eqv. .True.) then
 
@@ -101,13 +102,13 @@ contains
 
       !! Add weighted peeloff energy to images
       !print*, 'p', f_d(xl,yl), xl, yl, phot
-      istat = atomicadd(f_d(xl,yl), phot)
-      istat = atomicadd(q_d(xl,yl), photq)
-      istat = atomicadd(u_d(xl,yl), photu)
+      rstat = atomicadd(f_d(xl,yl), phot)
+      rstat = atomicadd(q_d(xl,yl), photq)
+      rstat = atomicadd(u_d(xl,yl), photu)
     end if
 
     if (do_cf_d .eqv. .True.) then
-      istat = atomicadd(cf_d(ph%c(1),ph%c(2),ph%c(3)), phot)
+      rstat = atomicadd(cf_d(ph%c(1),ph%c(2),ph%c(3)), phot)
     end if
 
   end subroutine peeloff_emit

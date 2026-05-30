@@ -342,8 +342,10 @@ subroutine exp_3D_sph_atm_em()
       nscat_tot = 0
       nscat_tot_d = nscat_tot
 
-      f(:,:) = 0.0_dp ; q(:,:) = 0.0_dp ; u(:,:) = 0.0_dp ; im_err(:,:) = 0.0_dp
-      f_d(:,:) = f(:,:) ; q_d(:,:) = q(:,:) ; u_d(:,:) = u(:,:) ; im_err_d(:,:) = im_err(:,:)
+      if (do_images .eqv. .True.) then
+        f(:,:) = 0.0_dp ; q(:,:) = 0.0_dp ; u(:,:) = 0.0_dp ; im_err(:,:) = 0.0_dp
+        f_d(:,:) = f(:,:) ; q_d(:,:) = q(:,:) ; u_d(:,:) = u(:,:) ; im_err_d(:,:) = im_err(:,:)
+      end if
 
       l_d = l
       Nph_sum_d = Nph_sum
@@ -360,7 +362,11 @@ subroutine exp_3D_sph_atm_em()
         call read_next_opac(l+1)
       end if
 
-      !istat = cudaDeviceSynchronize()
+      istat = cudaDeviceSynchronize()
+      if (istat /= 0) then
+        print*, 'ERROR after exp_3D_sph_atm_em:', istat
+        stop
+      end if
 
       im = im_d
       nscat_tot = nscat_tot_d

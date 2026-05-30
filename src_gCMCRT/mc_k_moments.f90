@@ -19,8 +19,7 @@ contains
 
     type(pac), intent(in) :: ph
 
-    real(dp) :: cost_mom, rp2
-    integer :: istat
+    real(dp) :: cost_mom, rp2, rstat
 
     ! If in spherical grid must scale to the radius of the grid size
     if (ph%geo == 2) then
@@ -33,15 +32,15 @@ contains
     if (cost_mom > 0.0_dp) then
       ! Packet travelling upward ('+ve'), add to plus moments at this level
 
-      istat = atomicadd(jp_d(ph%c(3)), 1.0_dp/cost_mom)
-      istat = atomicadd(hp_d(ph%c(3)), 1.0_dp)
-      istat = atomicadd(kp_d(ph%c(3)), cost_mom)
+      rstat = atomicadd(jp_d(ph%c(3)), 1.0_dp/cost_mom)
+      rstat = atomicadd(hp_d(ph%c(3)), 1.0_dp)
+      rstat = atomicadd(kp_d(ph%c(3)), cost_mom)
     else if (cost_mom < 0.0_dp) then
       ! Packet travelling downward ('-ve'), add to minus moments at this level
 
-      istat = atomicadd(jm_d(ph%c(3)+1), -1.0_dp/cost_mom)
-      istat = atomicadd(hm_d(ph%c(3)+1), -1.0_dp)
-      istat = atomicadd(km_d(ph%c(3)+1), -cost_mom)
+      rstat = atomicadd(jm_d(ph%c(3)+1), -1.0_dp/cost_mom)
+      rstat = atomicadd(hm_d(ph%c(3)+1), -1.0_dp)
+      rstat = atomicadd(km_d(ph%c(3)+1), -cost_mom)
     end if
 
   end subroutine moments_1D

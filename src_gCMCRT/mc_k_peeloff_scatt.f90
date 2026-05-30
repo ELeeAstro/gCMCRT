@@ -170,6 +170,10 @@ contains
       rstat = atomicadd(u_d(xl,yl), photu)
     end if
 
+    if (do_cf_d .eqv. .True.) then
+      rstat = atomicadd(cf_d(ph%c(1),ph%c(2),ph%c(3)), phot)
+    end if
+
   end subroutine peeloff_scatt
 
   attributes(device) subroutine scat_peel_2(ray, wfac)

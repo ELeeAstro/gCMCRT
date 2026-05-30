@@ -23,7 +23,8 @@ contains
 
     type(pac) :: ph
     integer :: ii, ij, seq, offset
-    integer :: l, istat
+    integer :: l
+    real(dp) :: rstat
 
     ! Set a random seed for this packet
     ph%id = (blockIdx%x - 1) * blockDim%x + threadIdx%x
@@ -82,8 +83,8 @@ contains
     !! If packet exited top of atmosphere, collect it's angular distribution
     if (ph%p_flag == 1) then
       l = int(real(n_mu,dp)*ph%cost) + 1
-      istat = atomicadd(erri_d(l), 1.0_dp)
-      istat = atomicadd(energy_d(l), 1.0_dp)
+      rstat = atomicadd(erri_d(l), 1.0_dp)
+      rstat = atomicadd(energy_d(l), 1.0_dp)
     end if
 
   end subroutine exp_1D_pp_atm_k
