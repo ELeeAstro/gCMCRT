@@ -286,7 +286,9 @@ contains
 
        if (dcell <= 0.0_dp .or. ieee_is_nan(dcell)) then
           ph%p_flag = -2
-          print*, 'tauint_sph_3D: invalid dcell', dcell, ph%c(:), ioffset(:)
+          print*, 'tauint_sph_3D: invalid dcell', dcell, &
+                  ph%c(1), ph%c(2), ph%c(3), &
+                  ioffset(1), ioffset(2), ioffset(3)
           return
        end if
 
@@ -302,7 +304,7 @@ contains
           if (kappa <= 0.0_dp) then
              ph%p_flag = -23
              print*, 'tauint_sph_3D: non-positive kappa at sampled interaction', &
-                     ph%id, kappa, ph%c(:)
+                     ph%id, kappa, ph%c(1), ph%c(2), ph%c(3)
              return
           end if
 

@@ -80,7 +80,9 @@ contains
 
        if (dcell <= 0.0_dp .or. ieee_is_nan(dcell)) then
           ray%p_flag = -22
-          print*, 'raytrace_sph_3D: invalid dcell', ray%id, dcell, ray%c(:), ioffset(:)
+          print*, 'raytrace_sph_3D: invalid dcell', ray%id, dcell, &
+                  ray%c(1), ray%c(2), ray%c(3), &
+                  ioffset(1), ioffset(2), ioffset(3)
           return
        end if
 
