@@ -115,8 +115,8 @@ module mc_data_mod
 
 
   !! Transmission optical depth arrays
-  real(dp), allocatable, dimension(:) :: T_trans
-  real(dp), device :: T_trans_d
+  real(dp), allocatable, dimension(:) :: T_trans, T_trans_east, T_trans_west
+  real(dp), device :: T_trans_d, T_trans_east_d, T_trans_west_d
 
   !! Albedo spectrum arrays
   real(dp), allocatable, dimension(:) :: alb_out

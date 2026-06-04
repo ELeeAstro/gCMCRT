@@ -50,7 +50,7 @@ contains
     type(pac) :: ph, ray
     integer :: seq, offset, i, n, istat, nscat
     integer :: b_cf_idx
-    real(dp) :: contri, rstat
+    real(dp) :: contri, rstat, lon
 
     ! Set a random seed for this packet
     ph%id = (blockIdx%x - 1) * blockDim%x + threadIdx%x
@@ -93,6 +93,16 @@ contains
 
     contri = ray%wght * (1.0_dp - exp(-ray%tau)) * ray%bp * H_d(1)
     rstat = atomicadd(T_trans_d,contri)
+
+    ! Longitude of the initial packet position
+    lon = atan2(ph%yp, ph%xp)
+
+    ! Add contributions to the east and west limbs
+    if (sin(lon) >= 0.0_dp) then
+      rstat = atomicadd(T_trans_east_d, contri)
+    else
+      rstat = atomicadd(T_trans_west_d, contri)
+    end if
 
     ! Do the contibution function for the binned b
     if (do_cf_d .eqv. .True.) then
@@ -174,7 +184,7 @@ subroutine exp_3D_sph_atm_transmission()
   integer :: Nph, l, uT, iscat, ucf, nb_cf, i, s_wl
   integer, device :: l_d, Nph_d, nb_cf_d
   integer :: n_theta, n_phi, n_lay
-  real(dp) :: dH
+  real(dp) :: dH, norm
   real(dp) :: viewthet, viewphi
   real(dp) :: pl, pc, sc
 
@@ -220,7 +230,7 @@ subroutine exp_3D_sph_atm_transmission()
   im_d = im
   grid_d = grid
 
-  allocate(T_trans(n_wl))
+  allocate(T_trans(n_wl), T_trans_east(n_wl), T_trans_west(n_wl))
 
   ! Grid for GPU threads/blocks
   threads = dim3(128,1,1)
@@ -271,6 +281,10 @@ subroutine exp_3D_sph_atm_transmission()
 
     T_trans(l) = 0.0_dp
     T_trans_d = T_trans(l)
+    T_trans_east(l) = 0.0_dp
+    T_trans_east_d = T_trans_east(l)
+    T_trans_west(l) = 0.0_dp
+    T_trans_west_d = T_trans_west(l)
 
     l_d = l
     im_d = im
@@ -299,9 +313,6 @@ subroutine exp_3D_sph_atm_transmission()
     im = im_d
     nscat_tot = nscat_tot_d
 
-    ! Give T_trans_d back to CPU
-    T_trans(l) = T_trans_d
-
     if (do_cf .eqv. .True.) then
       b_cf(:) = b_cf_d(:)
       b_n_cf(:) = b_n_cf_d(:)
@@ -314,11 +325,20 @@ subroutine exp_3D_sph_atm_transmission()
       b_n_cf(:) = 0
     end if
 
-    T_trans(l) = (H(grid%n_lev) - H(1)) / real(Nph,dp) * T_trans(l)
-    write(uT,*) wl(l), T_trans(l)
+    T_trans(l)      = T_trans_d
+    T_trans_east(l) = T_trans_east_d
+    T_trans_west(l) = T_trans_west_d
+
+    norm = (H(grid%n_lev) - H(1)) / real(Nph, dp)
+
+    T_trans(l)      = norm * T_trans(l)
+    T_trans_east(l) = norm * T_trans_east(l)
+    T_trans_west(l) = norm * T_trans_west(l)
+
+    write(uT,*) wl(l), T_trans(l), T_trans_east(l), T_trans_west(l)
     call flush(uT)
 
-    print*, l, wl(l), T_trans(l)
+    print*, l, wl(l), T_trans(l), T_trans_east(l), T_trans_west(l)
     print*, 'pscat failures and nscat_tot: ', im%fail_pscat, nscat_tot
 
   end do
