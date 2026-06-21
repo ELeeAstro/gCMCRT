@@ -11,7 +11,7 @@ module mc_class_imag
     real(dp) :: obsx,obsy,obsz
     real(dp) :: vtheta, vphi
     real(dp) :: rimage
-    real(dp) :: fsum, qsum, usum
+    real(dp) :: fsum, qsum, usum, fsum_occ
     integer :: fail_pscat
     integer :: fail_pemit
   end type imag

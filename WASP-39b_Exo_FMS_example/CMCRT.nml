@@ -51,14 +51,18 @@ Rs = 0.805
 inc = 85.51
 phase = 0.005
 
+do_phase = .False.
+do_eclipse = .False.
 !n_phase = 36
 n_phase = 1
+n_ecl = 0
 
 /
 
 &sph_3D_em
 
 Nph_tot = 1024000
+s_wl = 1
 n_wl = 503
 pl = 0.51
 pc = 0.39

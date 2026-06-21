@@ -2,29 +2,54 @@ import numpy as np
 import matplotlib.pylab as plt
 from scipy.io import FortranFile
 from matplotlib import cm
+from pathlib import Path
 
 plt.rc('font', family='sans-serif')
 plt.rc('font', serif='Helvetica Neue')
 plt.rc('text', usetex='false')
 
-n_ph = 2
-nwl = 503
+def read_emission_file(path):
+  head = np.loadtxt(path,max_rows=1)
+  data = np.atleast_2d(np.loadtxt(path,skiprows=1))
+
+  wl = data[:,0]
+  frac = data[:,1]
+  if data.shape[1] >= 4:
+    Ltot = data[:,3]
+  else:
+    Ltot = data[:,2]
+
+  return {
+    'wl': wl,
+    'frac': frac,
+    'Ltot': Ltot,
+    'Rp': float(head[1]),
+    'Rp2': float(head[2]),
+    'viewphi': float(head[3]) if len(head) > 3 else np.nan,
+  }
+
+
+em_files = sorted(Path('.').glob('Em_*.txt'))
+if not em_files:
+  raise FileNotFoundError('No Em_*.txt files found')
+
+first = read_emission_file(em_files[0])
+n_ph = len(em_files)
+nwl = len(first['wl'])
 
 Fp = np.zeros((n_ph,nwl))
 Ltot = np.zeros((n_ph,nwl))
 ph = np.zeros(n_ph)
 
-for n in range(n_ph):
-  fname = 'Em_'+str(n+1).zfill(3)+'.txt'
+for n, fname in enumerate(em_files):
   print(fname)
-  head = np.loadtxt(fname,max_rows=1)
-  ph[n] = int(head[3])
-  Rp = float(head[1])
-  Rp2 = float(head[2])
-  data = np.loadtxt(fname,skiprows=1)
-  wl = data[:,0]
-  frac = data[:,1]
-  Ltot[n,:] = data[:,2]
+  em = read_emission_file(fname)
+  ph[n] = em['viewphi']
+  Rp = em['Rp']
+  Rp2 = em['Rp2']
+  wl = em['wl']
+  frac = em['frac']
+  Ltot[n,:] = em['Ltot']
   Fp[n,:] = (frac[:] * Ltot[n,:]) / (Rp2**2)
 
 xpix = 300

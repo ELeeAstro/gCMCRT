@@ -162,12 +162,13 @@ subroutine exp_3D_sph_atm_em()
   use mc_opacset
   use mc_read_prf
   use mc_set_em
+  use mc_views
   use LHS_sampling_mod, only : LHS_sample
   use random_cpu
   use cudafor
   implicit none
 
-  integer :: Nph_tot, Nph_sum,  Nph, l, Nph_pad, n_lay, iscat
+  integer :: Nph_tot, Nph_sum,  Nph, l, Nph_pad, n_lay, iscat, n_loop
   character (len=8) :: fmt
   character (len=3) :: n_str
   integer, allocatable, dimension(:) :: uT
@@ -175,11 +176,10 @@ subroutine exp_3D_sph_atm_em()
   integer :: i, j, k, n, nn, s_wl
   integer, device :: Nph_sum_d, l_d
   integer :: n_theta, n_phi, istat
-  real(dp) :: viewthet
-  real(dp), allocatable, dimension(:) :: viewphi
+  real(dp) :: viewphi, viewthet
   real(dp) :: pl, pc, sc
   real(dp) :: diff, temp, rand, temp2, xi_emb
-  real(dp),allocatable,dimension(:) :: em_out
+  real(dp),allocatable,dimension(:) :: em_out, em_out_occ
 
   integer :: id
   integer,allocatable,dimension(:,:,:) :: Nph_cell
@@ -189,7 +189,6 @@ subroutine exp_3D_sph_atm_em()
 
   namelist /sph_3D_em/ Nph_tot, s_wl, n_wl, pl, pc, sc, n_theta, n_phi, viewthet, viewphi, n_lay, xi_emb, iscat
 
-  allocate(uT(n_phase),viewphi(n_phase))
 
   read(u_nml, nml=sph_3D_em)
 
@@ -200,18 +199,6 @@ subroutine exp_3D_sph_atm_em()
   grid%n_lev = n_lay + 1
   grid%n_theta = n_theta
   grid%n_phi = n_phi
-
-  if (cmd_vphi .eqv. .False.) then
-    print*, 'Using namelist vphi'
-    im%vphi = viewphi(1)
-    !write(vphi_arg , *) viewphi
-  else
-    print*, 'Using cmdline vphi'
-    viewphi(:) = im%vphi
-  end if
-  print*, im%vphi, viewphi(:)
-
-  im%vtheta = viewthet
 
   pl_d = pl
   pc_d = pc
@@ -237,14 +224,34 @@ subroutine exp_3D_sph_atm_em()
   allocate(Nph_cell(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
   allocate(wght_start(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
   allocate(wght_start_d(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
-  allocate(em_out(n_wl))
+  allocate(em_out(n_wl), em_out_occ(n_wl))
 
-  do n = 1, n_phase
+  ! Calculate viewphi from n_phase
+  if (do_phase .eqv. .False. .or. n_phase <= 1) then
+    ! Single phase, use namelist values - need to check for command line passage
+    im%vphi = viewphi
+    im%vtheta = viewthet
+    allocate(viewphi_n(1), viewthet_n(1), phi_key(1), occ_state(1))
+    viewphi_n(1) = viewphi
+    viewthet_n(1) = viewthet
+    phi_key(1) = -1.0
+    occ_state(1) = 0
+    occ_state_d = 0
+    n_loop = 1
+  else
+    ! Do full phase curve operation - splitting to regular section and eclipse section
+    call set_phase_views_em(n_phase, n_ecl, n_loop)
+  end if
+
+  ! Write output files ready for input
+  allocate(uT(n_loop))
+  do n = 1, n_loop
     write(n_str,fmt) n
     open(newunit=uT(n),file='Em_'//trim(n_str)//'.txt',action='readwrite')
-    write(uT(n),*) n_wl, H(1), H(grid%n_lev), viewphi(n)
+    write(uT(n),*) n_wl, H(1), H(grid%n_lev), viewphi_n(n), viewthet_n(n), phi_key(n)
     call flush(uT(n))
   end do
+
 
   call read_next_opac(s_wl)
 
@@ -258,14 +265,11 @@ subroutine exp_3D_sph_atm_em()
     call set_grid_opac()
     call set_grid_em(l)
 
-    do n = 1, n_phase
+    do n = 1, n_loop
 
-      if (cmd_vphi .eqv. .False.) then
-        im%vphi = viewphi(n)
-      else
-        viewphi(n) = im%vphi
-      end if
-      im%vtheta = viewthet
+
+      im%vphi = viewphi_n(n)
+      im%vtheta = viewthet_n(n)
 
       call set_image()
 
@@ -336,8 +340,18 @@ subroutine exp_3D_sph_atm_em()
       im%usum = 0.0_dp
       im%fail_pscat = 0
       im%fail_pemit = 0
+      im%fsum_occ = 0.0_dp
 
       im_d = im
+
+      if (do_phase .eqv. .True.) then
+        occ_state_d = occ_state(n)
+      end if
+
+      if (occ_state(n) == 1) then
+        xstar_d = xstar(n)
+        ystar_d = ystar(n)
+      end if
 
       nscat_tot = 0
       nscat_tot_d = nscat_tot
@@ -358,7 +372,7 @@ subroutine exp_3D_sph_atm_em()
         call exp_3D_sph_atm_em_k<<<blocks, threads>>>(l_d,Nph_sum_d)
       end if
 
-      if (n == n_phase) then
+      if (n == n_loop) then
         call read_next_opac(l+1)
       end if
 
@@ -372,8 +386,9 @@ subroutine exp_3D_sph_atm_em()
       nscat_tot = nscat_tot_d
 
       em_out(l) = im%fsum / real(Nph_sum,dp)
+      em_out_occ(l) = im%fsum_occ / real(Nph_sum,dp)
 
-      write(uT(n),*) wl(l), em_out(l), grid%lumtot
+      write(uT(n),*) wl(l), em_out(l), em_out_occ(l), grid%lumtot
       !call flush(uT)
 
       if (do_cf .eqv. .True.) then
@@ -389,7 +404,8 @@ subroutine exp_3D_sph_atm_em()
       end if
 
 
-      print*, n, l, real(wl(l)), Nph_tot, Nph_sum, real(em_out(l)), grid%lumtot
+      print*, l, real(wl(l)), Nph_tot, Nph_sum, real(em_out(l)), real(em_out_occ(l)), grid%lumtot
+      print*, n, viewphi_n(n), viewthet_n(n), phi_key(n)
       print*, n, 'pemit, pscat failures and nscat_tot: ',  im%fail_pemit, im%fail_pscat, nscat_tot
 
 

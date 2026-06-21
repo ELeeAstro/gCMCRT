@@ -44,3 +44,5 @@ MALBEC_benchmark_examples
 
 .DS_Store
 
+__pycache__
+

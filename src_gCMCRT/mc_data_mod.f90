@@ -39,9 +39,8 @@ module mc_data_mod
   real(dp), parameter :: bar = 1e6_dp ! bar to dyne
   real(dp), parameter :: atm = 1.01325e6_dp ! atm to dyne
 
-  !! System parameters from namelist & calculated
-  real(dp) :: orbital_period, systemic_velocity, sm_ax
-  real(dp), device :: sm_ax_d
+  !! Systematic Velocity
+  real(dp) :: systemic_velocity
 
   character(len=20) :: exp_name
 
@@ -122,15 +121,26 @@ module mc_data_mod
   real(dp), allocatable, dimension(:) :: alb_out
   real(dp), allocatable, dimension(:), device :: alb_out_d
 
-  !! Limb darkening scheme
+
+  !! Transit model scheme
   logical :: do_LD
   logical, device :: do_LD_d
   integer :: ilimb
   logical, device :: ilimb_d
   real(dp), dimension(4) :: LD_c
   real(dp), dimension(4), device :: LD_c_d
-  real(dp) :: Rs, inc, phase
-  real(dp), device :: Rs_d, inc_d, phase_d
+
+  !! Phase curve scheme 
+  integer :: n_phase, n_ecl
+  integer, allocatable, dimension(:) :: occ_state
+  integer, device :: occ_state_d 
+  logical :: do_phase, do_eclipse
+  logical, device :: do_phase_d, do_eclipse_d
+  real(dp) :: Rs, inc, phase, ecc, sm_ax, orbital_period
+  real(dp), device :: Rs_d, inc_d, phase_d, ecc_d, sm_ax_d, orbital_period_d, R_s_sq_d
+
+  real(dp), allocatable, dimension(:) :: viewphi_n, viewthet_n, phi_key, xstar, ystar, zstar
+  real(dp), device :: xstar_d, ystar_d
 
   !! Transmission contribution function variables
   integer, allocatable, dimension(:) :: b_n_cf
@@ -141,7 +151,6 @@ module mc_data_mod
   real(dp), allocatable, dimension(:) :: p_cf, p_cf_grid
   real(dp), allocatable, dimension(:), device :: p_cf_d, p_cf_grid_d
 
-  integer :: n_phase
 
   !! Surface properties
   logical :: do_surf
@@ -158,6 +167,7 @@ module mc_data_mod
   namelist /main/ xper, exp_name, oneD, threeD, do_infslab, do_diffuse, do_cart_3D, do_images, do_moments, do_trans &
     & lbl, ck, orbital_period, sm_ax, systemic_velocity, winds_on, rotation_on, orbit_on, doppler_on, &
     & inc_ck, inc_lbl, inc_CIA, inc_Ray, inc_cld, inc_xsec, do_cf, xpix, ypix, wght_deg, Draine_alp, do_Draine, &
-    & do_LD, ilimb, LD_c, Rs, inc, phase, do_g_bias, do_scat_loop, do_BB_band, n_phase, do_surf, T_surf, emis_surf, alb_surf, LHS
+    & do_LD, ilimb, LD_c, Rs, inc, phase, do_g_bias, do_scat_loop, do_BB_band, n_phase, do_surf, T_surf, emis_surf, alb_surf, LHS, &
+    & do_phase, do_eclipse, ecc, inc, n_ecl
 
 end module mc_data_mod

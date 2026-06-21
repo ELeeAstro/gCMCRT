@@ -75,7 +75,7 @@ contains
     integer :: xl, yl, istat
     real(dp) :: rstat
     real(dp) :: wfac, peel_fac, contri
-    real(dp) :: phot, photq, photu, ximage, yimage
+    real(dp) :: phot, photq, photu, ximage, yimage, sx, sy, d2
 
     !! We copy all data from the packet to a 'virtual' ray to trace
     !! leaving the origonal packet untouched
@@ -144,24 +144,48 @@ contains
     rstat = atomicadd(im_d%qsum, photq)
     rstat = atomicadd(im_d%usum, photu)
 
+    if (occ_state_d == 0) then
+      !! non occulated - Return uneclipsed result
+      rstat = atomicadd(im_d%fsum_occ, phot)
+    else if (occ_state_d == 1) then
+      !! partial occulatation - test from raytracing position
+
+      ! Calculate position of packet on x-y plane (same as image but not offset with pixel)
+      sx = ray%zp * im_d%sinto - ray%yp * im_d%costo * im_d%sinpo - ray%xp * im_d%costo * im_d%cospo
+      sy = ray%yp * im_d%cospo - ray%xp * im_d%sinpo
+
+      ! Calculate if packet emerges within the stellar disk
+      d2 = (sx*H_d(1) - xstar_d)**2 + (sy*H_d(1) - ystar_d)**2
+
+      if (d2 < R_s_sq_d) then
+        ! behind the stellar disk, packet is blocked, no contribution to occulated flux
+        continue
+      else
+        ! Is visible behind star, add flux to occulated flux sum
+        rstat = atomicadd(im_d%fsum_occ, phot)
+      end if
+    else if (occ_state_d == 2) then
+      ! Planet is fully behind star - no test required - zero flux
+    end if
+
     !! Add weighted peeloff energy to images
     if (do_images_d .eqv. .True.) then
       !! Bin the photon into the image according to its position and
       ! direction of travel.
-      ximage = im_d%rimage + ph%zp * im_d%sinto &
-        & - ph%yp * im_d%costo * im_d%sinpo - ph%xp * im_d%costo * im_d%cospo
-      yimage = im_d%rimage + ph%yp * im_d%cospo - ph%xp * im_d%sinpo
+      ximage = im_d%rimage + ray%zp * im_d%sinto &
+        & - ray%yp * im_d%costo * im_d%sinpo - ray%xp * im_d%costo * im_d%cospo
+      yimage = im_d%rimage + ray%yp * im_d%cospo - ray%xp * im_d%sinpo
       xl = int(im_d%x_pix * ximage / (2.0_dp * im_d%rimage)) + 1
       yl = int(im_d%y_pix * yimage / (2.0_dp * im_d%rimage)) + 1
 
       if ((xl > im_d%x_pix) .or. (xl < 1)) then
         print*, 'peeloff_scatt: xl out of bounds',xl
-        print*, ph%xp,ph%yp,ph%zp,ray%tau
+        print*, ray%xp,ray%yp,ray%zp,ray%tau
         return
       endif
       if ((yl > im_d%y_pix) .or. (yl < 1)) then
         print*, 'peeloff_scatt: yl out of bounds',yl
-        print*,  ph%xp,ph%yp,ph%zp,ph%tau
+        print*,  ray%xp,ray%yp,ray%zp,ray%tau
         return
       endif
       !print*, 'p', f_d(xl,yl), xl, yl, phot

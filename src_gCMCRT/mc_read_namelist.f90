@@ -27,6 +27,13 @@ subroutine read_namelist()
   phase_d = phase
   sm_ax_d = sm_ax
 
+  do_eclipse_d = do_eclipse
+  do_phase_d = do_phase
+
+  ecc_d = ecc
+  inc_d = inc 
+  orbital_period_d = orbital_period 
+
   do_surf_d = do_surf
   alb_surf_d = alb_surf
 

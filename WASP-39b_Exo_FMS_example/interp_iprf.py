@@ -1,5 +1,15 @@
 import numpy as np
-from scipy import interpolate
+from scipy.interpolate import RegularGridInterpolator
+
+
+def make_regular_interpolator(y_grid, x_grid, values):
+    return RegularGridInterpolator(
+        (y_grid, x_grid),
+        values,
+        method='linear',
+        bounds_error=False,
+        fill_value=None,
+    )
 
 # Read in iprf
 iprf = 'FMS.iprf'
@@ -43,39 +53,18 @@ mu_1D = np.log10(data[:,0])
 VMR_1D = np.zeros((nL,nsp))
 VMR_1D = np.log10(data[:,1:])
 
-# Convert 1D to 3D arrays
-mu = np.zeros((nP, nT))
-VMR = np.zeros((nP, nT, nsp))
+# Convert 1D to regular P-T grids. The interpolation file has T as the
+# inner loop, so a plain reshape gives arrays indexed as [P, T].
+mu = mu_1D.reshape(nP, nT)
+VMR = VMR_1D.reshape(nP, nT, nsp)
 
-# Loop in the GGchem way to get 3D arrays in correct T and P values (T inner loop)
-n = 0
-for i in range(nP):
-    for j in range(nT):
-      mu[i,j] = mu_1D[n]
-      VMR[i,j,:] = VMR_1D[n,:]
-      n = n + 1
-
-# Create a scipy interpolation function for mu
-f_mu = interpolate.interp2d(lT[:], lP[:], mu, kind='linear')
-
-# Create a scipy interpolation function for the VMR for each species
-f_VMR = []
-for i in range(nsp):
-    f_VMR.append(interpolate.interp2d(lT[:], lP[:], VMR[:,:,i], kind='linear'))
-
-# Now we can loop across the whole 1D profile and interpolate to each P-T point in the GCM
-mu_1D = np.zeros(ni)
-VMR_1D = np.zeros((ni,nsp))
-for n in range(ni):
-    # interpolate mu
-    mu_1D[n] = f_mu(T[n],P[n])
-    #print(n,mu_1D[n],P[n],T[n])
-    # interpolate VMRs
-    for s in range(nsp):
-        VMR_1D[n,s] = f_VMR[s](T[n],P[n])
-        #print(n,s,10.0**VMR_1D[n,s],P[n],T[n])
-    #for s in range(nsp):
-    #  VMR_1D[n,s] = np.log10(10.0**VMR_1D[n,s]/np.sum(10.0**VMR_1D[n,:]))
+# Interpolate all profile points in one vectorized call. VMR has species as a
+# trailing dimension, so RegularGridInterpolator returns every species at once.
+points = np.column_stack((P, T))
+mu_1D = make_regular_interpolator(lP, lT, mu)(points)
+VMR_1D = make_regular_interpolator(lP, lT, VMR)(points)
+#for s in range(nsp):
+#  VMR_1D[:,s] = np.log10(10.0**VMR_1D[:,s]/np.sum(10.0**VMR_1D,axis=1))
 
 sp = ['H2','H','H-','e-','He','H2O','CO','CO2','CH4','TiO','VO','Fe','Fe+','FeH','SiO','Na','K','NH3','H2S','HCN','HCl','PH3','OH','C2H2','HF','SH','V','V+','Ti','Ti+']
 

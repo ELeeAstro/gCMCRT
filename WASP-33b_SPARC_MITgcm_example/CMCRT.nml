@@ -33,9 +33,7 @@ doppler_on = .False.
 winds_on = .False.
 rotation_on = .False.
 orbit_on = .False.
-orbital_period = 1.81 ! orbital period (days)
 systemic_velocity = 0.0 ! Systematic velocity (km s-1)
-sm_ax = 0.024           ! semi-major axis (AU)
 
 xpix = 300
 ypix = 300
@@ -47,19 +45,24 @@ do_LD = .False.
 ilimb = 2
 LD_c = 0.077, 0.311, 0.0, 0.0
 
-Rs = 0.805
-inc = 85.51
-phase = 0.005
 
-n_phase = 2
+do_phase = .True.
+n_phase = 18
+do_eclipse = .True.
+n_ecl = 20
+Rs = 1.444
+ecc = 0.0
+sm_ax = 0.02390
+inc = 86.63
+orbital_period = 1.21987
 
 /
 
 &sph_3D_em
 
 Nph_tot = 10240000
-s_wl = 1
-n_wl = 503
+s_wl = 200
+n_wl = 300
 pl = 0.51
 pc = 0.39
 sc = 1.0
@@ -68,7 +71,7 @@ n_theta = 31
 n_phi = 65
 n_lay = 53
 viewthet = 90.0
-viewphi = 0.0, 180.0
+viewphi = 0.0
 xi_emb = 0.99
 
 /

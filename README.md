@@ -35,7 +35,7 @@ You will need to install the latest drivers from Nvidia: https://www.nvidia.com/
 
 You will need to install the CUDA hpc sdk: https://developer.nvidia.com/hpc-sdk
 
-# Required gCMCRT formated files
+# Required gCMCRT formatted files
 
 .prf file
 
@@ -45,11 +45,11 @@ You will need to install the CUDA hpc sdk: https://developer.nvidia.com/hpc-sdk
 
 .iprf (if CE interpolation required)
 
-wavelengths.wl (central band wavelenths of calculation)
+wavelengths.wl (central band wavelengths of calculation)
 
 # How to operate optools
 
-To compile cd to src_optoools_V2 and enter 'make'.
+To compile cd to src_optools_V2 and enter 'make'.
 To de-compile enter 'make clean'.
 
 Compile options can be altered in the Makefile
@@ -58,7 +58,7 @@ optools uses a fortran namelist (.nml) and parameter (.par) file to communicate 
 
 ## optools.par file
 
-Is quite self-explainatory - fill in the number of species followed by the number of species (See examples)
+Is quite self-explanatory - fill in the number of species followed by the number of species (See examples)
 
 ## optools.nml file
 
@@ -75,6 +75,12 @@ iopts - Integer option number (dev-only)
 form - 1 (NEMESIS format), 2 (gCMCRT format) Note, for multiple k-tables this is a comma separated list, e.g. 2,2,2
 
 nG - number of g-ordinances in k-table 
+
+gmin1, gmax1, gmin2, gmax2 - g-ordinate split limits used when reading/rebinning two-part k-tables.
+
+rebin - Rebin the k-table g-ordinates (.True.) or keep the table as supplied (.False.)
+
+nrebin - Number of g-ordinates after rebinning.
 
 paths - list of path to the k-table data
 NOTE: THESE PATHS MUST BE IN THE SAME SPECIES ORDER AS THE SPECIES IN THE optools.par FILE !!!!
@@ -105,20 +111,29 @@ NOTE: THESE PATHS MUST BE IN THE SAME SPECIES ORDER AS THE SPECIES IN THE optool
 
 iopts - Integer option number (dev-only)
 
+### &xsec_nml - cross-section opacity namelist
+
+iopts - Integer option number (dev-only)
+
+form - input cross-section table format option
+
+paths - list of paths to the cross-section data
+NOTE: THESE PATHS MUST BE IN THE SAME SPECIES ORDER AS THE SPECIES IN THE optools FILE !!!
+
 ### &cl_nml - clouds namelist
 
 iopts - Integer option number (dev-only)
 
 imix = 1 (Bruggeman optical constant mixing), 2 (LLL method)
 
-idist - 0 (Read bin model results), 1 (single particle size), 2 (3 size peaked near mean size), 3 (log-normal), 4 (Gamma), 5 (Inv. Gamma), 6 (Rayleigh), 7 (Hansen), 8 (Exoponential)
+idist - 0 (Read bin model results), 1 (single particle size), 2 (3 size peaked near mean size), 3 (log-normal), 4 (Gamma), 5 (Inv. Gamma), 6 (Rayleigh), 7 (Hansen), 8 (Exponential)
 
 ndist - number of size distibution points (log-spaced between amin and amax)
 
 idist_int - 1 (Trapezium rule integration)
 
 imie - 0 (Size limiting method), 1 (MieX), 2 (MieExt), 3 (BHMIE), 4 (DHS), 5 (BHCOAT), 6 (LX-MIE)
-[Note, some of these are experimental, 0 or 6 typicaly reccomended]
+[Note, some of these are experimental, 0 or 6 typically recommended]
 
 form - 5 (DIHRT format nk-tables)
 
@@ -127,15 +142,17 @@ paths - list of paths to the nk data
 
 sig -  (log-normal sigma value (note, not ln(sigma) the actual sigma))
 
-eff_fac - effetive mean size varience
+eff_fac - effective mean size variance
 
-veff - effective varience (Hansen)
+veff - effective variance (Hansen)
 
 amin - Minimum distribution particle size (um)
 
 amax - Maximum distribution particle size (um)
 
 fmax - parameter for DHS theory
+
+cld_tab_read - .True. = read already tabulated cloud optical properties from cld_ext.txt, cld_a.txt and cld_g.txt instead of calculating them from optical constants.
 
 
 # How to operate gCMCRT
@@ -151,15 +168,21 @@ gCMCRT uses a fortran namelist (.nml) file to communicate with the code.
 
 ###  &main
 
-exp_name - name of experiment
+exp_name - Name of experiment; used as the prefix for profile files such as `<exp_name>.prf`, `<exp_name>.hprf` and related inputs.
 
-xper - Required mode of gCMCRT (see gCMCRT.f90 main file)
+xper - Required mode of gCMCRT. Active values in `gpuCMCRT.f90` are `3D_sph_tests`, `3D_sph_pol`, `3D_sph_alb`, `3D_sph_trans`, `3D_sph_em`, `3D_sph_em_hi` and `3D_sph_trans_hi`. `1D_pp`, `1D_sph` and `2D_car_gal` are listed in the dispatcher but currently commented out.
 
 do_trans - .True. = Transmission limb sampling (for transit spectra), .False. = Normal sampling
 
 oneD - Use a 1D profile as input
 
 threeD - Use a 3D profile as input
+
+do_infslab - Legacy infinite slab switch; not used by the active example experiments.
+
+do_diffuse - Legacy diffuse/cartesian experiment switch; not used by the active example experiments.
+
+do_cart_3D - Legacy cartesian 3D switch; not used by the active example experiments.
 
 do_moments - experimental not in use
 
@@ -173,9 +196,9 @@ inc_lbl - .True. = Read in lbl.cmcrt file (lbl mode)
 
 inc_CIA - .True. = Read in CIA.cmcrt file (inc. CIA opacity)
 
-inc_Ray - .True. = Read in Ray.cmcrt file (inc. Rayleigh opacity)
+inc_Ray - .True. = Read in Rayleigh.cmcrt file (inc. Rayleigh opacity)
 
-inc_cld - .True. = Read in cld.cmcrt file (inc. Cloud opacity and scattering properties)
+inc_cld - .True. = Read in cl_k.cmcrt, cl_a.cmcrt and cl_g.cmcrt files (inc. Cloud opacity and scattering properties)
 
 inc_xsec - .True. = Read in xsec.cmcrt file (inc. xsec opacity)
 
@@ -193,7 +216,7 @@ ck - .True. (corr-k mode), .False. (lbl mode)
 
 LHS - .True. (use Latin Hypercube Sampling - currently for transmission limbs only)
 
-! Wind paramaters for hi-res los velocity (lbl mode only)
+! Wind parameters for hi-res los velocity (lbl mode only)
 
 doppler_on - .True. = Apply doppler shifting to local opacity
 
@@ -201,13 +224,15 @@ winds_on - .True. = Apply doppler shifting due to winds
 
 rotation_on - .True. = Apply doppler shifting due to rotation
 
-orbit_on - .True. = Apple doppler shifting due to orbital motion
+orbit_on - .True. = Apply doppler shifting due to orbital motion
 
 orbital_period - X  orbital period (days)
 
 systemic_velocity -  X  Systematic velocity (km s-1)
 
 sm_ax -  X semi-major axis (AU)
+
+ecc - Orbital eccentricity, used by the phase/eclipse geometry.
 
 xpix -  number of pixels in x direction for pixel maps
 
@@ -219,17 +244,31 @@ Draine_alp - Alpha value for the Draine G calculation (typically around 0.5)
 
 do_LD - .True. = Applying the limb darkening scheme (lbl mode only)
 
-ilimb - Integer limb darking law selection
+ilimb - Integer limb darkening law selection. Options are 1 linear, 2 quadratic, 3 square-root, 4 logarithmic, 5 exponential, 6 three-parameter, 7 four-parameter non-linear and 8 power-2.
 
-LD_c - Limb darkening coefficents
+LD_c - Limb darkening coefficients
 
-Rs - Radius of star (Solar units, for LD only) 
+Rs - Radius of star in Solar units. Used for limb darkening and phase/eclipse geometry.
 
-inc - Inclination in degrees (for LD only)
+inc - Inclination in degrees. Used for limb darkening and phase/eclipse geometry.
 
-phase - phase (for LD only)
+phase - Phase value used by the limb-darkening setup.
+
+do_phase - .True. = calculate an emission phase curve using `n_phase`; .False. = use the single `viewphi`/`viewthet` value from the experiment namelist.
+
+do_eclipse - .True. = include eclipse/occultation geometry during phase-curve emission calculations.
 
 n_phase - Number of phases to calculate (= 1 for single phase)
+
+n_ecl - Number of eclipse points used when `do_phase` and `do_eclipse` are both .True.
+
+do_surf - Surface switch for surface-enabled experiments.
+
+T_surf - Surface temperature.
+
+emis_surf - Surface emissivity.
+
+alb_surf - Surface albedo.
 
 ### &sph_3D_em
 
@@ -263,13 +302,169 @@ xi_emb = Emission biasing (typically ~0.99)
 
 ### &sph_3D_trans
 
-Similar as above with additional:
+Nph = Number of photon packets per wavelength
+
+s_wl = Start wavelength integer
+
+n_wl = End wavelength integer
+
+pl = 0.51 (polarisation parameter; experimental)
+
+pc = 0.39 (polarisation parameter; experimental)
+
+sc = 1.0 (polarisation parameter; experimental)
+
+iscat = Scattering phase function choice (See mc_k_scatt.f90)
+
+n_theta = Number of latitudes + 1 in GCM
+
+n_phi = Number of longitudes + 1 in GCM
+
+n_lay = Number of layers in GCM (NOTE: not levels)
+
+viewthet = Viewing angle in latitude (typically 90 = edge on)
+
+viewphi = Viewing angle in longitude (typically 180 for transmission)
 
 nb_cf = number of layers for interpolation to calculate contribution function
 
 ### &sph_3D_alb
 
-All same as above
+Used by `xper = '3D_sph_alb'`.
+
+Nph = Number of photon packets per wavelength and phase
+
+s_wl = Start wavelength integer
+
+n_wl = End wavelength integer
+
+pl = 0.51 (polarisation parameter; experimental)
+
+pc = 0.39 (polarisation parameter; experimental)
+
+sc = 1.0 (polarisation parameter; experimental)
+
+iscat = Scattering phase function choice (See mc_k_scatt.f90)
+
+n_theta = Number of latitudes + 1 in GCM
+
+n_phi = Number of longitudes + 1 in GCM
+
+n_lay = Number of layers in GCM (NOTE: not levels)
+
+viewthet = Viewing angle in latitude
+
+viewphi = Viewing angle(s) in longitude. For phase curves this should have `n_phase` values unless using the `-vphi` command-line override.
+
+### &sph_3D_alb for 3D_sph_pol
+
+The polarization test experiment `xper = '3D_sph_pol'` also reads a namelist called `&sph_3D_alb`, but its accepted options are different:
+
+Nph = Number of photon packets per wavelength
+
+n_wl = End wavelength integer
+
+pl = 0.51 (polarisation parameter; experimental)
+
+pc = 0.39 (polarisation parameter; experimental)
+
+sc = 1.0 (polarisation parameter; experimental)
+
+n_theta = Number of latitudes + 1
+
+n_phi = Number of longitudes + 1
+
+n_lay = Number of layers
+
+viewthet = Viewing angle in latitude
+
+viewphi = Viewing angle in longitude
+
+Do not include `s_wl` or `iscat` in this block when using `xper = '3D_sph_pol'`.
+
+### &sph_3D_em_hires
+
+Used by `xper = '3D_sph_em_hi'`.
+
+Nph_tot = Number of photon packets per phase
+
+n_wl = End wavelength integer
+
+pl = 0.51 (polarisation parameter; experimental)
+
+pc = 0.39 (polarisation parameter; experimental)
+
+sc = 1.0 (polarisation parameter; experimental)
+
+iscat = Scattering phase function choice (See mc_k_scatt.f90)
+
+n_theta = Number of latitudes + 1 in GCM
+
+n_phi = Number of longitudes + 1 in GCM
+
+n_lay = Number of layers in GCM
+
+viewthet = Viewing angle in latitude
+
+viewphi = Viewing angle(s) in longitude; array length should match `n_phase`.
+
+xi_emb = Emission biasing (typically ~0.99)
+
+### &sph_3D_trans_hires
+
+Used by `xper = '3D_sph_trans_hi'`.
+
+Nph = Number of photon packets per wavelength and phase
+
+n_wl = End wavelength integer
+
+pl = 0.51 (polarisation parameter; experimental)
+
+pc = 0.39 (polarisation parameter; experimental)
+
+sc = 1.0 (polarisation parameter; experimental)
+
+iscat = Scattering phase function choice (See mc_k_scatt.f90)
+
+n_theta = Number of latitudes + 1 in GCM
+
+n_phi = Number of longitudes + 1 in GCM
+
+n_lay = Number of layers in GCM
+
+viewthet = Viewing angle in latitude
+
+viewphi = Viewing angle(s) in longitude; array length should match `n_phase`.
+
+### &diffuse_nml
+
+Legacy cartesian diffuse experiment namelist. The dispatcher currently lists `2D_car_gal`, but that call is commented out.
+
+Nph_tot = Total number of photon packets
+
+kappa = Opacity
+
+albedo = Single-scattering albedo
+
+hgg = Henyey-Greenstein asymmetry parameter
+
+pl = 0.51 (polarisation parameter; experimental)
+
+pc = 0.39 (polarisation parameter; experimental)
+
+sc = 1.0 (polarisation parameter; experimental)
+
+xmax, ymax, zmax = Cartesian domain extents
+
+rimage = Image radius
+
+viewthet = Viewing angle in latitude
+
+viewphi = Viewing angle in longitude
+
+nxim, nyim = Image pixel dimensions
+
+nxg, nyg, nzg = Cartesian grid dimensions
 
 # What is output and how do I make synthetic observations?
 
@@ -297,4 +492,3 @@ Example using an Exo-FMS WASP-39b model. In this example we produce a transmissi
 ## WASP-39b 1D VULCAN + CARMA model (with details on using the code in 1D)
 
 ## MALBEC benchmarks (further examples on 1D code use and comparing to other codes)
-
