@@ -2,6 +2,8 @@
 
 exp_name = 'FMS'
 xper = '3D_sph_trans'
+! Set xper = '3D_sph_trans_lc' to run the primary-transit light-curve block below.
+! Set xper = '3D_sph_em' and do_trans = .False. to run the emission block.
 do_trans = .True.
 
 oneD = .False.
@@ -16,25 +18,30 @@ inc_lbl = .False.
 inc_CIA = .True.
 inc_Ray = .True.
 inc_cld = .False.
+inc_xsec = .False.
 
 do_scat_loop = .False.
 do_g_bias = .True.
 wght_deg = .False.
 do_BB_band = .False.
+do_surf = .False.
+T_surf = 0.0
+emis_surf = 0.0
+alb_surf = 0.0
 
 lbl = .False.
 ck = .True.
 
 LHS = .True.
 
-! Wind paramaters for hi-res los velocity
+! Wind parameters for hi-res los velocity
 doppler_on = .False.
-winds_on = .True.
-rotation_on = .True.
+winds_on = .False.
+rotation_on = .False.
 orbit_on = .False.
-orbital_period = 1.81 ! orbital period (days)
-systemic_velocity = 0.0 ! Systematic velocity (km s-1)
-sm_ax = 0.024           ! semi-major axis (AU)
+orbital_period = 4.0552941 ! orbital period (days)
+systemic_velocity = 0.0    ! Systematic velocity (km s-1)
+sm_ax = 0.0486             ! semi-major axis (AU)
 
 xpix = 200
 ypix = 200
@@ -47,20 +54,26 @@ do_LD = .False.
 ilimb = 2
 LD_c = 0.077, 0.311, 0.0, 0.0
 
-Rs = 0.805
-inc = 85.51
-phase = 0.005
+Rs = 0.932
+inc = 87.83
+ecc = 0.0
+phase = 0.0
 
+! Emission phase-curve/eclipsing controls. These are off for the default
+! transmission-spectrum run. For a phase curve set do_phase = .True.; for
+! secondary eclipse/occultation sampling set both do_phase and do_eclipse .True.
 do_phase = .False.
 do_eclipse = .False.
-!n_phase = 36
-n_phase = 1
-n_ecl = 0
+n_phase = 16
+n_ecl = 10
 
 /
 
 &sph_3D_em
 
+! Dormant WASP-39b emission setup. To use this block set xper = '3D_sph_em'
+! and do_trans = .False. in &main. With do_phase = .False., viewphi/viewthet
+! define one view. With do_phase = .True., viewphi is generated from n_phase.
 Nph_tot = 1024000
 s_wl = 1
 n_wl = 503
@@ -71,9 +84,8 @@ iscat = 6
 n_theta = 97
 n_phi = 193
 n_lay = 54
-viewthet = 90.0
-!viewphi = 0.0
-viewphi = 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350
+viewthet = 87.83
+viewphi = 0.0
 xi_emb = 0.99
 
 /
@@ -93,5 +105,24 @@ n_lay = 54
 viewthet = 90.0
 viewphi = 180.0
 nb_cf = 301
+
+/
+
+&sph_3D_trans_lc
+
+! Transit light-curve settings. To use this block, set xper = '3D_sph_trans_lc'
+! in &main. n_trans mirrors n_phase + n_ecl above for comparable sampling.
+Nph = 1024000
+s_wl = 1
+n_wl = 503
+n_trans = 26
+n_ingress = 10
+pl = 0.51
+pc = 0.39
+sc = 1.0
+iscat = 6
+n_theta = 97
+n_phi = 193
+n_lay = 54
 
 /

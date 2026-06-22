@@ -53,6 +53,7 @@ OBJECTS = \
     exp_3D_sph_atm_pol.o \
     exp_3D_sph_atm_alb.o \
     exp_3D_sph_atm_trans.o \
+    exp_3D_sph_atm_trans_lc.o \
     exp_3D_sph_atm_trans_hires.o \
     exp_3D_sph_atm_em.o \
     exp_3D_sph_atm_em_hires.o \

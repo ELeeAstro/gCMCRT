@@ -5,7 +5,7 @@ module mc_views
   implicit none
 
 
-  public :: set_phase_views_em
+  public :: set_phase_views_em, set_transit_views, transit_lens_geom
 
 contains
 
@@ -20,7 +20,8 @@ contains
   !!                             0 = fully visible  -> fsum_occ = fsum
   !!                             1 = partial        -> per-packet geometric mask
   !!                             2 = total          -> fsum_occ = 0 (host zeroes it)
-  !!   xstar, ystar, zstar   : star position in the planet-centred frame (cm)
+  !!   xstar, ystar, zstar   : stellar centre projected into the per-phase
+  !!                            image basis; zstar is along the observer axis (cm)
   !!
   !! Conventions (circular, zero-obliquity, synchronous rotation):
   !!   viewphi = modulo(180 - f, 360) : 180 deg (night) at transit, 0 deg (day) at eclipse
@@ -37,7 +38,8 @@ contains
     real(dp) :: phi_orb, f, R_p, R_s, a, P
     real(dp) :: phi_ecl, inc_r, dphi_out, dphi_in, arg_out, arg_in
     real(dp) :: phi_lo, phi_hi, key_i, delta, R_in, R_out, u, s
-    real(dp) :: Xp, Yp, Zp
+    real(dp) :: sinto, costo, sinpo, cospo
+    real(dp) :: e1x, e2x, obsx
 
     real(dp), dimension(n_phase) :: a_phi, a_theta
     real(dp), dimension(n_ecl)   :: a_phi_ecl, a_theta_ecl, phi_ecl_arr
@@ -119,13 +121,13 @@ contains
       occ_state(:) = 0
       return
     end if
-    dphi_out = asin(sqrt(arg_out)/a) / (2.0_dp*pi)
+    dphi_out = asin(min(1.0_dp, sqrt(arg_out)/(a*sin(inc_r)))) / (2.0_dp*pi)
 
     ! --- inner contact (2nd / 3rd): sky-plane separation = R_s - R_p ---
     arg_in  = (R_s - R_p)**2 - (a*cos(inc_r))**2
     has_tot = (arg_in > 0.0_dp)
     if (has_tot) then
-      dphi_in = asin(sqrt(arg_in)/a) / (2.0_dp*pi)
+      dphi_in = asin(min(1.0_dp, sqrt(arg_in)/(a*sin(inc_r)))) / (2.0_dp*pi)
     else
       dphi_in = 0.0_dp               ! grazing eclipse: no flat bottom, bands merge
     end if
@@ -246,26 +248,26 @@ contains
     deallocate(tphi, tthet, tkey, idx)
 
     !! ------------------------------------------------------------------
-    !! Star position relative to the planet (planet-centred frame), per phase.
-    !! Packet coordinates are zeroed on the planet, so the STAR is what moves:
-    !!   star_rel = -(planet position relative to star).
+    !! Stellar centre projected into the per-phase image basis.
+    !! For a synchronously rotating planet the stellar direction is fixed in
+    !! the planet frame.  Project that fixed vector into the image basis used
+    !! by the peel-off image coordinates before applying the occultation mask.
     !! ------------------------------------------------------------------
     allocate(xstar(n_loop), ystar(n_loop), zstar(n_loop))
 
     do i = 1, n_loop
-      f = 2.0_dp * pi * phi_key(i)        ! true anomaly (rad), circular orbit
+      sinto = sin(viewthet_n(i)*pi/180.0_dp)
+      costo = cos(viewthet_n(i)*pi/180.0_dp)
+      sinpo = sin(viewphi_n(i)*pi/180.0_dp)
+      cospo = cos(viewphi_n(i)*pi/180.0_dp)
 
-      ! planet position relative to star, standard transit frame (cm):
-      !   Xp = sky-plane "horizontal", Yp = sky-plane "vertical", Zp = line of sight
-      !   transit (phi=0) -> planet toward observer; eclipse (phi=0.5) -> behind
-      Xp = a * sin(f)
-      Yp = a * cos(f) * cos(inc_r)
-      Zp = a * cos(f) * sin(inc_r)
+      e1x = -costo * cospo
+      e2x = -sinpo
+      obsx = sinto * cospo
 
-      ! star relative to planet = -(planet relative to star)
-      xstar(i) = -Xp
-      ystar(i) = -Yp
-      zstar(i) = -Zp
+      xstar(i) = a * e1x
+      ystar(i) = a * e2x
+      zstar(i) = a * obsx
     end do
 
     !! ------------------------------------------------------------------
@@ -291,5 +293,198 @@ contains
     end do
 
   end subroutine set_phase_views_em
+
+
+  !! Calculate viewing/orbital geometry for a primary-transit light curve.
+  !!
+  !! Produces module arrays of length n_loop:
+  !!   viewphi_n, viewthet_n : observer direction per phase (deg)
+  !!   phi_key               : wrapped orbital phase in [0,1)
+  !!   trans_state           : 0 = out of transit, 1 = partial, 2 = full
+  !!   xstar, ystar, zstar   : stellar centre projected into the per-phase
+  !!                            image basis; zstar is along the observer axis (cm)
+  subroutine set_transit_views(n_trans, n_ingress, n_loop)
+    implicit none
+
+    integer, intent(in)  :: n_trans, n_ingress
+    integer, intent(out) :: n_loop
+
+    integer :: i, j, n_side, n_tot, je
+    real(dp) :: R_p, R_s, a, inc_r
+    real(dp) :: dphi_out, dphi_in, arg_out, arg_in
+    real(dp) :: delta, R_in, R_out, u, s, phi_unwrapped
+    real(dp) :: sinto, costo, sinpo, cospo
+    real(dp) :: e1x, e2x, obsx
+    logical :: has_tot, use_bands
+    real(dp), allocatable, dimension(:) :: phi_arr
+
+    if (allocated(viewphi_n))   deallocate(viewphi_n)
+    if (allocated(viewthet_n))  deallocate(viewthet_n)
+    if (allocated(phi_key))     deallocate(phi_key)
+    if (allocated(occ_state))   deallocate(occ_state)
+    if (allocated(trans_state)) deallocate(trans_state)
+    if (allocated(xstar))       deallocate(xstar)
+    if (allocated(ystar))       deallocate(ystar)
+    if (allocated(zstar))       deallocate(zstar)
+
+    if (n_trans < 2) then
+      print*, 'set_transit_views: n_trans < 2; increase n_trans'
+      stop
+    end if
+
+    R_p = H(grid%n_lev)
+    R_s = Rs * Rsun
+    R_s_sq_d = R_s**2
+    a = sm_ax * Au
+    inc_r = inc * pi / 180.0_dp
+
+    arg_out = (R_s + R_p)**2 - (a*cos(inc_r))**2
+    if (arg_out <= 0.0_dp) then
+      print*, 'set_transit_views: planet never transits stellar disk'
+      stop
+    end if
+    dphi_out = asin(min(1.0_dp, sqrt(arg_out)/(a*sin(inc_r)))) / (2.0_dp*pi)
+
+    arg_in = (R_s - R_p)**2 - (a*cos(inc_r))**2
+    has_tot = (arg_in > 0.0_dp)
+    if (has_tot) then
+      dphi_in = asin(min(1.0_dp, sqrt(arg_in)/(a*sin(inc_r)))) / (2.0_dp*pi)
+    else
+      dphi_in = 0.0_dp
+    end if
+
+    if (has_tot .and. n_ingress >= 2 .and. n_trans >= 2*n_ingress + 1) then
+      use_bands = .true.
+      n_side = n_ingress
+      n_tot = n_trans - 2*n_side
+    else
+      use_bands = .false.
+      n_side = n_trans
+      n_tot = 0
+    end if
+
+    n_loop = n_trans
+    allocate(phi_arr(n_loop))
+
+    je = 0
+    if (use_bands) then
+      do j = 1, n_side
+        je = je + 1
+        phi_arr(je) = -dphi_out + (dphi_out - dphi_in)*real(j-1,dp)/real(n_side-1,dp)
+      end do
+      do j = 1, n_tot
+        je = je + 1
+        phi_arr(je) = -dphi_in + (2.0_dp*dphi_in)*real(j,dp)/real(n_tot+1,dp)
+      end do
+      do j = 1, n_side
+        je = je + 1
+        phi_arr(je) = dphi_in + (dphi_out - dphi_in)*real(j-1,dp)/real(n_side-1,dp)
+      end do
+    else
+      do j = 1, n_trans
+        u = real(j-1,dp)/real(n_trans-1,dp)
+        s = 0.5_dp*(1.0_dp - cos(pi*u))
+        je = je + 1
+        phi_arr(je) = -dphi_out + 2.0_dp*dphi_out*s
+      end do
+    end if
+
+    if (je /= n_loop) then
+      print*, 'set_transit_views: phase count mismatch', je, n_loop
+      stop
+    end if
+
+    allocate(viewphi_n(n_loop), viewthet_n(n_loop), phi_key(n_loop))
+    allocate(trans_state(n_loop))
+    allocate(xstar(n_loop), ystar(n_loop), zstar(n_loop))
+
+    do i = 1, n_loop
+      phi_unwrapped = phi_arr(i)
+      phi_key(i) = modulo(phi_unwrapped, 1.0_dp)
+
+      viewphi_n(i) = modulo(180.0_dp - 360.0_dp*phi_unwrapped, 360.0_dp)
+      viewthet_n(i) = inc
+
+      ! For a synchronously rotating planet the stellar direction is fixed in
+      ! the planet frame.  Project that vector onto the same image-plane basis
+      ! used by source_pac_inc_3D_transit, so the finite stellar-disk mask and
+      ! packet coordinates are in the same basis.
+      sinto = sin(viewthet_n(i)*pi/180.0_dp)
+      costo = cos(viewthet_n(i)*pi/180.0_dp)
+      sinpo = sin(viewphi_n(i)*pi/180.0_dp)
+      cospo = cos(viewphi_n(i)*pi/180.0_dp)
+
+      e1x = -costo * cospo
+      e2x = -sinpo
+      obsx = sinto * cospo
+
+      xstar(i) = a * e1x
+      ystar(i) = a * e2x
+      zstar(i) = a * obsx
+
+      delta = sqrt(xstar(i)**2 + ystar(i)**2)
+      R_in  = R_s - R_p
+      R_out = R_s + R_p
+
+      if (zstar(i) >= 0.0_dp) then
+        trans_state(i) = 0
+      else if (delta >= R_out) then
+        trans_state(i) = 0
+      else if (delta <= R_in) then
+        trans_state(i) = 2
+      else
+        trans_state(i) = 1
+      end if
+    end do
+
+    deallocate(phi_arr)
+
+  end subroutine set_transit_views
+
+
+  !! Star/planet overlap ("lens") geometry for the transit LC partial-phase
+  !! sampler.  Works in a frame rotated so the star centre lies on +x at
+  !! distance d = sqrt(xs^2 + ys^2); psi rotates that frame back to the (e1,e2)
+  !! sky basis.  Returns the analytic circle-circle overlap area A_lens and a
+  !! tight bounding box [x_lo,x_hi] x [-y_max,y_max] of the lens (all in cm).
+  subroutine transit_lens_geom(R_p, R_s, xs, ys, A_lens, psi, x_lo, x_hi, y_max)
+    implicit none
+
+    real(dp), intent(in)  :: R_p, R_s, xs, ys
+    real(dp), intent(out) :: A_lens, psi, x_lo, x_hi, y_max
+
+    real(dp) :: d, x_star, a1, a2, tri
+
+    d   = sqrt(xs**2 + ys**2)
+    psi = atan2(ys, xs)
+
+    if (d >= R_p + R_s) then
+      ! No overlap (out of transit).
+      A_lens = 0.0_dp
+      x_lo = 0.0_dp; x_hi = 0.0_dp; y_max = 0.0_dp
+      return
+    else if (d <= abs(R_p - R_s)) then
+      ! One disk fully inside the other (full transit / total block).
+      A_lens = pi * min(R_p, R_s)**2
+      x_lo   = max(-R_p, d - R_s)
+      x_hi   = min( R_p, d + R_s)
+      y_max  = min(R_p, R_s)
+      return
+    end if
+
+    ! Partial lens: planet at origin, star centre at (d,0).
+    x_star = (d**2 + R_p**2 - R_s**2) / (2.0_dp*d)
+    y_max  = sqrt(max(R_p**2 - x_star**2, 0.0_dp))
+    x_lo   = max(-R_p, d - R_s)
+    x_hi   = min( R_p, d + R_s)
+
+    ! Analytic circle-circle intersection area.
+    a1  = R_p**2 * acos(min(1.0_dp, max(-1.0_dp, (d**2 + R_p**2 - R_s**2)/(2.0_dp*d*R_p))))
+    a2  = R_s**2 * acos(min(1.0_dp, max(-1.0_dp, (d**2 + R_s**2 - R_p**2)/(2.0_dp*d*R_s))))
+    tri = 0.5_dp * sqrt(max(0.0_dp, &
+      & (-d + R_p + R_s)*(d + R_p - R_s)*(d - R_p + R_s)*(d + R_p + R_s)))
+    A_lens = a1 + a2 - tri
+
+  end subroutine transit_lens_geom
 
 end module mc_views

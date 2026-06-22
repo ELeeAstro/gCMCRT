@@ -117,6 +117,13 @@ module mc_data_mod
   real(dp), allocatable, dimension(:) :: T_trans, T_trans_east, T_trans_west
   real(dp), device :: T_trans_d, T_trans_east_d, T_trans_west_d
 
+  !! Transit light-curve accumulators: LD-weighted, on-star blocked stellar
+  !! flux (in units of the disk-area MC estimator, normalised on the host).
+  !!   A_block      = opaque body + atmosphere   -> total transit depth
+  !!   A_atm        = atmosphere annulus only     -> atmospheric depth
+  !!   A_atm_east/west = atmosphere split by tangent-point limb longitude
+  real(dp), device :: A_block_d, A_atm_d, A_atm_east_d, A_atm_west_d
+
   !! Albedo spectrum arrays
   real(dp), allocatable, dimension(:) :: alb_out
   real(dp), allocatable, dimension(:), device :: alb_out_d
@@ -126,7 +133,7 @@ module mc_data_mod
   logical :: do_LD
   logical, device :: do_LD_d
   integer :: ilimb
-  logical, device :: ilimb_d
+  integer, device :: ilimb_d
   real(dp), dimension(4) :: LD_c
   real(dp), dimension(4), device :: LD_c_d
 
@@ -134,6 +141,8 @@ module mc_data_mod
   integer :: n_phase, n_ecl
   integer, allocatable, dimension(:) :: occ_state
   integer, device :: occ_state_d 
+  integer, allocatable, dimension(:) :: trans_state
+  integer, device :: trans_state_d
   logical :: do_phase, do_eclipse
   logical, device :: do_phase_d, do_eclipse_d
   real(dp) :: Rs, inc, phase, ecc, sm_ax, orbital_period
@@ -141,6 +150,10 @@ module mc_data_mod
 
   real(dp), allocatable, dimension(:) :: viewphi_n, viewthet_n, phi_key, xstar, ystar, zstar
   real(dp), device :: xstar_d, ystar_d
+
+  !! Per-phase star/planet lens geometry for the transit LC partial-phase sampler
+  !! (all in cm; rotated frame with the star centre on +x at distance trans_delta_d).
+  real(dp), device :: trans_delta_d, trans_psi_d, trans_xlo_d, trans_xhi_d, trans_ymax_d
 
   !! Transmission contribution function variables
   integer, allocatable, dimension(:) :: b_n_cf

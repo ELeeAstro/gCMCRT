@@ -144,6 +144,143 @@ contains
 
   end subroutine source_pac_inc_3D
 
+
+  attributes(device) subroutine source_pac_inc_3D_transit(ph)
+    implicit none
+
+    type(pac), intent(inout) :: ph
+    real(dp) :: rr2, ann_theta, b1, b2, s
+    real(dp) :: e1x, e1y, e1z, e2x, e2y, e2z
+    real(dp) :: kx, ky, kz
+    real(dp) :: r2_star, mu, xb, yb, cps, sps, R_top_sq
+
+    ! Out of transit: the planet does not cover any part of the stellar disk
+    ! (delta >= R_s + R_p) or the star is on the observer side (zstar >= 0).
+    ! No stellar light is intercepted, so kill the packet up front.
+    if (trans_state_d == 0) then
+      ph%wght = 0.0_dp
+      return
+    end if
+
+    R_top_sq = grid_d%r2_max * H_d(1)**2     ! (top-of-atmosphere radius)^2 in cm^2
+
+    if (trans_state_d == 2) then
+      ! Full transit: the planet disk is entirely on the star, so sample the
+      ! FULL projected disk (0 -> r_max) uniform in area (every point is on-star).
+      ! The opaque-core / annulus split is done by the calling kernel.
+      if (LHS_d .eqv. .False.) then
+        ann_theta = curand_uniform(ph%iseed) * twopi
+        rr2 = sqrt(grid_d%r_max**2 * curand_uniform(ph%iseed))
+      else
+        ann_theta = x_ran_d(ph%id) * twopi
+        rr2 = sqrt(grid_d%r_max**2 * y_ran_d(ph%id))
+      end if
+      b1 = rr2 * cos(ann_theta)
+      b2 = rr2 * sin(ann_theta)
+      ! Distance^2 from the stellar centre (cm) for the limb-darkening weight.
+      r2_star = (b1*H_d(1) - xstar_d)**2 + (b2*H_d(1) - ystar_d)**2
+    else
+      ! Partial transit (ingress/egress): sample uniformly inside the
+      ! star/planet overlap lens by bounding-box rejection, in a frame with the
+      ! star centre on +x at distance trans_delta_d.  All accepted points are
+      ! on-star by construction, so no rejection of off-star packets is needed.
+      ! (LHS does not apply on this branch.)
+      do
+        xb = trans_xlo_d + (trans_xhi_d - trans_xlo_d) * curand_uniform(ph%iseed)
+        yb = trans_ymax_d * (2.0_dp*curand_uniform(ph%iseed) - 1.0_dp)
+        r2_star = (xb - trans_delta_d)**2 + yb**2
+        if ((xb*xb + yb*yb <= R_top_sq) .and. (r2_star <= R_s_sq_d)) exit
+      end do
+      ! Rotate from the star-aligned frame back to the (e1,e2) sky basis and
+      ! normalise to planet radii for the ray construction below.
+      cps = cos(trans_psi_d)
+      sps = sin(trans_psi_d)
+      b1 = (xb*cps - yb*sps) / H_d(1)
+      b2 = (xb*sps + yb*cps) / H_d(1)
+    end if
+
+    ! Use the same image-plane basis as the peel-off image projection.
+    e1x = -im_d%costo * im_d%cospo
+    e1y = -im_d%costo * im_d%sinpo
+    e1z =  im_d%sinto
+
+    e2x = -im_d%sinpo
+    e2y =  im_d%cospo
+    e2z =  0.0_dp
+
+    kx = im_d%obsx
+    ky = im_d%obsy
+    kz = im_d%obsz
+
+    s = sqrt(max(grid_d%r_max**2 - (b1*b1 + b2*b2), 0.0_dp)) - 1.0e-12_dp
+
+    ph%xp = b1*e1x + b2*e2x - s*kx
+    ph%yp = b1*e1y + b2*e2y - s*ky
+    ph%zp = b1*e1z + b2*e2z - s*kz
+
+    ph%nxp = kx
+    ph%nyp = ky
+    ph%nzp = kz
+    ph%cost = max(-1.0_dp, min(1.0_dp, ph%nzp))
+    ph%sint = sqrt(max(1.0_dp - ph%cost**2, 0.0_dp))
+    if (ph%sint > 1.0e-300_dp) then
+      ph%cosp = ph%nxp / ph%sint
+      ph%sinp = ph%nyp / ph%sint
+    else
+      ph%cosp = 1.0_dp
+      ph%sinp = 0.0_dp
+    end if
+    ph%phi = atan2(ph%sinp, ph%cosp)
+
+    ph%bp = sqrt(b1*b1 + b2*b2)
+
+    if (do_LD_d .eqv. .True.) then
+      mu = sqrt(max(1.0_dp - r2_star/R_s_sq_d, 0.0_dp))
+      call limb_darkening_mu(mu, ph)
+    end if
+
+    ph%fi = 1.0_dp
+    ph%fq = 0.0_dp
+    ph%fu = 0.0_dp
+    ph%fv = 0.0_dp
+
+  end subroutine source_pac_inc_3D_transit
+
+
+  attributes(device) subroutine limb_darkening_mu(mus, ph)
+    implicit none
+
+    type(pac), intent(inout) :: ph
+    real(dp), intent(in) :: mus
+    real(dp) :: Imus
+
+    select case(ilimb_d)
+    case(1)
+      Imus = 1.0_dp - LD_c_d(1)*(1.0_dp - mus)
+    case(2)
+      Imus = 1.0_dp - LD_c_d(1)*(1.0_dp - mus) - LD_c_d(2)*(1.0_dp - mus)**2
+    case(3)
+      Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - mus) - LD_c_d(2)*(1.0_dp  - sqrt(mus))
+    case(4)
+      Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - mus) - LD_c_d(2)*mus*log(mus)
+    case(5)
+      Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - mus) - LD_c_d(2)/(1.0 - exp(mus))
+    case(6)
+      Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - mus) - LD_c_d(2)*(1.0_dp  - mus**(1.5_dp)) &
+      & - LD_c_d(3)*(1.0_dp  - mus**2)
+    case(7)
+      Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - sqrt(mus)) - LD_c_d(2)*(1.0_dp  - mus) &
+      & - LD_c_d(3)*(1.0_dp  - mus**(1.5_dp)) - LD_c_d(4)*(1.0_dp  - mus**2)
+    case(8)
+      Imus = 1.0_dp - LD_c_d(1)*(1.0_dp - mus**LD_c_d(2))
+    case default
+      Imus = 1.0_dp
+    end select
+
+    ph%wght = ph%wght * Imus
+
+  end subroutine limb_darkening_mu
+
   attributes(device) subroutine limb_darkening(rr2, ann_theta, ph)
     implicit none
 

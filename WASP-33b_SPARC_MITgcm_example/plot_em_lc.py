@@ -120,7 +120,7 @@ plt.legend()
 #plt.yscale('log')
 
 plt.xlabel(r'phase',fontsize=14)
-plt.ylabel(r'F$_{\rm p}$ [erg s$^{-1}$ cm$^{-2}$ cm$^{-1}$]',fontsize=14)
+plt.ylabel(r'Band mean F$_{\rm p}$/F$_{\star}$',fontsize=14)
 
 
 plt.tick_params(axis='both',which='major',labelsize=12)

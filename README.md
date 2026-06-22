@@ -170,7 +170,7 @@ gCMCRT uses a fortran namelist (.nml) file to communicate with the code.
 
 exp_name - Name of experiment; used as the prefix for profile files such as `<exp_name>.prf`, `<exp_name>.hprf` and related inputs.
 
-xper - Required mode of gCMCRT. Active values in `gpuCMCRT.f90` are `3D_sph_tests`, `3D_sph_pol`, `3D_sph_alb`, `3D_sph_trans`, `3D_sph_em`, `3D_sph_em_hi` and `3D_sph_trans_hi`. `1D_pp`, `1D_sph` and `2D_car_gal` are listed in the dispatcher but currently commented out.
+xper - Required mode of gCMCRT. Active values in `gpuCMCRT.f90` are `3D_sph_tests`, `3D_sph_pol`, `3D_sph_alb`, `3D_sph_trans`, `3D_sph_trans_lc`, `3D_sph_em`, `3D_sph_em_hi` and `3D_sph_trans_hi`. `1D_pp`, `1D_sph` and `2D_car_gal` are listed in the dispatcher but currently commented out.
 
 do_trans - .True. = Transmission limb sampling (for transit spectra), .False. = Normal sampling
 
@@ -256,7 +256,7 @@ phase - Phase value used by the limb-darkening setup.
 
 do_phase - .True. = calculate an emission phase curve using `n_phase`; .False. = use the single `viewphi`/`viewthet` value from the experiment namelist.
 
-do_eclipse - .True. = include eclipse/occultation geometry during phase-curve emission calculations.
+do_eclipse - .True. = include secondary eclipse/occultation geometry during phase-curve emission calculations. Partial occultations are masked in the per-phase image plane.
 
 n_phase - Number of phases to calculate (= 1 for single phase)
 
@@ -436,6 +436,54 @@ viewthet = Viewing angle in latitude
 
 viewphi = Viewing angle(s) in longitude; array length should match `n_phase`.
 
+### &sph_3D_trans_lc
+
+Used by `xper = '3D_sph_trans_lc'`. This is the phase-resolved primary-transit light-curve mode. It launches direct stellar packets through the phase-dependent projected stellar disk and ignores multiple-scattering loops.
+
+The transit geometry is derived self-consistently from the system parameters in `&main`. For a synchronously rotating, zero-obliquity planet the GCM grid is not rotated; instead, the observer/image basis changes with phase. The projected stellar centre is stored in that same per-phase image basis before ray rejection, so ingress/egress samples the correct backlit limb sector.
+
+Nph = Number of photon packets per wavelength and transit phase
+
+s_wl = Start wavelength integer
+
+n_wl = End wavelength integer
+
+n_trans = Number of sampled transit phases across the primary-transit window
+
+n_ingress = Number of samples assigned to each ingress/egress band when the transit has a full-transit section
+
+pl = 0.51 (polarisation parameter; experimental)
+
+pc = 0.39 (polarisation parameter; experimental)
+
+sc = 1.0 (polarisation parameter; experimental)
+
+iscat = Scattering phase function choice, kept for consistency with other modes
+
+n_theta = Number of latitudes + 1 in GCM
+
+n_phi = Number of longitudes + 1 in GCM
+
+n_lay = Number of layers in GCM
+
+This mode derives `viewphi`, `viewthet`, projected star position and transit state from `Rs`, `inc`, `sm_ax`, `orbital_period`, `do_LD`, `ilimb` and `LD_c` in `&main`.
+
+The code writes one file per sampled transit phase:
+
+`Transit_001.txt`, `Transit_002.txt`, ...
+
+The first row is:
+
+`n_wl H_base H_top viewphi viewthet phase trans_state xstar ystar zstar`
+
+where `H_base = H(1)` is the opaque/reference radius, `H_top = H(n_lev)` is the top-of-atmosphere radius, and `xstar/ystar/zstar` are projected into the per-phase image basis. `trans_state` is 0 out of transit, 1 partial transit and 2 full atmospheric transit.
+
+The data rows are:
+
+`wavelength T_trans T_trans_east T_trans_west`
+
+`T_trans` is the atmospheric transmission component. The opaque planet area can be added analytically from the projected star-planet overlap; the WASP-39b plotting script does this when plotting the normalised light curve.
+
 ### &diffuse_nml
 
 Legacy cartesian diffuse experiment namelist. The dispatcher currently lists `2D_car_gal`, but that call is commented out.
@@ -468,26 +516,53 @@ nxg, nyg, nzg = Cartesian grid dimensions
 
 # What is output and how do I make synthetic observations?
 
+The WASP-33b and WASP-39b example directories include a common set of plotting/post-processing scripts:
+
+`plot_trans.py` - transmission spectrum from `Transmission.txt`
+
+`plot_trans_lc.py` - primary-transit light curve from `Transit_*.txt`
+
+`plot_em.py` - emission spectra from `Em_*.txt`
+
+`plot_em_lc.py` - emission phase/eclipsing light curve from `Em_*.txt`
+
+`plot_pixel.py` - pixel brightness-temperature maps from `f_im_*.txt`
+
+`plot_3D_cf.py` - 3D contribution functions from `cf_*.txt`
+
 # Example tutorials
 
-## WASP-33b GCM dayside and nightside emission spectrum (with details on phase curve operation)
+## WASP-33b GCM emission, eclipse and transit-light-curve example
 
-Example using a SPARC/MITgcm WASP-33b model. In this example we produce a dayside and nightside spectra. 
+Example using a SPARC/MITgcm WASP-33b model. The default `CMCRT.nml` is prepared for emission phase-curve calculations with secondary-eclipse/occultation sampling enabled. The same namelist also contains dormant transmission-spectrum and primary-transit light-curve blocks for experimentation.
 1. Use the extract script to extract the GCM data into the gCMCRT .hprf and .prf format, chemical abundances are extracted alongside.
 2. Run goptools to produce the corr-k, CIA and Rayleigh opacity files.
-3. Run gCMCRT to produce Em_001.txt (dayside) and Em_002.txt (nightside) output files
-4. Run em_spec.py to convert the output to synthetic observations, Fp/Fs, Fp and Tb. This file contains useful information on how to produce emission spectra.
+3. Run gCMCRT to produce `Em_*.txt` output files.
+4. Run `plot_em.py` to convert the output to synthetic observations, Fp/Fs, Fp and Tb. This file contains useful information on how to produce emission spectra.
 
-This example can be extended easily to produce phase curves.
+For phase curves and eclipses, `plot_em_lc.py` reads the unocculted and occulted columns in the current `Em_*.txt` output and plots the band-mean Fp/Fs versus phase. For image outputs, `plot_pixel.py` reads the current `Em_*.txt` header and `f_im_*.txt` files.
 
-## WASP-39b GCM transmision spectrum (with details on using CE interpolation tables)
+To test the primary-transit light-curve mode in the WASP-33b directory, change `xper` to `3D_sph_trans_lc` and set `do_trans = .True.`. The light-curve mode writes `Transit_*.txt`; run `plot_trans_lc.py` from the WASP-33b example directory to plot transit spectra, normalised flux versus time from mid-transit, and the wavelength-time normalised-flux map.
 
-Example using an Exo-FMS WASP-39b model. In this example we produce a transmission spectrum.
+## WASP-39b GCM transmission spectrum and transit light curve (with details on using CE interpolation tables)
+
+Example using an Exo-FMS WASP-39b model. The default `CMCRT.nml` produces a transmission spectrum, and the same namelist also contains dormant blocks for emission, secondary-eclipse experiments and a `3D_sph_trans_lc` primary-transit light-curve test setup.
 1. Use the extract script to extract the GCM data into the gCMCRT .hprf and .iprf format
 2. Use interp_iprf.py to interpolate the CE abundances to the T,p of the GCM and produce the .prf file.
 3. Run goptools to produce the corr-k, CIA and Rayleigh opacity files.
 4. Run gCMCRT to produce the Transmission.txt file 
-5. Run trans_spec.py to convert the output to synthetic observations, Rp/Rs and compare to G395H and SOSS observations. (This file contains useful information on transmission spectrum fitting etc)
+5. Run `plot_trans.py` to convert the output to synthetic observations, Rp/Rs and compare to G395H and SOSS observations. (This file contains useful information on transmission spectrum fitting etc)
+
+To test the transit light-curve mode, change `xper` in `WASP-39b_Exo_FMS_example/CMCRT.nml` from `3D_sph_trans` to `3D_sph_trans_lc`. The example light-curve block uses all 503 wavelength bins, 26 transit samples and a modest photon count; increase `Nph`, `n_trans` or `n_ingress` for production runs.
+
+The light-curve mode writes `Transit_*.txt` files. Run `plot_trans_lc.py` from the WASP-39b example directory to plot:
+
+1. phase-resolved transmission spectra
+2. band-mean transmission diagnostics
+3. normalised flux versus time from mid-transit
+4. wavelength-time normalised-flux map
+
+To experiment with WASP-39b emission, change `xper` to `3D_sph_em` and set `do_trans = .False.`. The provided `&sph_3D_em` block is a single-view setup by default. To run an emission phase curve, set `do_phase = .True.`. To include secondary-eclipse/occultation sampling, set both `do_phase = .True.` and `do_eclipse = .True.`; `n_phase` and `n_ecl` are already populated with example values.
 
 ## WASP-39b 1D VULCAN + CARMA model (with details on using the code in 1D)
 

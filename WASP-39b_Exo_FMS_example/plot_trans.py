@@ -1,7 +1,12 @@
 # Import required packages
 import numpy as np
 import matplotlib.pylab as plt
-import xarray as xr
+from pathlib import Path
+
+try:
+    import xarray as xr
+except ImportError:
+    xr = None
 
 # Nice fonts (not required)
 plt.rc('font', family='sans-serif')
@@ -39,26 +44,30 @@ RpRs = (Rp**2 + 2.0 * sumf)/Rs**2 + scalfac
 RpRs_east = (Rp**2 + 2.0 * (2.0 * sumf_east))/Rs**2 + scalfac
 RpRs_west = (Rp**2 + 2.0 * (2.0 * sumf_west))/Rs**2 + scalfac
 
-# Import the G395H observational data
-fname = 'ERS_NIRSpec_G395H_weighted-mean-transmission-spectrum_using-DGNELFMANWSBPAR.nc'
-data = xr.open_dataset(fname)
-wl_N = data.coords['central_wavelength']
-dwl_N = data.coords['bin_half_width']
-wl_N = wl_N.values
-dwl_N = dwl_N.values
-wl_e = np.zeros(len(wl_N)+1)
-wl_e[:-1] = wl_N[:] - dwl_N[:]
-wl_e[-1] = wl_N[-1] + dwl_N[-1]
-RpRs_N = data.variables['transit_depth']
-RpRs_N_err = data.variables['transit_depth_error']
+has_g395h = xr is not None and Path('ERS_NIRSpec_G395H_weighted-mean-transmission-spectrum_using-DGNELFMANWSBPAR.nc').exists()
+if has_g395h:
+    # Import the G395H observational data
+    fname = 'ERS_NIRSpec_G395H_weighted-mean-transmission-spectrum_using-DGNELFMANWSBPAR.nc'
+    data = xr.open_dataset(fname)
+    wl_N = data.coords['central_wavelength']
+    dwl_N = data.coords['bin_half_width']
+    wl_N = wl_N.values
+    dwl_N = dwl_N.values
+    wl_e = np.zeros(len(wl_N)+1)
+    wl_e[:-1] = wl_N[:] - dwl_N[:]
+    wl_e[-1] = wl_N[-1] + dwl_N[-1]
+    RpRs_N = data.variables['transit_depth']
+    RpRs_N_err = data.variables['transit_depth_error']
 
-# Import the NIRISS SOSS data
-fname = 'NIRISS_SOSS_FINAL.txt'
-data = np.loadtxt(fname,delimiter=',')
-wl_S = data[:,0]
-dwl_S = data[:,1]
-RpRs_S = data[:,2]/1e6
-RpRs_S_err = data[:,3]/1e6
+has_soss = Path('NIRISS_SOSS_FINAL.txt').exists()
+if has_soss:
+    # Import the NIRISS SOSS data
+    fname = 'NIRISS_SOSS_FINAL.txt'
+    data = np.loadtxt(fname,delimiter=',')
+    wl_S = data[:,0]
+    dwl_S = data[:,1]
+    RpRs_S = data[:,2]/1e6
+    RpRs_S_err = data[:,3]/1e6
 
 
 # Plot the RpRs^2 figure, comparing the GCM result to the obs data
@@ -66,11 +75,13 @@ fig = plt.figure()
 
 plt.plot(wl,RpRs,c='darkmagenta',label='10x Exo-FMS GCM model')
 
-d1 = plt.scatter(wl_N,RpRs_N,c='grey',marker='o',s=3.0,zorder=1,alpha=0.7)
-plt.errorbar(wl_N,RpRs_N,xerr=dwl_N,yerr=RpRs_N_err,fmt='none',c='grey',zorder=1,alpha=0.7,label='G395H')
+if has_g395h:
+    d1 = plt.scatter(wl_N,RpRs_N,c='grey',marker='o',s=3.0,zorder=1,alpha=0.7)
+    plt.errorbar(wl_N,RpRs_N,xerr=dwl_N,yerr=RpRs_N_err,fmt='none',c='grey',zorder=1,alpha=0.7,label='G395H')
 
-d2 = plt.scatter(wl_S,RpRs_S,c='darkcyan',marker='s',s=3.0,zorder=1,alpha=0.7)
-plt.errorbar(wl_S,RpRs_S,xerr=dwl_S,yerr=RpRs_S_err,fmt='none',c='darkcyan',zorder=1,alpha=0.7,label='SOSS')
+if has_soss:
+    d2 = plt.scatter(wl_S,RpRs_S,c='darkcyan',marker='s',s=3.0,zorder=1,alpha=0.7)
+    plt.errorbar(wl_S,RpRs_S,xerr=dwl_S,yerr=RpRs_S_err,fmt='none',c='darkcyan',zorder=1,alpha=0.7,label='SOSS')
 
 plt.xlabel(r'$\lambda$ [$\mu$m]',fontsize=14)
 plt.ylabel(r'(R$_{\rm p}$/R$_{\star}$)$^{2}$',fontsize=14)

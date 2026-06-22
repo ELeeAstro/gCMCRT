@@ -2,6 +2,8 @@
 
 exp_name = 'SPARC-MITgcm'
 xper = '3D_sph_em'
+! Set xper = '3D_sph_trans' and do_trans = .True. to run transmission.
+! Set xper = '3D_sph_trans_lc' and do_trans = .True. to run the primary-transit light-curve block below.
 do_trans = .False.
 
 oneD = .False.
@@ -22,13 +24,17 @@ do_scat_loop = .False.
 do_g_bias = .True.
 wght_deg = .False.
 do_BB_band = .False.
+do_surf = .False.
+T_surf = 0.0
+emis_surf = 0.0
+alb_surf = 0.0
 
 lbl = .False.
 ck = .True.
 
 LHS = .True.
 
-! Wind paramaters for hi-res los velocity
+! Wind parameters for hi-res los velocity
 doppler_on = .False.
 winds_on = .False.
 rotation_on = .False.
@@ -46,10 +52,13 @@ ilimb = 2
 LD_c = 0.077, 0.311, 0.0, 0.0
 
 
+! Emission phase-curve/eclipsing controls. For a single-view emission run set
+! do_phase = .False.; for phase curves set do_phase = .True.; for secondary
+! eclipse/occultation sampling set both do_phase and do_eclipse .True.
 do_phase = .True.
-n_phase = 18
+n_phase = 16
 do_eclipse = .True.
-n_ecl = 20
+n_ecl = 10
 Rs = 1.444
 ecc = 0.0
 sm_ax = 0.02390
@@ -61,8 +70,8 @@ orbital_period = 1.21987
 &sph_3D_em
 
 Nph_tot = 10240000
-s_wl = 200
-n_wl = 300
+s_wl = 1
+n_wl = 503
 pl = 0.51
 pc = 0.39
 sc = 1.0
@@ -111,3 +120,21 @@ viewphi = 0.0
 
 /
 
+&sph_3D_trans_lc
+
+! Transit light-curve settings. To use this block, set xper = '3D_sph_trans_lc'
+! and do_trans = .True. in &main. n_trans mirrors n_phase + n_ecl above.
+Nph = 1024000
+s_wl = 1
+n_wl = 503
+n_trans = 26
+n_ingress = 10
+pl = 0.51
+pc = 0.39
+sc = 1.0
+iscat = 6
+n_theta = 31
+n_phi = 65
+n_lay = 53
+
+/

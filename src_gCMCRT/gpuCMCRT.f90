@@ -45,6 +45,8 @@ program gpuCMCRT
     call exp_3D_sph_atm_albedo()
   case('3D_sph_trans')
     call exp_3D_sph_atm_transmission()
+  case('3D_sph_trans_lc')
+    call exp_3D_sph_atm_trans_lightcurve()
   case('3D_sph_em')
     call exp_3D_sph_atm_em()
   case('3D_sph_em_hi')
