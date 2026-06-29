@@ -6,6 +6,7 @@ module exp_3D_sph_atm_trans_lc_kernel
   use mc_k_findcell
   use mc_k_gord_samp
   use mc_k_raytrace
+  use ieee_arithmetic
   use cudafor
   use curand_device
   implicit none
@@ -58,11 +59,10 @@ contains
     end if
 
     ! --- Opaque planet body (impact parameter below the solid radius) -------
-    ! Blocks the stellar beam completely at every wavelength / g-ordinate, so
-    ! no ray trace and no corr-k weight are needed.  ph%wght already carries the
-    ! limb-darkening weight and on-star mask.
+    ! The solid-body occultation is handled deterministically on the host with
+    ! a batman-style limb-darkened overlap integral.  Do not add opaque-core
+    ! packets to the Monte Carlo accumulators.
     if (ph%bp < grid_d%r_min) then
-      rstat = atomicadd(A_block_d, ph%wght)
       iseed(ph%id) = ph%iseed
       return
     end if
@@ -94,12 +94,15 @@ contains
       iseed(ph%id) = ph%iseed
       return
     end if
+    if ((ray%tau < 0.0_dp) .or. (ieee_is_nan(ray%tau) .eqv. .True.)) then
+      iseed(ph%id) = ph%iseed
+      return
+    end if
 
     blocking = 1.0_dp - exp(-ray%tau)
     contri = ph%wght * blocking
 
-    ! Total blocked flux (body + atmosphere) and the atmosphere-only part.
-    rstat = atomicadd(A_block_d, contri)
+    ! Atmosphere-only blocked flux.  The opaque body is added on the host.
     rstat = atomicadd(A_atm_d, contri)
 
     ! East/west limb split from the tangent (closest-approach) point of the
@@ -144,10 +147,11 @@ subroutine exp_3D_sph_atm_trans_lightcurve()
   integer, device :: l_d, Nph_d
   integer :: n_theta, n_phi, n_lay
   real(dp) :: pl, pc, sc
-  real(dp) :: LD_norm, norm0, norm_phase, area_phase, R_top
+  real(dp) :: LD_norm, norm0, norm_phase, area_phase, R_top, R_s_cm
+  real(dp) :: rp_body, d_star
   real(dp) :: A_lens, lens_psi, lens_xlo, lens_xhi, lens_ymax
-  real(dp) :: A_block, A_atm, A_atm_east, A_atm_west
-  real(dp) :: depth, depth_atm, depth_atm_east, depth_atm_west
+  real(dp) :: A_atm, A_atm_east, A_atm_west
+  real(dp) :: depth, depth_atm, depth_atm_east, depth_atm_west, depth_opaque
   type(dim3) :: blocks, threads
 
   namelist /sph_3D_trans_lc/ Nph, s_wl, n_wl, n_trans, n_ingress, pl, pc, sc, &
@@ -186,15 +190,18 @@ subroutine exp_3D_sph_atm_trans_lightcurve()
 
   ! Stellar normalisation: F_star = 2*pi*R_s^2 * LD_norm, with
   ! LD_norm = int_0^1 I(mu) mu dmu for the active limb-darkening law.
-  ! A blocked region of area A_phase, sampled by Nph uniform packets giving the
-  ! MC sum S = sum[ I(mu)*blocking ], contributes transit depth
-  !   depth = (A_phase * S/Nph) / (2*pi*R_s^2*LD_norm) = norm0 * A_phase * S,
+  ! A sampled region of area A_phase, sampled by Nph uniform packets giving the
+  ! atmosphere-only MC sum S = sum[ I(mu)*blocking ], contributes
+  !   depth_atm = (A_phase * S/Nph) / (2*pi*R_s^2*LD_norm)
+  !             = norm0 * A_phase * S,
   ! with norm0 = 1/(2*pi*R_s^2*LD_norm*Nph).  A_phase = pi*R_top^2 at full
   ! transit (the whole planet disk) or the star/planet lens area at
   ! ingress/egress (see transit_lens_geom / source_pac_inc_3D_transit).
   LD_norm = stellar_LD_norm()
+  R_s_cm = Rs * Rsun
   R_top = H(grid%n_lev)
-  norm0 = 1.0_dp / (2.0_dp * pi * (Rs*Rsun)**2 * LD_norm * real(Nph, dp))
+  rp_body = H(1) / R_s_cm
+  norm0 = 1.0_dp / (2.0_dp * pi * R_s_cm**2 * LD_norm * real(Nph, dp))
 
   do n = 1, n_loop
     write(n_str, fmt) n
@@ -202,7 +209,7 @@ subroutine exp_3D_sph_atm_trans_lightcurve()
     ! header: n_wl, inner/outer radius, view angles, phase, transit state, star pos
     write(uT(n),*) n_wl, H(1), H(grid%n_lev), viewphi_n(n), viewthet_n(n), &
       & phi_key(n), trans_state(n), xstar(n), ystar(n), zstar(n)
-    ! column key: wl, depth, depth_atm, depth_atm_east, depth_atm_west
+    ! column key: wl, depth, depth_atm, depth_atm_east, depth_atm_west, depth_opaque
     call flush(uT(n))
   end do
 
@@ -247,7 +254,6 @@ subroutine exp_3D_sph_atm_trans_lightcurve()
       end if
       norm_phase = norm0 * area_phase
 
-      A_block_d = 0.0_dp
       A_atm_d = 0.0_dp
       A_atm_east_d = 0.0_dp
       A_atm_west_d = 0.0_dp
@@ -270,25 +276,134 @@ subroutine exp_3D_sph_atm_trans_lightcurve()
         stop
       end if
 
-      A_block = A_block_d
       A_atm = A_atm_d
       A_atm_east = A_atm_east_d
       A_atm_west = A_atm_west_d
 
-      depth = norm_phase * A_block
+      if (trans_state(n) == 0) then
+        depth_opaque = 0.0_dp
+      else
+        d_star = sqrt(xstar(n)**2 + ystar(n)**2) / R_s_cm
+        depth_opaque = opaque_ld_depth_batman(rp_body, d_star, LD_norm)
+      end if
+
       depth_atm = norm_phase * A_atm
       depth_atm_east = norm_phase * A_atm_east
       depth_atm_west = norm_phase * A_atm_west
+      depth = depth_opaque + depth_atm
 
-      write(uT(n),*) wl(l), depth, depth_atm, depth_atm_east, depth_atm_west
+      write(uT(n),*) wl(l), depth, depth_atm, depth_atm_east, depth_atm_west, depth_opaque
 
-      print*, n, l, wl(l), phi_key(n), trans_state(n), depth, depth_atm
+      print*, n, l, wl(l), phi_key(n), trans_state(n), depth, depth_atm, depth_opaque
     end do
 
     call read_next_opac(l+1)
   end do
 
 contains
+
+  real(dp) function stellar_intensity_mu(mu) result(Imu)
+    implicit none
+    real(dp), intent(in) :: mu
+    real(dp) :: mus
+
+    mus = max(0.0_dp, min(1.0_dp, mu))
+    if (do_LD .eqv. .False.) then
+      Imu = 1.0_dp
+      return
+    end if
+
+    select case(ilimb)
+    case(1)
+      Imu = 1.0_dp - LD_c(1)*(1.0_dp - mus)
+    case(2)
+      Imu = 1.0_dp - LD_c(1)*(1.0_dp - mus) - LD_c(2)*(1.0_dp - mus)**2
+    case(3)
+      Imu = 1.0_dp - LD_c(1)*(1.0_dp - mus) - LD_c(2)*(1.0_dp - sqrt(mus))
+    case(4)
+      if (mus > 0.0_dp) then
+        Imu = 1.0_dp - LD_c(1)*(1.0_dp - mus) - LD_c(2)*mus*log(mus)
+      else
+        Imu = 1.0_dp - LD_c(1)
+      end if
+    case(5)
+      Imu = 1.0_dp - LD_c(1)*(1.0_dp - mus) - LD_c(2)/(1.0_dp - exp(mus))
+    case(6)
+      Imu = 1.0_dp - LD_c(1)*(1.0_dp - mus) - LD_c(2)*(1.0_dp - mus**(1.5_dp)) &
+        & - LD_c(3)*(1.0_dp - mus**2)
+    case(7)
+      Imu = 1.0_dp - LD_c(1)*(1.0_dp - sqrt(mus)) - LD_c(2)*(1.0_dp - mus) &
+        & - LD_c(3)*(1.0_dp - mus**(1.5_dp)) - LD_c(4)*(1.0_dp - mus**2)
+    case(8)
+      Imu = 1.0_dp - LD_c(1)*(1.0_dp - mus**LD_c(2))
+    case default
+      Imu = 1.0_dp
+    end select
+
+  end function stellar_intensity_mu
+
+
+  real(dp) function circle_overlap_area_norm(x, rp, d) result(area)
+    implicit none
+    real(dp), intent(in) :: x, rp, d
+    real(dp) :: u, v, w, eps_geom
+
+    eps_geom = 100.0_dp * epsilon(1.0_dp)
+
+    if ((x <= 0.0_dp) .or. (rp <= 0.0_dp)) then
+      area = 0.0_dp
+    else if (d >= x + rp - eps_geom) then
+      area = 0.0_dp
+    else if (d <= abs(x - rp) + eps_geom) then
+      area = pi * min(x, rp)**2
+    else
+      u = (d**2 + x**2 - rp**2) / (2.0_dp*d*x)
+      v = (d**2 + rp**2 - x**2) / (2.0_dp*d*rp)
+      w = (-d + x + rp)*(d + x - rp)*(d - x + rp)*(d + x + rp)
+      area = x**2 * acos(min(1.0_dp, max(-1.0_dp, u))) &
+        & + rp**2 * acos(min(1.0_dp, max(-1.0_dp, v))) &
+        & - 0.5_dp * sqrt(max(0.0_dp, w))
+    end if
+
+  end function circle_overlap_area_norm
+
+
+  real(dp) function opaque_ld_depth_batman(rp, d, LDfac) result(depth_opaque)
+    implicit none
+    real(dp), intent(in) :: rp, d, LDfac
+    integer, parameter :: n_opaque_ld = 2000
+    integer :: i
+    real(dp) :: x0, x1, dx, xa, xb, xm, mu, area_a, area_b
+
+    if ((rp <= 0.0_dp) .or. (LDfac <= 0.0_dp)) then
+      depth_opaque = 0.0_dp
+      return
+    end if
+
+    x0 = max(d - rp, 0.0_dp)
+    x1 = min(d + rp, 1.0_dp)
+    if (x1 <= x0) then
+      depth_opaque = 0.0_dp
+      return
+    end if
+
+    dx = (x1 - x0) / real(n_opaque_ld, dp)
+    depth_opaque = 0.0_dp
+    area_a = 0.0_dp
+    do i = 1, n_opaque_ld
+      xa = x0 + dx * real(i - 1, dp)
+      xb = x0 + dx * real(i, dp)
+      xm = 0.5_dp * (xa + xb)
+      mu = sqrt(max(1.0_dp - xm**2, 0.0_dp))
+      area_b = circle_overlap_area_norm(xb, rp, d)
+      depth_opaque = depth_opaque + stellar_intensity_mu(mu) * (area_b - area_a)
+      area_a = area_b
+    end do
+
+    depth_opaque = depth_opaque / (2.0_dp * pi * LDfac)
+
+  end function opaque_ld_depth_batman
+
 
   !! Disk integral  LDfac = int_0^1 I(mu) mu dmu  for the active limb-darkening
   !! law (ilimb / LD_c from the &main namelist).  Stellar flux is
@@ -309,28 +424,7 @@ contains
     LDfac = 0.0_dp
     do im_mu = 1, n_mu
       mu = (real(im_mu, dp) - 0.5_dp)*dmu     ! midpoint, avoids mu = 0
-      select case(ilimb)
-      case(1)
-        Imu = 1.0_dp - LD_c(1)*(1.0_dp - mu)
-      case(2)
-        Imu = 1.0_dp - LD_c(1)*(1.0_dp - mu) - LD_c(2)*(1.0_dp - mu)**2
-      case(3)
-        Imu = 1.0_dp - LD_c(1)*(1.0_dp - mu) - LD_c(2)*(1.0_dp - sqrt(mu))
-      case(4)
-        Imu = 1.0_dp - LD_c(1)*(1.0_dp - mu) - LD_c(2)*mu*log(mu)
-      case(5)
-        Imu = 1.0_dp - LD_c(1)*(1.0_dp - mu) - LD_c(2)/(1.0_dp - exp(mu))
-      case(6)
-        Imu = 1.0_dp - LD_c(1)*(1.0_dp - mu) - LD_c(2)*(1.0_dp - mu**(1.5_dp)) &
-          & - LD_c(3)*(1.0_dp - mu**2)
-      case(7)
-        Imu = 1.0_dp - LD_c(1)*(1.0_dp - sqrt(mu)) - LD_c(2)*(1.0_dp - mu) &
-          & - LD_c(3)*(1.0_dp - mu**(1.5_dp)) - LD_c(4)*(1.0_dp - mu**2)
-      case(8)
-        Imu = 1.0_dp - LD_c(1)*(1.0_dp - mu**LD_c(2))
-      case default
-        Imu = 1.0_dp
-      end select
+      Imu = stellar_intensity_mu(mu)
       LDfac = LDfac + Imu*mu*dmu
     end do
 

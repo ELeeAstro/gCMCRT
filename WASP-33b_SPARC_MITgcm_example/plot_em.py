@@ -10,7 +10,7 @@ plt.rc('font', serif='Helvetica Neue')
 plt.rc('text', usetex='false')
 
 def read_emission_file(path):
-  head = np.loadtxt(path,max_rows=1)
+  head = np.atleast_1d(np.loadtxt(path,max_rows=1))
   data = np.atleast_2d(np.loadtxt(path,skiprows=1))
 
   wl = data[:,0]
@@ -22,6 +22,8 @@ def read_emission_file(path):
     frac_occ = frac
     Ltot = data[:,2]
 
+  phase = float(head[5]) if len(head) > 5 else float(head[3])
+
   return {
     'wl': wl,
     'frac': frac,
@@ -30,6 +32,13 @@ def read_emission_file(path):
     'Rp': float(head[1]),
     'Rp2': float(head[2]),
     'viewphi': float(head[3]) if len(head) > 3 else np.nan,
+    'viewthet': float(head[4]) if len(head) > 4 else np.nan,
+    'phase': phase,
+    'occ_state': int(head[6]) if len(head) > 6 else 0,
+    'xstar': float(head[7]) if len(head) > 7 else np.nan,
+    'ystar': float(head[8]) if len(head) > 8 else np.nan,
+    'zstar': float(head[9]) if len(head) > 9 else np.nan,
+    'separation': float(head[10]) if len(head) > 10 else np.nan,
   }
 
 
@@ -52,6 +61,8 @@ nwl = len(first['wl'])
 Fp = np.zeros((n_ph,nwl))
 Fp_occ = np.zeros((n_ph,nwl))
 viewphi = np.zeros(n_ph)
+phase = np.zeros(n_ph)
+occ_state = np.zeros(n_ph, dtype=int)
 
 # Cycle through each phase, reading the emission data
 for n, fname in enumerate(em_files):
@@ -61,6 +72,8 @@ for n, fname in enumerate(em_files):
   Rp = em['Rp']
   Rp2 = em['Rp2']
   viewphi[n] = em['viewphi']
+  phase[n] = em['phase']
+  occ_state[n] = em['occ_state']
   # Calculate the flux of the planet toward phase n
   # Remember, flux is defined as the energy passing through a surface, so here the surface can be 
   # scaled between Rp and Rp2 at will, but we typically use Rp2 or Rp
@@ -110,7 +123,7 @@ for n in range(n_ph):
 fig = plt.figure()
 
 for n in range(n_ph):
-  plt.plot(wl,Fp[n,:],label='Viewphi '+str(viewphi[n]))
+  plt.plot(wl,Fp[n,:],label=f'Phase {phase[n]:.4f} (occ {occ_state[n]})')
 
 plt.legend()
 
@@ -137,7 +150,7 @@ plt.tight_layout(pad=1.05, h_pad=None, w_pad=None, rect=None)
 fig = plt.figure()
 
 for n in range(n_ph):
-  plt.plot(wl,BT[n,:],label='Viewphi '+str(viewphi[n]))
+  plt.plot(wl,BT[n,:],label=f'Phase {phase[n]:.4f} (occ {occ_state[n]})')
 
 plt.legend()
 
@@ -171,7 +184,7 @@ FpFs_obs_err = data[:,2]/100.0
 fig = plt.figure()
 
 for n in range(n_ph):
-  plt.plot(wl,FpFs[n,:],label='Viewphi '+str(viewphi[n]))
+  plt.plot(wl,FpFs[n,:],label=f'Phase {phase[n]:.4f} (occ {occ_state[n]})')
 
 plt.scatter(wl_obs,FpFs_obs,c='darkcyan',marker='o',s=12.0,label='Obs. data',zorder=1)
 plt.errorbar(wl_obs,FpFs_obs,yerr=FpFs_obs_err,fmt='none',c='darkcyan',zorder=1)

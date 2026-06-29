@@ -117,12 +117,10 @@ module mc_data_mod
   real(dp), allocatable, dimension(:) :: T_trans, T_trans_east, T_trans_west
   real(dp), device :: T_trans_d, T_trans_east_d, T_trans_west_d
 
-  !! Transit light-curve accumulators: LD-weighted, on-star blocked stellar
-  !! flux (in units of the disk-area MC estimator, normalised on the host).
-  !!   A_block      = opaque body + atmosphere   -> total transit depth
-  !!   A_atm        = atmosphere annulus only     -> atmospheric depth
-  !!   A_atm_east/west = atmosphere split by tangent-point limb longitude
-  real(dp), device :: A_block_d, A_atm_d, A_atm_east_d, A_atm_west_d
+  !! Transit light-curve accumulators: LD-weighted, on-star atmospheric
+  !! absorption (in units of the disk-area MC estimator, normalised on the host).
+  !! The opaque solid-body depth is calculated deterministically on the host.
+  real(dp), device :: A_atm_d, A_atm_east_d, A_atm_west_d
 
   !! Albedo spectrum arrays
   real(dp), allocatable, dimension(:) :: alb_out

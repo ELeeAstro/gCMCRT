@@ -32,7 +32,7 @@ alb_surf = 0.0
 lbl = .False.
 ck = .True.
 
-LHS = .True.
+LHS = .False.
 
 ! Wind parameters for hi-res los velocity
 doppler_on = .False.
@@ -49,7 +49,7 @@ Draine_alp = 0.5
 
 do_LD = .False.
 ilimb = 2
-LD_c = 0.077, 0.311, 0.0, 0.0
+LD_c = 0.246, 0.252, 0.0, 0.0
 
 
 ! Emission phase-curve/eclipsing controls. For a single-view emission run set
@@ -61,7 +61,7 @@ do_eclipse = .True.
 n_ecl = 10
 Rs = 1.444
 ecc = 0.0
-sm_ax = 0.02390
+sm_ax = 0.0239
 inc = 86.63
 orbital_period = 1.21987
 

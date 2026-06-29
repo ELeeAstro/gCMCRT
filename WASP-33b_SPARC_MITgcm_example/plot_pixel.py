@@ -9,7 +9,7 @@ plt.rc('font', serif='Helvetica Neue')
 plt.rc('text', usetex='false')
 
 def read_emission_file(path):
-  head = np.loadtxt(path,max_rows=1)
+  head = np.atleast_1d(np.loadtxt(path,max_rows=1))
   data = np.atleast_2d(np.loadtxt(path,skiprows=1))
 
   wl = data[:,0]
@@ -19,6 +19,8 @@ def read_emission_file(path):
   else:
     Ltot = data[:,2]
 
+  phase = float(head[5]) if len(head) > 5 else float(head[3])
+
   return {
     'wl': wl,
     'frac': frac,
@@ -26,6 +28,13 @@ def read_emission_file(path):
     'Rp': float(head[1]),
     'Rp2': float(head[2]),
     'viewphi': float(head[3]) if len(head) > 3 else np.nan,
+    'viewthet': float(head[4]) if len(head) > 4 else np.nan,
+    'phase': phase,
+    'occ_state': int(head[6]) if len(head) > 6 else 0,
+    'xstar': float(head[7]) if len(head) > 7 else np.nan,
+    'ystar': float(head[8]) if len(head) > 8 else np.nan,
+    'zstar': float(head[9]) if len(head) > 9 else np.nan,
+    'separation': float(head[10]) if len(head) > 10 else np.nan,
   }
 
 
@@ -40,11 +49,15 @@ nwl = len(first['wl'])
 Fp = np.zeros((n_ph,nwl))
 Ltot = np.zeros((n_ph,nwl))
 ph = np.zeros(n_ph)
+phase = np.zeros(n_ph)
+occ_state = np.zeros(n_ph, dtype=int)
 
 for n, fname in enumerate(em_files):
   print(fname)
   em = read_emission_file(fname)
   ph[n] = em['viewphi']
+  phase[n] = em['phase']
+  occ_state[n] = em['occ_state']
   Rp = em['Rp']
   Rp2 = em['Rp2']
   wl = em['wl']
@@ -108,7 +121,7 @@ for n in range(n_ph):
   cbar.set_label(r'T$_{\rm b}$ [K]',fontsize=14)
   plt.ylabel(r'y pixel',fontsize=14)
   plt.xlabel(r'x pixel',fontsize=14)
-  plt.title(r'Longitude: ' + str(ph[n]),fontsize=14)
+  plt.title(f"Phase: {phase[n]:.4f}; viewphi: {ph[n]:.1f}; occ: {occ_state[n]}",fontsize=14)
 
   plt.tick_params(axis='both', which='major', labelsize=12)
   plt.tight_layout(pad=1.05, h_pad=None, w_pad=None, rect=None)

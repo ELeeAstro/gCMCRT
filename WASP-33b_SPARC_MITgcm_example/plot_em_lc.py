@@ -10,7 +10,7 @@ plt.rc('font', serif='Helvetica Neue')
 plt.rc('text', usetex='false')
 
 def read_emission_file(path):
-  head = np.loadtxt(path,max_rows=1)
+  head = np.atleast_1d(np.loadtxt(path,max_rows=1))
   data = np.atleast_2d(np.loadtxt(path,skiprows=1))
 
   wl = data[:,0]
@@ -22,6 +22,8 @@ def read_emission_file(path):
     frac_occ = frac
     Ltot = data[:,2]
 
+  phase = float(head[5]) if len(head) > 5 else float(head[3])
+
   return {
     'wl': wl,
     'frac': frac,
@@ -31,7 +33,12 @@ def read_emission_file(path):
     'Rp2': float(head[2]),
     'viewphi': float(head[3]) if len(head) > 3 else np.nan,
     'viewthet': float(head[4]) if len(head) > 4 else np.nan,
-    'phase': float(head[5]) if len(head) > 5 else float(head[3]),
+    'phase': phase,
+    'occ_state': int(head[6]) if len(head) > 6 else 0,
+    'xstar': float(head[7]) if len(head) > 7 else np.nan,
+    'ystar': float(head[8]) if len(head) > 8 else np.nan,
+    'zstar': float(head[9]) if len(head) > 9 else np.nan,
+    'separation': float(head[10]) if len(head) > 10 else np.nan,
   }
 
 
@@ -54,6 +61,7 @@ nwl = len(first['wl'])
 Fp = np.zeros((n_ph,nwl))
 Fp_occ = np.zeros((n_ph,nwl))
 phase = np.zeros(n_ph)
+occ_state = np.zeros(n_ph, dtype=int)
 
 # Cycle through each phase, reading the emission data
 for n, fname in enumerate(em_files):
@@ -63,6 +71,7 @@ for n, fname in enumerate(em_files):
   Rp = em['Rp']
   Rp2 = em['Rp2']
   phase[n] = em['phase']
+  occ_state[n] = em['occ_state']
   # Calculate the flux of the planet toward phase n
   # Remember, flux is defined as the energy passing through a surface, so here the surface can be 
   # scaled between Rp and Rp2 at will, but we typically use Rp2 or Rp
@@ -108,12 +117,13 @@ order = np.argsort(phase)
 phase = phase[order]
 mean_FpFs = mean_FpFs[order]
 mean_FpFs_occ = mean_FpFs_occ[order]
+occ_state = occ_state[order]
 
 # Planetary flux plot
 fig = plt.figure()
 
 plt.plot(phase,mean_FpFs[:],label='Unocculted')
-plt.scatter(phase,mean_FpFs_occ[:],label='Occulted')
+plt.scatter(phase,mean_FpFs_occ[:],c=occ_state,label='Occulted')
 
 plt.legend()
 

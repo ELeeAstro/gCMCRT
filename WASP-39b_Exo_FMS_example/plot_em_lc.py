@@ -15,11 +15,13 @@ plt.rc("text", usetex="false")
 
 
 def read_emission_file(path):
-    head = np.loadtxt(path, max_rows=1)
+    head = np.atleast_1d(np.loadtxt(path, max_rows=1))
     data = np.atleast_2d(np.loadtxt(path, skiprows=1))
 
     frac_occ = data[:, 2] if data.shape[1] >= 4 else data[:, 1]
     ltot = data[:, 3] if data.shape[1] >= 4 else data[:, 2]
+
+    phase = float(head[5]) if len(head) > 5 else float(head[3])
 
     return {
         "wl": data[:, 0],
@@ -28,7 +30,14 @@ def read_emission_file(path):
         "ltot": ltot,
         "rp": float(head[1]),
         "r_top": float(head[2]),
-        "phase": float(head[5]) if len(head) > 5 else float(head[3]),
+        "viewphi": float(head[3]) if len(head) > 3 else np.nan,
+        "viewthet": float(head[4]) if len(head) > 4 else np.nan,
+        "phase": phase,
+        "occ_state": int(head[6]) if len(head) > 6 else 0,
+        "xstar": float(head[7]) if len(head) > 7 else np.nan,
+        "ystar": float(head[8]) if len(head) > 8 else np.nan,
+        "zstar": float(head[9]) if len(head) > 9 else np.nan,
+        "separation": float(head[10]) if len(head) > 10 else np.nan,
     }
 
 
@@ -70,6 +79,7 @@ n_wl = len(first["wl"])
 fs_binned = load_stellar_spectrum(first["wl"])
 
 phase = np.zeros(n_ph)
+occ_state = np.zeros(n_ph, dtype=int)
 mean_fpfs = np.zeros(n_ph)
 mean_fpfs_occ = np.zeros(n_ph)
 
@@ -81,6 +91,7 @@ for n, fname in enumerate(em_files):
     fpfs = (em["rp"] / RS) ** 2 * (fp / fs_binned)
     fpfs_occ = (em["rp"] / RS) ** 2 * (fp_occ / fs_binned)
     phase[n] = centered_phase(em["phase"])
+    occ_state[n] = em["occ_state"]
     mean_fpfs[n] = np.mean(fpfs)
     mean_fpfs_occ[n] = np.mean(fpfs_occ)
 
@@ -88,10 +99,11 @@ order = np.argsort(phase)
 phase = phase[order]
 mean_fpfs = mean_fpfs[order]
 mean_fpfs_occ = mean_fpfs_occ[order]
+occ_state = occ_state[order]
 
 fig, ax = plt.subplots()
 ax.plot(phase, mean_fpfs, "o-", label="Unocculted")
-ax.plot(phase, mean_fpfs_occ, "o-", label="Occulted")
+ax.scatter(phase, mean_fpfs_occ, c=occ_state, label="Occulted")
 ax.set_xlabel("Orbital phase", fontsize=14)
 ax.set_ylabel(r"Band mean F$_{\rm p}$/F$_{\star}$", fontsize=14)
 ax.legend()

@@ -27,11 +27,14 @@ def read_transit_file(fname):
 
     Columns written by exp_3D_sph_atm_trans_lightcurve are already finished,
     dimensionless transit depths:
-        wl, depth, depth_atm, depth_atm_east, depth_atm_west
+        wl, depth, depth_atm, depth_atm_east, depth_atm_west, depth_opaque
     where
         depth      = (opaque body + atmosphere) blocked fraction (Rp/Rs)^2-like,
         depth_atm  = atmosphere-only contribution,
+        depth_opaque = opaque solid-body contribution,
         east/west  = atmosphere contribution split by tangent-point limb.
+    Older five-column files are still accepted; depth_opaque is inferred as
+    depth - depth_atm.
     """
     header = np.loadtxt(fname, max_rows=1)
     data = np.atleast_2d(np.loadtxt(fname, skiprows=1))
@@ -42,6 +45,10 @@ def read_transit_file(fname):
         raise ValueError(
             f"{fname}: expected wl, depth, depth_atm, depth_atm_east, depth_atm_west"
         )
+    if data.shape[1] >= 6:
+        depth_opaque = data[:, 5]
+    else:
+        depth_opaque = data[:, 1] - data[:, 2]
 
     meta = {
         "fname": fname,
@@ -57,7 +64,7 @@ def read_transit_file(fname):
         "zstar": header[9],
     }
 
-    return meta, data[:, 0], data[:, 1], data[:, 2], data[:, 3], data[:, 4]
+    return meta, data[:, 0], data[:, 1], data[:, 2], data[:, 3], data[:, 4], depth_opaque
 
 
 def load_transit_files(pattern):
@@ -85,6 +92,7 @@ def plot_transit_results(rows, period_days):
     wl = rows[0][1]
 
     depth = np.array([row[2] for row in rows])        # body + atmosphere
+    opaque = np.array([row[6] for row in rows])       # opaque solid body
     east = np.array([row[4] for row in rows])         # atmosphere east limb
     west = np.array([row[5] for row in rows])         # atmosphere west limb
 
@@ -106,6 +114,7 @@ def plot_transit_results(rows, period_days):
     # Band-mean depth / atmosphere limb asymmetry vs time.
     fig, ax = plt.subplots()
     ax.plot(time_hours, np.mean(depth, axis=1), "ko-", label="Total")
+    ax.plot(time_hours, np.mean(opaque, axis=1), "o-", color="darkorange", label="Opaque body")
     ax.plot(time_hours, np.mean(east, axis=1), "o-", color="firebrick", label="East limb (atm)")
     ax.plot(time_hours, np.mean(west, axis=1), "o-", color="royalblue", label="West limb (atm)")
     ax.set_xlabel("Time from mid-transit [hours]", fontsize=14)

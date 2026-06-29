@@ -16,11 +16,16 @@ inc_lbl = .False.
 inc_CIA = .True.
 inc_Ray = .True.
 inc_cld = .True.
+inc_xsec = .False.
 
 do_scat_loop = .True.
 do_g_bias = .True.
 wght_deg = .False.
 do_BB_band = .False.
+do_surf = .False.
+T_surf = 0.0
+emis_surf = 0.0
+alb_surf = 0.0
 
 lbl = .False.
 ck = .True.
@@ -49,6 +54,7 @@ LD_c = 0.077, 0.311, 0.0, 0.0
 
 Rs = 0.805
 inc = 85.51
+ecc = 0.0
 phase = 0.005
 
 do_phase = .False.

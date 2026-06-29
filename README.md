@@ -480,9 +480,9 @@ where `H_base = H(1)` is the opaque/reference radius, `H_top = H(n_lev)` is the 
 
 The data rows are:
 
-`wavelength T_trans T_trans_east T_trans_west`
+`wavelength depth depth_atm depth_atm_east depth_atm_west depth_opaque`
 
-`T_trans` is the atmospheric transmission component. The opaque planet area can be added analytically from the projected star-planet overlap; the WASP-39b plotting script does this when plotting the normalised light curve.
+`depth` is the total blocked fraction from the opaque body plus atmosphere. `depth_atm`, `depth_atm_east` and `depth_atm_west` are the atmosphere-only contribution and its east/west limb split. `depth_opaque` is the solid-body contribution alone, including the active limb-darkening law.
 
 ### &diffuse_nml
 
@@ -522,6 +522,10 @@ The WASP-33b and WASP-39b example directories include a common set of plotting/p
 
 `plot_trans_lc.py` - primary-transit light curve from `Transit_*.txt`
 
+`plot_trans_lc_interactive.py` - interactive primary-transit light-curve explorer from `Transit_*.txt`
+
+`compare_trans_lc_opaque_batman.py` - compares `depth_opaque` from `Transit_*.txt` against a batman solid-body light curve; requires `batman-package`
+
 `plot_em.py` - emission spectra from `Em_*.txt`
 
 `plot_em_lc.py` - emission phase/eclipsing light curve from `Em_*.txt`
@@ -544,6 +548,11 @@ For phase curves and eclipses, `plot_em_lc.py` reads the unocculted and occulted
 
 To test the primary-transit light-curve mode in the WASP-33b directory, change `xper` to `3D_sph_trans_lc` and set `do_trans = .True.`. The light-curve mode writes `Transit_*.txt`; run `plot_trans_lc.py` from the WASP-33b example directory to plot transit spectra, normalised flux versus time from mid-transit, and the wavelength-time normalised-flux map.
 
+For interactive exploration, run `python ../plot_trans_lc_interactive.py --pattern "Transit_*.txt" --period-days 1.21987` from the WASP-33b example directory. The sliders select a wavelength bin and averaging width, and clicking a light-curve point shows the spectrum for that transit phase.
+
+To check the solid-body light curve against batman, run `python ../compare_trans_lc_opaque_batman.py --pattern "Transit_*.txt" --namelist CMCRT.nml` from the WASP-33b example directory.
+Add `--force-ld` to apply the namelist `ilimb`/`LD_c` coefficients in batman even when `do_LD = .False.`.
+
 ## WASP-39b GCM transmission spectrum and transit light curve (with details on using CE interpolation tables)
 
 Example using an Exo-FMS WASP-39b model. The default `CMCRT.nml` produces a transmission spectrum, and the same namelist also contains dormant blocks for emission, secondary-eclipse experiments and a `3D_sph_trans_lc` primary-transit light-curve test setup.
@@ -561,6 +570,11 @@ The light-curve mode writes `Transit_*.txt` files. Run `plot_trans_lc.py` from t
 2. band-mean transmission diagnostics
 3. normalised flux versus time from mid-transit
 4. wavelength-time normalised-flux map
+
+For interactive exploration, run `python ../plot_trans_lc_interactive.py --pattern "Transit_*.txt" --period-days 4.0552941` from the WASP-39b example directory. The sliders select a wavelength bin and averaging width, and clicking a light-curve point shows the spectrum for that transit phase.
+
+To check the solid-body light curve against batman, run `python ../compare_trans_lc_opaque_batman.py --pattern "Transit_*.txt" --namelist CMCRT.nml` from the WASP-39b example directory.
+Add `--force-ld` to apply the namelist `ilimb`/`LD_c` coefficients in batman even when `do_LD = .False.`.
 
 To experiment with WASP-39b emission, change `xper` to `3D_sph_em` and set `do_trans = .False.`. The provided `&sph_3D_em` block is a single-view setup by default. To run an emission phase curve, set `do_phase = .True.`. To include secondary-eclipse/occultation sampling, set both `do_phase = .True.` and `do_eclipse = .True.`; `n_phase` and `n_ecl` are already populated with example values.
 

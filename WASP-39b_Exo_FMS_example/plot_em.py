@@ -14,11 +14,13 @@ RS = 0.932 * RSUN
 
 
 def read_emission_file(path):
-    head = np.loadtxt(path, max_rows=1)
+    head = np.atleast_1d(np.loadtxt(path, max_rows=1))
     data = np.atleast_2d(np.loadtxt(path, skiprows=1))
 
     frac_occ = data[:, 2] if data.shape[1] >= 4 else data[:, 1]
     ltot = data[:, 3] if data.shape[1] >= 4 else data[:, 2]
+
+    phase = float(head[5]) if len(head) > 5 else float(head[3])
 
     return {
         "wl": data[:, 0],
@@ -28,6 +30,13 @@ def read_emission_file(path):
         "rp": float(head[1]),
         "r_top": float(head[2]),
         "viewphi": float(head[3]) if len(head) > 3 else np.nan,
+        "viewthet": float(head[4]) if len(head) > 4 else np.nan,
+        "phase": phase,
+        "occ_state": int(head[6]) if len(head) > 6 else 0,
+        "xstar": float(head[7]) if len(head) > 7 else np.nan,
+        "ystar": float(head[8]) if len(head) > 8 else np.nan,
+        "zstar": float(head[9]) if len(head) > 9 else np.nan,
+        "separation": float(head[10]) if len(head) > 10 else np.nan,
     }
 
 
@@ -76,18 +85,22 @@ fp = np.zeros((n_ph, n_wl))
 fp_occ = np.zeros((n_ph, n_wl))
 bt = np.zeros((n_ph, n_wl))
 viewphi = np.zeros(n_ph)
+phase = np.zeros(n_ph)
+occ_state = np.zeros(n_ph, dtype=int)
 
 for n, fname in enumerate(em_files):
     print(fname)
     em = read_emission_file(fname)
     viewphi[n] = em["viewphi"]
+    phase[n] = em["phase"]
+    occ_state[n] = em["occ_state"]
     fp[n, :] = (em["frac"] * em["ltot"]) / em["r_top"]**2
     fp_occ[n, :] = (em["frac_occ"] * em["ltot"]) / em["r_top"]**2
     bt[n, :] = brightness_temperature(wl, fp[n, :])
 
 fig, ax = plt.subplots()
 for n in range(n_ph):
-    ax.plot(wl, fp[n, :], label=f"Viewphi {viewphi[n]:.1f}")
+    ax.plot(wl, fp[n, :], label=f"Phase {phase[n]:.4f} (occ {occ_state[n]})")
 ax.set_xlabel(r"$\lambda$ [$\mu$m]", fontsize=14)
 ax.set_ylabel(r"F$_{\rm p}$ [erg s$^{-1}$ cm$^{-2}$ cm$^{-1}$]", fontsize=14)
 ax.set_xscale("log")
@@ -98,7 +111,7 @@ fig.tight_layout()
 
 fig, ax = plt.subplots()
 for n in range(n_ph):
-    ax.plot(wl, bt[n, :], label=f"Viewphi {viewphi[n]:.1f}")
+    ax.plot(wl, bt[n, :], label=f"Phase {phase[n]:.4f} (occ {occ_state[n]})")
 ax.set_xlabel(r"$\lambda$ [$\mu$m]", fontsize=14)
 ax.set_ylabel(r"T$_{\rm b}$ [K]", fontsize=14)
 ax.set_xscale("log")
@@ -111,7 +124,7 @@ fig, ax = plt.subplots()
 for n in range(n_ph):
     fpfs = (first["rp"] / RS) ** 2 * (fp[n, :] / fs_binned)
     fpfs_occ = (first["rp"] / RS) ** 2 * (fp_occ[n, :] / fs_binned)
-    ax.plot(wl, fpfs, label=f"Viewphi {viewphi[n]:.1f}")
+    ax.plot(wl, fpfs, label=f"Phase {phase[n]:.4f} (occ {occ_state[n]})")
     ax.plot(wl, fpfs_occ, ls="--", alpha=0.7)
 ax.set_xlabel(r"$\lambda$ [$\mu$m]", fontsize=14)
 ax.set_ylabel(r"F$_{\rm p}$/F$_{\star}$", fontsize=14)

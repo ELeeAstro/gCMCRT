@@ -21,15 +21,23 @@ def read_nml_int(name, default):
 
 
 def read_emission_file(path):
-    head = np.loadtxt(path, max_rows=1)
+    head = np.atleast_1d(np.loadtxt(path, max_rows=1))
     data = np.atleast_2d(np.loadtxt(path, skiprows=1))
     ltot = data[:, 3] if data.shape[1] >= 4 else data[:, 2]
+    phase = float(head[5]) if len(head) > 5 else float(head[3])
     return {
         "wl": data[:, 0],
         "frac": data[:, 1],
         "ltot": ltot,
         "r_top": float(head[2]),
         "viewphi": float(head[3]) if len(head) > 3 else np.nan,
+        "viewthet": float(head[4]) if len(head) > 4 else np.nan,
+        "phase": phase,
+        "occ_state": int(head[6]) if len(head) > 6 else 0,
+        "xstar": float(head[7]) if len(head) > 7 else np.nan,
+        "ystar": float(head[8]) if len(head) > 8 else np.nan,
+        "zstar": float(head[9]) if len(head) > 9 else np.nan,
+        "separation": float(head[10]) if len(head) > 10 else np.nan,
     }
 
 
@@ -89,7 +97,10 @@ for n, fname in enumerate(em_files):
     cbar.set_label(r"T$_{\rm b}$ [K]", fontsize=14)
     ax.set_ylabel("y pixel", fontsize=14)
     ax.set_xlabel("x pixel", fontsize=14)
-    ax.set_title(f"Viewphi: {em['viewphi']:.1f}", fontsize=14)
+    ax.set_title(
+        f"Phase: {em['phase']:.4f}; viewphi: {em['viewphi']:.1f}; occ: {em['occ_state']}",
+        fontsize=14,
+    )
     ax.tick_params(axis="both", which="major", labelsize=12)
     fig.tight_layout()
 

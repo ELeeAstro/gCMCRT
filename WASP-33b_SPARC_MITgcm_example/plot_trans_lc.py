@@ -25,13 +25,26 @@ def centered_phase(phase):
 
 
 def read_transit_file(fname):
+    """Read one Transit_*.txt file.
+
+    Current output columns are finished, dimensionless depths:
+        wl, depth, depth_atm, depth_atm_east, depth_atm_west, depth_opaque
+    Older five-column files are still accepted; depth_opaque is inferred as
+    depth - depth_atm.
+    """
     header = np.loadtxt(fname, max_rows=1)
     data = np.atleast_2d(np.loadtxt(fname, skiprows=1))
 
     if header.size < 10:
         raise ValueError(f"{fname}: expected 10 header values, got {header.size}")
-    if data.shape[1] < 4:
-        raise ValueError(f"{fname}: expected wavelength, total, east, west columns")
+    if data.shape[1] < 5:
+        raise ValueError(
+            f"{fname}: expected wl, depth, depth_atm, depth_atm_east, depth_atm_west"
+        )
+    if data.shape[1] >= 6:
+        depth_opaque = data[:, 5]
+    else:
+        depth_opaque = data[:, 1] - data[:, 2]
 
     meta = {
         "fname": fname,
@@ -47,14 +60,13 @@ def read_transit_file(fname):
         "zstar": header[9],
     }
 
-    return meta, data[:, 0], data[:, 1], data[:, 2], data[:, 3]
+    return meta, data[:, 0], data[:, 1], data[:, 2], data[:, 3], data[:, 4], depth_opaque
 
 
 def load_transit_files(pattern):
     rows = []
     for fname in sorted(glob(pattern)):
-        meta, wl, total, east, west = read_transit_file(fname)
-        rows.append((meta, wl, total, east, west))
+        rows.append(read_transit_file(fname))
 
     if not rows:
         raise FileNotFoundError(f"No transit files matched {pattern!r}")
@@ -68,55 +80,17 @@ def load_transit_files(pattern):
     return rows
 
 
-def circle_overlap_area(r1, r2, d):
-    d = np.asarray(d)
-    area = np.zeros_like(d, dtype=float)
-
-    no_overlap = d >= (r1 + r2)
-    full_overlap = d <= abs(r1 - r2)
-    partial = ~(no_overlap | full_overlap)
-
-    area[full_overlap] = np.pi * min(r1, r2) ** 2
-
-    if np.any(partial):
-        dp = d[partial]
-        a1 = np.arccos(np.clip((dp**2 + r1**2 - r2**2) / (2.0 * dp * r1), -1.0, 1.0))
-        a2 = np.arccos(np.clip((dp**2 + r2**2 - r1**2) / (2.0 * dp * r2), -1.0, 1.0))
-        a3 = 0.5 * np.sqrt(
-            np.maximum(
-                0.0,
-                (-dp + r1 + r2)
-                * (dp + r1 - r2)
-                * (dp - r1 + r2)
-                * (dp + r1 + r2),
-            )
-        )
-        area[partial] = r1**2 * a1 + r2**2 * a2 - a3
-
-    return area
-
-
-def plot_transit_results(rows, rs, period_days):
+def plot_transit_results(rows, period_days):
     phases = np.array([centered_phase(row[0]["phase"]) for row in rows])
     time_hours = phases * period_days * 24.0
     states = np.array([row[0]["state"] for row in rows])
-    xstar = np.array([row[0]["xstar"] for row in rows])
-    ystar = np.array([row[0]["ystar"] for row in rows])
     wl = rows[0][1]
-    rp = rows[0][0]["rp"]
-    total = np.array([row[2] for row in rows])
-    east = np.array([row[3] for row in rows])
-    west = np.array([row[4] for row in rows])
-
-    dstar = np.sqrt(xstar**2 + ystar**2)
-    opaque_area = circle_overlap_area(rs, rp, dstar)
-    delta_opaque = opaque_area / (np.pi * rs**2)
-    delta_atm = 2.0 * total / rs**2
-    flux = 1.0 - delta_opaque[:, None] - delta_atm
-
-    depth_total = 1.0 - flux
-    depth_east = delta_opaque[:, None] + 4.0 * east / rs**2
-    depth_west = delta_opaque[:, None] + 4.0 * west / rs**2
+    depth_total = np.array([row[2] for row in rows])
+    depth_atm = np.array([row[3] for row in rows])
+    depth_east = np.array([row[4] for row in rows])
+    depth_west = np.array([row[5] for row in rows])
+    depth_opaque = np.array([row[6] for row in rows])
+    flux = 1.0 - depth_total
 
     fig, ax = plt.subplots()
     for i, phase in enumerate(phases):
@@ -133,8 +107,10 @@ def plot_transit_results(rows, rs, period_days):
 
     fig, ax = plt.subplots()
     ax.plot(time_hours, np.mean(depth_total, axis=1), "ko-", label="Total")
-    ax.plot(time_hours, np.mean(depth_east, axis=1), "o-", color="firebrick", label="East limb")
-    ax.plot(time_hours, np.mean(depth_west, axis=1), "o-", color="royalblue", label="West limb")
+    ax.plot(time_hours, np.mean(depth_opaque, axis=1), "o-", color="darkorange", label="Opaque body")
+    ax.plot(time_hours, np.mean(depth_atm, axis=1), "o-", color="0.4", label="Atmosphere")
+    ax.plot(time_hours, np.mean(depth_east, axis=1), "o-", color="firebrick", label="East limb (atm)")
+    ax.plot(time_hours, np.mean(depth_west, axis=1), "o-", color="royalblue", label="West limb (atm)")
     ax.set_xlabel("Time from mid-transit [hours]", fontsize=14)
     ax.set_ylabel("Band mean transit depth", fontsize=14)
     ax.legend(fontsize=9)
@@ -179,7 +155,7 @@ def main():
         "--rs",
         type=float,
         default=DEFAULT_RS,
-        help="Stellar radius in cm. Default is 1.444 Rsun for WASP-33.",
+        help="Deprecated; transit depths are already normalized by the Fortran output.",
     )
     parser.add_argument(
         "--period-days",
@@ -190,7 +166,7 @@ def main():
     args = parser.parse_args()
 
     rows = load_transit_files(args.pattern)
-    plot_transit_results(rows, args.rs, args.period_days)
+    plot_transit_results(rows, args.period_days)
 
 
 if __name__ == "__main__":
