@@ -13,7 +13,7 @@ c    formulations, were published in:
 
 c        Toon, O. and T. Ackerman, Applied Optics 20, 3657 (1981)
 
-c    Further documentation, including definitons of input and output
+c    Further documentation, including definitions of input and output
 c    arguments, is inside the single precision version of this program
 c    (SUBROUTINE MieLay, available by anonymous ftp from 
 c    climate.gsfc.nasa.gov in directory pub/wiscombe).
@@ -26,7 +26,7 @@ c    index relevant to your particular problem, before adopting the
 c    single precision version.  This version is also recommended for
 c    cases of large size parameter (bigger than 10 or so) and/or large 
 c    imaginary refractive index (bigger than 1 or so) and also whenever 
-c    overflows or strange behavior are encountered in running the
+c    overflows or strange behaviour are encountered when running the
 c    single precision version.  Sometimes the bigger exponent range in
 c    DOUBLE PRECISION is as important as the added precision.
 
@@ -205,7 +205,7 @@ c                                ** Down-recurrence for A function
 
    50 CONTINUE
 
-c                          ** Initialization of homogeneous sphere
+c                          ** Initialisation of homogeneous sphere
 
       T( 1 ) = COS( XSHELL )
       T( 2 ) = SIN( XSHELL )
@@ -217,7 +217,7 @@ c                          ** Initialization of homogeneous sphere
       TA( 3 ) =  DBLE( WFN(2) )
       TA( 4 ) = DIMAG( WFN(2) )
 
-c                      ** Initialization procedure for stratified sphere
+c                      ** Initialisation procedure for stratified sphere
       N      = 1
       SINX1  = SIN( X1 )
       SINX4  = SIN( X4 )
@@ -569,4 +569,3 @@ c     ..
       WRTDIM = .TRUE.
 
       END
-

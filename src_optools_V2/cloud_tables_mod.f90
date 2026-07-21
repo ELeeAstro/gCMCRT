@@ -40,7 +40,7 @@ contains
     real(kind=dp), allocatable, dimension(:) :: n_work, k_work
     complex(kind=dp) :: eps_comb
 
-    ! Note, the order of the array allocations is important (due to namelist order)
+    ! The array-allocation order is important because it follows the namelist order.
 
     ! Allocate number of cl species nk tables
     allocate(cl_tab(ncl))
@@ -50,6 +50,37 @@ contains
 
     ! Read lbl namelist parameters
     read(u_nml, nml=cl_nml)
+
+    if (idist < 0 .or. idist > 8) then
+      print*, 'ERROR - Cloud distribution idist must be between 0 and 8 - STOPPING'
+      print*, 'idist: ', idist
+      stop
+    end if
+
+    if (imie < 0 .or. imie > 6) then
+      print*, 'ERROR - Mie method imie must be between 0 and 6 - STOPPING'
+      print*, 'imie: ', imie
+      stop
+    end if
+
+    if (idist > 2) then
+      if (ndist < 2) then
+        print*, 'ERROR - Sampled cloud distributions require ndist >= 2 - STOPPING'
+        print*, 'idist, ndist: ', idist, ndist
+        stop
+      end if
+      if (.not. (amin > 0.0_dp .and. amax > amin)) then
+        print*, 'ERROR - Cloud distribution limits require 0 < amin < amax - STOPPING'
+        print*, 'amin, amax [um]: ', amin, amax
+        stop
+      end if
+    end if
+
+    if (idist >= 4 .and. idist <= 7 .and. idist_int /= 1) then
+      print*, 'ERROR - Selected cloud distribution only supports idist_int = 1 - STOPPING'
+      print*, 'idist, idist_int: ', idist, idist_int
+      stop
+    end if
 
     ! Allocate work arrays
     allocate(cl_out_k(nlay), cl_out_a(nlay), cl_out_g(nlay), cl_write(nlay))
@@ -66,6 +97,11 @@ contains
        read(ug,*) n, cl_out_g(:)
        call output_cl_table(l)
       end do
+      close(uext) ; close(ua) ; close(ug)
+      close(ucl_k) ; close(ucl_a) ; close(ucl_g)
+      deallocate(cl_tab)
+      deallocate(form,paths)
+      deallocate(cl_out_k,cl_out_a,cl_out_g,cl_write)
       return
     end if
 
@@ -91,13 +127,13 @@ contains
         end if
       end do
       if (exists .eqv. .False.) then
-        print*, 'ERROR - Specifed cloud species not found in clprf VMR list - STOPPING'
+        print*, 'ERROR - Specified cloud species not found in clprf VMR list - STOPPING'
         print*, 'Species: ', cl_tab(s)%sp
         stop
       end if
     end do
 
-    ! Some preparation for distribution calculations
+    ! Prepare the particle-size distribution calculation.
     if (idist > 2) then
       allocate(a_dist(ndist))
       !! sample ndist grain sizes between amin and amax in log 10 space
@@ -131,18 +167,18 @@ contains
     mie_meth(4) = 'DHS'; mie_meth(5) = 'BHCOAT' ; mie_meth(6) = 'LX-MIE'
     print*, ' -- Using the '//trim(mie_meth(imie))//' method: ', imie
 
-    !! Begin openMP loops
+    !! Begin OpenMP loops.
     !$omp parallel default (none), &
     !$omp& private (l,z), &
     !$omp& shared (nwl,nlay, wl, &
     !$omp& n_work,k_work,cl_out_k,cl_out_a,cl_out_g,RH_lay,nd_cl_lay,idist), &
     !$omp& firstprivate(eps_comb)
 
-    ! Perform cl table interpolation to wavalength
+    ! Interpolate the cloud tables to the requested wavelength.
     ! Species loops are inside subroutines
     do l = 1, nwl
       !$omp single
-      if (mod(l,nwl/10) == 0) then
+      if (mod(l,max(1,nwl/10)) == 0) then
         print*, l, wl(l), nwl
       end if
       !$omp end single
@@ -192,7 +228,7 @@ contains
     deallocate(form,paths)
     deallocate(cl_out_k,cl_out_a,cl_out_g,cl_write)
     deallocate(n_work,k_work)
-    ! Close ucl i/o units
+    ! Close the cloud I/O units.
     close(ucl_k) ; close(ucl_a) ; close(ucl_g)
 
   end subroutine calc_cloud_table
@@ -216,7 +252,7 @@ contains
     end if
 
     ! Write the cloud/haze opacity, single scattering albedo and g to files
-    ! Convert to single precision on output, also care for underfloat
+    ! Convert to single precision on output and protect against underflow.
     cl_write(:) = real(max(cl_out_k(:),1.0e-30_dp),kind=sp)
     write(ucl_k,rec=l) cl_write
 

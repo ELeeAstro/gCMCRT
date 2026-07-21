@@ -1,9 +1,15 @@
 module optools_aux
   use optools_data_mod, only : dp
+  use, intrinsic :: ieee_arithmetic, only : ieee_is_finite
   implicit none
 
+  integer, parameter :: locate_below = -1
+  integer, parameter :: locate_inside = 0
+  integer, parameter :: locate_above = 1
+
   private
-  public :: locate, sort2, gauss, &
+  public :: locate, locate_triplet, locate_below, locate_inside, locate_above, &
+    & sort2, gauss, &
     & linear_interp, linear_log_interp, bilinear_interp, bilinear_log_interp, &
     & trapz, Bezier_interp
 
@@ -100,46 +106,113 @@ contains
   end subroutine bilinear_log_interp
 
   ! Perform Bezier interpolation
-  subroutine Bezier_interp(xi, yi, ni, x, y)
+  subroutine Bezier_interp(xi, yi, x, y)
     implicit none
 
-    integer, intent(in) :: ni
-    real(dp), dimension(ni), intent(in) :: xi, yi
+    real(dp), dimension(3), intent(in) :: xi, yi
     real(dp), intent(in) :: x
     real(dp), intent(out) :: y
 
-    real(dp) :: xc, dx, dx1, dy, dy1, w, yc, t, wlim, wlim1
+    real(dp) :: dx, dx1, dy, dy1, w, yc, t, wlim, wlim1
+    real(dp) :: denom, denom1, grad_scale, grad_tol, y_linear
 
-    !xc = (xi(1) + xi(2))/2.0_dp ! Control point (no needed here, implicitly included)
+    if (any(.not. ieee_is_finite(xi)) .or. any(.not. ieee_is_finite(yi)) .or. &
+      & .not. ieee_is_finite(x)) then
+      print*, 'Error in Bezier_interp: non-finite input - STOPPING', x, xi, yi
+      stop
+    end if
+
     dx = xi(2) - xi(1)
     dx1 = xi(3) - xi(2)
+
+    if (dx <= 0.0_dp .or. dx1 <= 0.0_dp) then
+      print*, 'Error in Bezier_interp: stencil grid must be strictly increasing - STOPPING', xi
+      stop
+    end if
+
     dy = yi(2) - yi(1)
     dy1 = yi(3) - yi(2)
 
-    if (x > xi(1) .and. x < xi(2)) then
+    ! Return exact endpoints and clamp any round-off excursion outside the stencil.
+    if (x <= xi(1)) then
+      y = yi(1)
+      return
+    else if (x >= xi(3)) then
+      y = yi(3)
+      return
+    else if (x == xi(2)) then
+      y = yi(2)
+      return
+    end if
+
+    ! Calculate the ordinary linear result for the active interval. This is
+    ! the safe fallback for flat or ill-conditioned Bezier stencils.
+    if (x < xi(2)) then
+      t = (x - xi(1))/dx
+      y_linear = (1.0_dp - t)*yi(1) + t*yi(2)
+    else
+      t = (x - xi(2))/dx1
+      y_linear = (1.0_dp - t)*yi(2) + t*yi(3)
+    end if
+
+    grad_scale = max(1.0_dp, abs(yi(1)), abs(yi(2)), abs(yi(3)))
+    grad_tol = 100.0_dp*epsilon(1.0_dp)*grad_scale
+
+    ! The limiter ratios divide by both gradients. A flat interval or a
+    ! change in gradient sign is better represented by the linear fallback.
+    if (abs(dy) <= grad_tol .or. abs(dy1) <= grad_tol .or. &
+      & (dy > 0.0_dp .and. dy1 < 0.0_dp) .or. &
+      & (dy < 0.0_dp .and. dy1 > 0.0_dp)) then
+      y = y_linear
+      return
+    end if
+
+    denom = 1.0_dp - (dy1/dy)*(dx/dx1)
+    denom1 = 1.0_dp - (dy/dy1)*(dx1/dx)
+
+    if (.not. ieee_is_finite(denom) .or. .not. ieee_is_finite(denom1) .or. &
+      & abs(denom) <= 100.0_dp*epsilon(1.0_dp) .or. &
+      & abs(denom1) <= 100.0_dp*epsilon(1.0_dp)) then
+      y = y_linear
+      return
+    end if
+
+    if (x < xi(2)) then
       ! left hand side interpolation
-      !print*,'left'
       w = dx1/(dx + dx1)
-      wlim = 1.0_dp + 1.0_dp/(1.0_dp - (dy1/dy) * (dx/dx1))
-      wlim1 = 1.0_dp/(1.0_dp - (dy/dy1) * (dx1/dx))
+      wlim = 1.0_dp + 1.0_dp/denom
+      wlim1 = 1.0_dp/denom1
       if (w <= min(wlim,wlim1) .or. w >= max(wlim,wlim1)) then
         w = 1.0_dp
       end if
       yc = yi(2) - dx/2.0_dp * (w*dy/dx + (1.0_dp - w)*dy1/dx1)
       t = (x - xi(1))/dx
-      y = (1.0_dp - t)**2 * yi(1) + 2.0_dp*t*(1.0_dp - t)*yc + t**2*yi(2)
-    else ! (x > xi(2) and x < xi(3)) then
+      if (.not. ieee_is_finite(yc) .or. yc < min(yi(1),yi(2)) .or. &
+        & yc > max(yi(1),yi(2))) then
+        y = y_linear
+        return
+      end if
+      y = (1.0_dp - t)**2*yi(1) + 2.0_dp*t*(1.0_dp - t)*yc + t**2*yi(2)
+    else
       ! right hand side interpolation
-      !print*,'right'
       w = dx/(dx + dx1)
-      wlim = 1.0_dp/(1.0_dp - (dy1/dy) * (dx/dx1))
-      wlim1 = 1.0_dp + 1.0_dp/(1.0_dp - (dy/dy1) * (dx1/dx))
+      wlim = 1.0_dp/denom
+      wlim1 = 1.0_dp + 1.0_dp/denom1
       if (w <= min(wlim,wlim1) .or. w >= max(wlim,wlim1)) then
         w = 1.0_dp
       end if
       yc = yi(2) + dx1/2.0_dp * (w*dy1/dx1 + (1.0_dp - w)*dy/dx)
-      t = (x - xi(2))/(dx1)
-      y = (1.0_dp - t)**2 * yi(2) + 2.0_dp*t*(1.0_dp - t)*yc + t**2*yi(3)
+      t = (x - xi(2))/dx1
+      if (.not. ieee_is_finite(yc) .or. yc < min(yi(2),yi(3)) .or. &
+        & yc > max(yi(2),yi(3))) then
+        y = y_linear
+        return
+      end if
+      y = (1.0_dp - t)**2*yi(2) + 2.0_dp*t*(1.0_dp - t)*yc + t**2*yi(3)
+    end if
+
+    if (.not. ieee_is_finite(y)) then
+      y = y_linear
     end if
 
   end subroutine Bezier_interp
@@ -169,6 +242,47 @@ contains
     idx = jl
 
   end subroutine locate
+
+  ! Locate a consecutive three-point stencil on a strictly increasing grid.
+  ! Region reports whether var is below, inside, or above the full grid, while
+  ! exact_idx identifies exact grid matches so callers can bypass interpolation.
+  subroutine locate_triplet(arr, var, idx, region, exact_idx)
+    implicit none
+
+    real(kind=dp), dimension(:), intent(in) :: arr
+    real(kind=dp), intent(in) :: var
+    integer, dimension(3), intent(out) :: idx
+    integer, intent(out) :: region, exact_idx
+    integer :: lower, start
+
+    if (size(arr) < 3) then
+      print*, 'Error in locate_triplet: at least 3 grid points are required - STOPPING', size(arr)
+      stop
+    end if
+
+    if (.not. ieee_is_finite(var)) then
+      print*, 'Error in locate_triplet: target is not finite - STOPPING', var
+      stop
+    end if
+
+    call locate(arr,var,lower)
+    exact_idx = 0
+
+    if (var < arr(1)) then
+      region = locate_below
+    else if (var > arr(size(arr))) then
+      region = locate_above
+    else
+      region = locate_inside
+      if (lower < size(arr)) then
+        if (var == arr(lower+1)) exact_idx = lower + 1
+      end if
+    end if
+
+    start = max(1,min(lower-1,size(arr)-2))
+    idx = [start,start+1,start+2]
+
+  end subroutine locate_triplet
 
   pure subroutine sort2(N,RA,RB)
     integer, intent(in) :: N
@@ -222,16 +336,15 @@ contains
       implicit none
   !**********************************************************************
   !*****                                                            *****
-  !*****   Diese Routine loesst ein lineares Gleichungssystem       *****
-  !*****   der Form    (( a )) * ( x ) = ( b )     nach x auf.      *****
-  !*****   Der Algorithmus funktioniert, indem die Matrix a         *****
-  !*****   auf Dreiecksform gebracht wird.                          *****
+  !*****   This routine solves the linear system                     *****
+  !*****   (( a )) * ( x ) = ( b ) for x.                            *****
+  !*****   The algorithm reduces matrix a to triangular form.        *****
   !*****                                                            *****
-  !*****   EINGABE:  Nd = Dimension der Vektoren, der Matrix        *****
-  !*****              N = Dimension der Gl-Systems (N<=Nd)          *****
-  !*****              a = (N x N)-Matrix                            *****
-  !*****              b = (N)-Vektor                                *****
-  !*****   AUSGABE:   x = (N)-Vektor                                *****
+  !*****   INPUT:   Nd = dimensions of the vectors and matrix        *****
+  !*****             N = dimension of the linear system (N<=Nd)      *****
+  !*****              a = (N x N) matrix                            *****
+  !*****             b = vector of length N                          *****
+  !*****   OUTPUT:    x = vector of length N                          *****
   !*****                                                            *****
   !**********************************************************************
   !*
@@ -244,7 +357,7 @@ contains
 
       do i = 1, N-1
   !*       ------------------------------------------
-  !*       ***  MAX-Zeilentausch der i-ten Zeile  ***
+  !*       ***  Maximum-pivot row exchange for row i  ***
   !*       ------------------------------------------
         kmax = i
         amax = abs(a(i,i))
@@ -267,7 +380,7 @@ contains
         end if
   !*
   !*       ---------------------------------
-  !*       ***  bringe auf Dreiecksform  ***
+  !*       ***  Reduce to triangular form  ***
   !*       ---------------------------------
         do k = i+1, N
           c = a(k,i) / a(i,i)
@@ -281,7 +394,7 @@ contains
       end do
   !*
   !*     --------------------------
-  !*     ***  loese nach x auf  ***
+  !*     ***  Solve for x  ***
   !*     --------------------------
       do i = N, 1, -1
         c = 0.0_dp

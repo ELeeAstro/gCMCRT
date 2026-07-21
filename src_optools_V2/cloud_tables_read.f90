@@ -41,12 +41,18 @@ contains
     integer :: l, u, nlines
     logical :: conducting_flag
 
-    ! Open DOHRT formatted nk file
+    ! Open DIHRT formatted nk file
     print*, ' - cl - DIHRT Reading: ', s, cl_tab(s)%sp, trim(cl_tab(s)%path)
     open(newunit=u, file=trim(cl_tab(s)%path), form='formatted', status='old', action='read')
 
     ! Read number of lines and conducting flag
     read(u,*) nlines, conducting_flag
+
+    if (conducting_flag .eqv. .True. .and. nlines < 4) then
+      print*, 'ERROR - Conducting nk table requires at least 4 wavelength points - STOPPING'
+      print*, 'Species, path, points: ', cl_tab(s)%sp, trim(cl_tab(s)%path), nlines
+      stop
+    end if
 
 
     ! Put data into cl_tab container
@@ -66,6 +72,8 @@ contains
       cl_tab(s)%k(l) = max(0.0_dp, cl_tab(s)%k(l))
       !print*, l, cl_tab(s)%wl(l), cl_tab(s)%n(l),cl_tab(s)%k(l)
     end do
+
+    close(u)
 
   end subroutine read_nk_DIHRT
 

@@ -1,6 +1,7 @@
 module lbl_tables_interp
   use optools_data_mod
-  use optools_aux, only : locate, linear_log_interp, bilinear_log_interp, Bezier_interp
+  use optools_aux, only : locate, locate_triplet, locate_below, locate_above, &
+    & linear_log_interp, bilinear_log_interp, Bezier_interp
   use ieee_arithmetic
   implicit none
 
@@ -56,7 +57,7 @@ contains
       call locate(lbl_tab(s)%P(:),P,iP)
       iP1 = iP + 1
 
-      !! Do large corner cases situation checks - this sucks but has to be done !!
+      !! Handle the pressure and temperature boundary cases explicitly.
       !! Check temperature corner cases first (most likely)
       if (iT == lbl_tab(s)%nT) then
         edge_case = .True.
@@ -73,7 +74,7 @@ contains
           call linear_log_interp(xval, x0, x1, a0, a1, aval)
           lbl_work(s) = aval
         else
-          ! Prssure is within table, perform bilinear interpolation
+          ! Pressure is within the table; perform bilinear interpolation.
           z0 = lbl_tab(s)%P(iP) ; z1 = lbl_tab(s)%P(iP1)
           a00 = lbl_tab(s)%k_abs(iwl,iP,iT) ; a01 = lbl_tab(s)%k_abs(iwl,iP1,iT)
           a10 = lbl_tab(s)%k_abs(iwl1,iP,iT) ; a11 = lbl_tab(s)%k_abs(iwl1,iP1,iT)
@@ -95,7 +96,7 @@ contains
           call linear_log_interp(xval, x0, x1, a0, a1, aval)
           lbl_work(s) = aval
         else
-          ! Prssure is within table, perform bilinear interpolation
+          ! Pressure is within the table; perform bilinear interpolation.
           z0 = lbl_tab(s)%P(iP) ; z1 = lbl_tab(s)%P(iP1)
           a00 = lbl_tab(s)%k_abs(iwl,iP,1) ; a01 = lbl_tab(s)%k_abs(iwl,iP1,1)
           a10 = lbl_tab(s)%k_abs(iwl1,iP,1) ; a11 = lbl_tab(s)%k_abs(iwl1,iP1,1)
@@ -106,7 +107,7 @@ contains
 
       !! Check after T edge case
       if (edge_case .eqv. .True.) then
-        ! Check for NaN's from interpolation
+        ! Check for NaNs from interpolation.
         if (ieee_is_nan(lbl_work(s)) .eqv. .True.) then
           print*, 'lbl: NaN in lbl table temperature edge case: ', l, z, s, lbl_tab(s)%sp
           print*, '---', iwl, iwl1, iT, iT1, iP, iP1, '---'
@@ -139,7 +140,7 @@ contains
 
       !! Check after P edge case
       if (edge_case .eqv. .True.) then
-        ! Check for NaN's from interpolation
+        ! Check for NaNs from interpolation.
         if (ieee_is_nan(lbl_work(s)) .eqv. .True.) then
           print*, 'lbl: NaN in lbl table pressure edge case: ', l, z, s, lbl_tab(s)%sp
           print*, '---', iwl, iwl1, iT, iT1, iP, iP1, '---'
@@ -148,13 +149,13 @@ contains
       end if
 
       !! Finally, after all the checks the point is within the table range
-      !! Perform a tri-linear interpolation
+      !! Perform trilinear interpolation.
 
       x0 = lbl_tab(s)%wl(iwl) ; x1 = lbl_tab(s)%wl(iwl1)
       y0 = lbl_tab(s)%T(iT) ; y1 = lbl_tab(s)%T(iT1)
       z0 = lbl_tab(s)%P(iP) ; z1 = lbl_tab(s)%P(iP1)
 
-      ! Point is within table, perform tri-linear interpolation
+      ! The point is within the table; perform trilinear interpolation.
       a000 = lbl_tab(s)%k_abs(iwl,iP,iT)
       a100 = lbl_tab(s)%k_abs(iwl1,iP,iT)
       a010 = lbl_tab(s)%k_abs(iwl,iP,iT1)
@@ -170,7 +171,7 @@ contains
 
       lbl_work(s) = aval
 
-      ! Check for NaN's from interpolation
+      ! Check for NaNs from interpolation.
       if (ieee_is_nan(lbl_work(s)) .eqv. .True.) then
         print*, 'lbl: NaN in lbl table tri-linear_log_interp: ', l, z, s, lbl_tab(s)%sp
         print*, '---', xval, yval, zval, x0, x1, y0, y1, z0, z1, &
@@ -190,6 +191,8 @@ contains
 
     integer :: s
     integer :: iT1, iT2, iT3, iP1, iP2, iP3
+    integer :: iT_idx(3), iP_idx(3), T_region, P_region
+    integer :: iT_exact, iP_exact, iT_fixed, iP_fixed
     real(kind=dp) :: T, P, lT, lP
     real(kind=dp), dimension(3) :: lTa, lPa, lka, lka_lbl
 
@@ -204,108 +207,52 @@ contains
     do s = 1, nlbl
 
       ! Find temperature grid index triplet
-      call locate(lbl_tab(s)%T(:),T,iT2)
-      iT1 = iT2 - 1
-      iT3 = iT2 + 1
-
-      if (iT1 <= 0) then
-        iT1 = 1
-        iT2 = 2
-        iT3 = 3
-      else if (iT3 > lbl_tab(s)%nT) then
-        iT1 = lbl_tab(s)%nT - 2
-        iT2 = lbl_tab(s)%nT - 1
-        iT3 = lbl_tab(s)%nT
-      end if
+      call locate_triplet(lbl_tab(s)%T(:),T,iT_idx,T_region,iT_exact)
+      iT1 = iT_idx(1)
+      iT2 = iT_idx(2)
+      iT3 = iT_idx(3)
 
       lTa(1) = lbl_tab(s)%lT(iT1)
       lTa(2) = lbl_tab(s)%lT(iT2)
       lTa(3) = lbl_tab(s)%lT(iT3)
 
-      ! Find upper and lower T and P triplet indexes
-      call locate(lbl_tab(s)%P(:),P,iP2)
-      iP1 = iP2 - 1
-      iP3 = iP2 + 1 
-
-      if (iP1 <= 0) then
-        iP1 = 1
-        iP2 = 2
-        iP3 = 3
-      else if (iP3 > lbl_tab(s)%nP) then
-        iP1 = lbl_tab(s)%nP - 2
-        iP2 = lbl_tab(s)%nP - 1
-        iP3 = lbl_tab(s)%nP
-      end if
+      ! Find the upper and lower T and P triplet indices.
+      call locate_triplet(lbl_tab(s)%P(:),P,iP_idx,P_region,iP_exact)
+      iP1 = iP_idx(1)
+      iP2 = iP_idx(2)
+      iP3 = iP_idx(3)
 
       lPa(1) = lbl_tab(s)%lP(iP1)
       lPa(2) = lbl_tab(s)%lP(iP2)
       lPa(3) = lbl_tab(s)%lP(iP3)
 
-      if (T >= lbl_tab(s)%T(lbl_tab(s)%nT)) then
-        ! Temperature is too high, outside table range - use highest available T data
-        if (P >= lbl_tab(s)%P(lbl_tab(s)%nP)) then
-           ! Pressure is too high, outside table range - use highest available P data
-           lbl_work(s) = 10.0_dp**lbl_tab(s)%lk_abs(l,lbl_tab(s)%nP,lbl_tab(s)%nT)
-        else if (P <= lbl_tab(s)%P(1)) then
-           ! Pressure is too low, outside table range - use lowest available P data
-           lbl_work(s)  = 10.0_dp**lbl_tab(s)%lk_abs(l,1,lbl_tab(s)%nT)
-        else
-          ! Pressure is within table range, perform Bezier interpolation at highest T
-          lka(1) = lbl_tab(s)%lk_abs(l,iP1,lbl_tab(s)%nT)
-          lka(2) = lbl_tab(s)%lk_abs(l,iP2,lbl_tab(s)%nT)
-          lka(3) = lbl_tab(s)%lk_abs(l,iP3,lbl_tab(s)%nT)
-          call Bezier_interp(lPa(:), lka(:), 3, lP, lbl_work(s))
-          lbl_work(s) = 10.0_dp**lbl_work(s)
-        end if
-      else if (T <= lbl_tab(s)%T(1)) then
-        ! Temperature is too low, outside table range - use lowest available T data
-        if (P >= lbl_tab(s)%P(lbl_tab(s)%nP)) then
-           ! Pressure is too high, outside table range - use highest available P data
-            lbl_work(s) = 10.0_dp**lbl_tab(s)%lk_abs(l,lbl_tab(s)%nP,1)
-        else if (P <= lbl_tab(s)%P(1)) then
-           ! Pressure is too low, outside table range - use lowest available P data
-           lbl_work(s) = 10.0_dp**lbl_tab(s)%lk_abs(l,1,1)
-        else
-          ! Pressure is within table range, perform linear interpolation at lowest T
-          lka(1) = lbl_tab(s)%lk_abs(l,iP1,1)
-          lka(2) = lbl_tab(s)%lk_abs(l,iP2,1)
-          lka(3) = lbl_tab(s)%lk_abs(l,iP3,1)
-          call Bezier_interp(lPa(:), lka(:), 3, lP, lbl_work(s))
-          lbl_work(s) = 10.0_dp**lbl_work(s)
-        end if
+      iT_fixed = iT_exact
+      if (T_region == locate_below) iT_fixed = 1
+      if (T_region == locate_above) iT_fixed = lbl_tab(s)%nT
+
+      iP_fixed = iP_exact
+      if (P_region == locate_below) iP_fixed = 1
+      if (P_region == locate_above) iP_fixed = lbl_tab(s)%nP
+
+      if (iT_fixed > 0 .and. iP_fixed > 0) then
+        lbl_work(s) = 10.0_dp**lbl_tab(s)%lk_abs(l,iP_fixed,iT_fixed)
+      else if (iT_fixed > 0) then
+        lka(:) = lbl_tab(s)%lk_abs(l,iP_idx(:),iT_fixed)
+        call Bezier_interp(lPa,lka,lP,lbl_work(s))
+        lbl_work(s) = 10.0_dp**lbl_work(s)
+      else if (iP_fixed > 0) then
+        lka(:) = lbl_tab(s)%lk_abs(l,iP_fixed,iT_idx(:))
+        call Bezier_interp(lTa,lka,lT,lbl_work(s))
+        lbl_work(s) = 10.0_dp**lbl_work(s)
       else
-        ! Temperature is within the normal range
-        if (P >= lbl_tab(s)%P(lbl_tab(s)%nP)) then
-          ! Pressure is too high, outside table range - use highest availible P
-          lka(1) = lbl_tab(s)%lk_abs(l,lbl_tab(s)%nP,iT1)
-          lka(2) = lbl_tab(s)%lk_abs(l,lbl_tab(s)%nP,iT2)
-          lka(3) = lbl_tab(s)%lk_abs(l,lbl_tab(s)%nP,iT3)
-          call Bezier_interp(lTa(:), lka(:), 3, lT, lbl_work(s))
-          lbl_work(s) = 10.0_dp**lbl_work(s)
-        else if (P <= lbl_tab(s)%P(1)) then
-          ! Pressure is too low, outside table range - use lowest availible P
-          lka(1) = lbl_tab(s)%lk_abs(l,1,iT1)
-          lka(2) = lbl_tab(s)%lk_abs(l,1,iT2)
-          lka(3) = lbl_tab(s)%lk_abs(l,1,IT3)
-          call Bezier_interp(lTa(:), lka(:), 3, lT, lbl_work(s))
-          lbl_work(s) = 10.0_dp**lbl_work(s)
-        else
-          ! Both pressure and temperature are within table bounds, perform Bezier interpolation 4 times
-          lka(1) = lbl_tab(s)%lk_abs(l,iP1,iT1)
-          lka(2) = lbl_tab(s)%lk_abs(l,iP2,iT1)
-          lka(3) = lbl_tab(s)%lk_abs(l,iP3,iT1)
-          call Bezier_interp(lPa(:), lka(:), 3, lP, lka_lbl(1)) ! Result at T1, P_in
-          lka(1) = lbl_tab(s)%lk_abs(l,iP1,iT2)
-          lka(2) = lbl_tab(s)%lk_abs(l,iP2,iT2)
-          lka(3) = lbl_tab(s)%lk_abs(l,iP3,iT3)
-          call Bezier_interp(lPa(:), lka(:), 3, lP, lka_lbl(2)) ! Result at T2, P_in
-          lka(1) = lbl_tab(s)%lk_abs(l,iP1,iT3)
-          lka(2) = lbl_tab(s)%lk_abs(l,iP2,iT3)
-          lka(3) = lbl_tab(s)%lk_abs(l,iP3,iT3)
-          call Bezier_interp(lPa(:), lka(:), 3, lP, lka_lbl(3)) ! Result at T3, P_in
-          call Bezier_interp(lTa(:), lka_lbl(:), 3, lT, lbl_work(s)) ! Result at T_in, P_in
-          lbl_work(s) = 10.0_dp**lbl_work(s)
-        end if
+        lka(:) = lbl_tab(s)%lk_abs(l,iP_idx(:),iT1)
+        call Bezier_interp(lPa,lka,lP,lka_lbl(1))
+        lka(:) = lbl_tab(s)%lk_abs(l,iP_idx(:),iT2)
+        call Bezier_interp(lPa,lka,lP,lka_lbl(2))
+        lka(:) = lbl_tab(s)%lk_abs(l,iP_idx(:),iT3)
+        call Bezier_interp(lPa,lka,lP,lka_lbl(3))
+        call Bezier_interp(lTa,lka_lbl,lT,lbl_work(s))
+        lbl_work(s) = 10.0_dp**lbl_work(s)
       end if
 
     end do

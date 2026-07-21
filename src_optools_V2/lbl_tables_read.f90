@@ -133,7 +133,7 @@ contains
 
     integer, intent(in) :: s
     integer :: np, nt, n_bins, l, u, i, j
-    real(kind=dp), allocatable, dimension(:) :: press, temp, wl
+    real(kind=dp), allocatable, dimension(:) :: press, temp, wl, k_abs
 
     ! Open Joost's formatted file
     print*, ' - lbl - Joost Reading: ', s, lbl_tab(s)%sp, trim(lbl_tab(s)%path)
@@ -148,7 +148,7 @@ contains
     lbl_tab(s)%nwl = n_bins
 
     ! Allocate local arrays
-    allocate(press(np),temp(nt),wl(n_bins))
+    allocate(press(np),temp(nt),wl(n_bins),k_abs(n_bins))
 
     ! Allocate table arrays
     allocate(lbl_tab(s)%T(lbl_tab(s)%nT),lbl_tab(s)%lT(lbl_tab(s)%nT))
@@ -178,14 +178,14 @@ contains
     ! Read in the table data
     do i = 1, lbl_tab(s)%nP
       do j = 1, lbl_tab(s)%nT
-        read(u,*) lbl_tab(s)%k_abs(:,i,j)
-        lbl_tab(s)%lk_abs(:,i,j) = log10(max(lbl_tab(s)%k_abs(:,i,j),1.0e-99_dp))
-        !print*, (lbl_tab(s)%k_abs(l,i,j), l = 1, lbl_tab(s)%nwl)
+        read(u,*) k_abs(:)
+        lbl_tab(s)%lk_abs(:,i,j) = log10(max(k_abs(:),1.0e-99_dp))
+        !print*, (k_abs(l), l = 1, lbl_tab(s)%nwl)
       end do
     end do
 
     ! Deallocate work arrays and close units
-    deallocate(press,temp,wl)
+    deallocate(press,temp,wl,k_abs)
     close(u)
 
   end subroutine read_lbl_Joost

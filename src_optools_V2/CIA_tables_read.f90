@@ -33,8 +33,9 @@ contains
         print*, ' - Skipping special species: ', s,  CIA_tab(s)%sp, CIA_tab(s)%form
 
       case(1)
-        print*, ' - Reading NEMESIS CIA table: ', s,  CIA_tab(s)%sp, CIA_tab(s)%form
-        call read_CIA_NEMESIS(s)
+        print*, 'ERROR - NEMESIS CIA format is not implemented - STOPPING'
+        print*, 'Species, path: ', CIA_tab(s)%sp, trim(CIA_tab(s)%path)
+        stop
 
       case(2)
         print*, ' - Reading Bell CIA table: ', s,  CIA_tab(s)%sp, CIA_tab(s)%form
@@ -77,7 +78,7 @@ contains
     allocate(CIA_tab(s)%wn_s(CIA_tab(s)%nset))
     allocate(CIA_tab(s)%wn_e(CIA_tab(s)%nset))
 
-    ! Read to find meta data first
+    ! Read the file once to obtain its metadata.
 
     do j = 1, CIA_tab(s)%nset
       do n = 1, CIA_tab(s)%nT(j)
@@ -87,7 +88,8 @@ contains
           CIA_tab(s)%wn_s(j) = wn_s
           CIA_tab(s)%wn_e(j) = wn_e
           CIA_tab(s)%Tmin(j) = temp_r
-        else if (n == CIA_tab(s)%nT(j)) then
+        end if
+        if (n == CIA_tab(s)%nT(j)) then
           CIA_tab(s)%Tmax(j) = temp_r
         end if
         CIA_tab(s)%T(j,n) = temp_r

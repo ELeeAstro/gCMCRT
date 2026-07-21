@@ -11,7 +11,7 @@ module Ray_tables_mod
   real(kind=dp), parameter :: T_s = 273.15_dp
   real(kind=dp), parameter :: lam_ir = 5.432937_dp, lam_uv = 0.229202_dp
 
-  ! Parametr for H
+  ! Parameter for H.
   real(kind=dp), parameter :: wl_ly = 121.567_dp * 1.0e-7_dp ! Lyman alpha wavelength [cm]
   real(kind=dp), parameter :: f_ly = c_s/wl_ly
   real(kind=dp), parameter :: w_l = (2.0_dp * pi * f_ly) / 0.75_dp
@@ -58,7 +58,7 @@ contains
     ! Read Rayleigh namelist parameters
     read(u_nml, nml=Rayleigh_nml)
 
-    ! Find the prf VMR_indexes of the Rayleigh species
+    ! Find the PRF VMR indices of the Rayleigh species.
     do i = 1, nRay
       exists = .False.
       do j = 1, ngas
@@ -69,7 +69,7 @@ contains
         end if
       end do
       if (exists .eqv. .False.) then
-        print*, 'ERROR - Specifed Rayleigh species not found in prf VMR list - STOPPING'
+        print*, 'ERROR - Specified Rayleigh species not found in prf VMR list - STOPPING'
         print*, 'Species: ', Ray_name(i)
         stop
       end if
@@ -78,7 +78,7 @@ contains
     print*, ' ~~ Performing Rayleigh calculation and output ~~ '
     print*, ' ~~ Please wait... ~~ '
 
-    !! Begin openMP loops
+    !! Begin OpenMP loops.
     !$omp parallel default (none), &
     !$omp& private (l,z,s,Ray_H2O), &
     !$omp& shared (nwl,nlay,nRay,Ray_out,VMR_lay,iVMR,N_lay,RH_lay,Ray_work,wl,Ray_name)
@@ -87,14 +87,14 @@ contains
     ! Species loops are inside subroutines
     do l = 1, nwl
       !$omp single
-      if (mod(l,nwl/10) == 0) then
+      if (mod(l,max(1,nwl/10)) == 0) then
         print*, l, wl(l), nwl
       end if
-      !$omp end single
       ! Find the refractive index and King factor for this wavelength
       call refrac_index_calc(l)
       ! Find the cross section for each species for this wavelength
       call Ray_xsec_calc(l)
+      !$omp end single
 
       !$omp do schedule (static)
       do z = 1, nlay
@@ -128,7 +128,7 @@ contains
     ! Deallocate arrays on exit
     deallocate(Ray_work, n_ref, iVMR, King)
     deallocate(Ray_out,Ray_write)
-    ! Close uRay i/o unit
+    ! Close the Rayleigh I/O unit.
     close(uRay)
 
     print*, ' ~~ Quest completed  ~~ '
@@ -153,7 +153,7 @@ contains
         ! n_ref(s) = -1
         ! King(s) = 1.0_dp
 
-        ! Use Irwin (2009)+ paramaters (same as Cox 2000)
+        ! Use the parameters from Irwin (2009), which are the same as those in Cox (2000).
         A = 13.58e-5_dp ; B = 7.52e-3_dp
         n_ref(s) = n_func2(wl(l),A,B)
 
@@ -174,7 +174,7 @@ contains
         !n_ref(s) = -1
         !King(s) = 1.0_dp
 
-        ! Use Irwin (2009)+ paramaters
+        ! Use the parameters from Irwin (2009).
         !A = 3.48e-5_dp ; B = 2.3e-3_dp ; DPol = 0.025
         !n_ref(s) = n_func2(wl,A,B)
         !King(s) = King_from_Dpol(DPol)
@@ -192,8 +192,8 @@ contains
         King(s) = 1.0_dp
 
       case('CO')
-        ! Use Sneeps & Ubachs (2005) expression
-        ! Typo error in Sneeps & Ubachs corrected (Kitzmann per.com.)
+        ! Use the expression from Sneep & Ubachs (2005).
+        ! Correct the typographical error in Sneep & Ubachs following Kitzmann (private communication).
         A = 22851.0_dp; B = 0.456e14_dp ; C = 71427.0**2
         n_ref(s) = n_func(wn(l),A,B,C)
         DPol = 0.0048_dp
@@ -203,8 +203,8 @@ contains
         nd_stp(s) = 2.546899e19_dp
 
       case('CO2')
-        ! Use Sneeps & Ubachs (2005) expression
-        ! Error in Sneeps & Ubachs last term is 0.1218145e−6 not 0.1218145e−4 (See Kitzmann 2017 p 4 foootnote)
+        ! Use the expression from Sneep & Ubachs (2005).
+        ! The last term in Sneep & Ubachs is 0.1218145e-6, not 0.1218145e-4; see the footnote on page 4 of Kitzmann (2017).
         ! Error also in the multiplication factor (See Kitzmann Rayleigh pdf)
         n_ref(s) = 1.1427e3_dp * ((5799.25_dp / (128908.9_dp**2 - wn(l)**2)) + (120.05_dp / (89223.8_dp**2 - wn(l)**2)) &
           & + (5.3334_dp / (75037.5_dp**2 - wn(l)**2)) + (4.3244_dp / (67837.7_dp**2 - wn(l)**2)) &
@@ -215,7 +215,7 @@ contains
         nd_stp(s) = 2.546899e19_dp
 
       case('CH4')
-        ! Use Sneeps & Ubachs (2005) expression
+        ! Use the expression from Sneep & Ubachs (2005).
         n_ref(s) = (46662.0_dp + 4.02e-6_dp*wn(l)**2)/1e8_dp + 1.0_dp
         King(s) = 1.0_dp
 
@@ -223,7 +223,7 @@ contains
 
       case('H2O')
 
-        ! Is a special species - just calculate King factor for now
+        ! This is a special species; calculate only the King factor for now.
         Dpol = 3.0e-4_dp ! Murphy (1977)
         King(s) = King_from_Dpol_1(DPol)
 
@@ -254,7 +254,7 @@ contains
 
       case('NH3')
 
-        ! Use Irwin (2009)+ paramaters
+        ! Use the parameters from Irwin (2009).
         A = 37.0e-5_dp ; B = 12.0e-3_dp ; Dpol = 0.0922_dp
         n_ref(s) = n_func2(wl(l),A,B)
         King(s) = King_from_Dpol_1(DPol)
@@ -271,7 +271,7 @@ contains
         nd_stp(s) = 2.546899e19_dp
 
       case('N2O')
-        ! Use Sneeps & Ubachs (2005) expression
+        ! Use the expression from Sneep & Ubachs (2005).
         n_ref(s) = (46890.0_dp + 4.12e-6_dp*wn(l)**2)/1e8_dp + 1.0_dp
         Dpol = 0.0577_dp + 11.8e-12_dp*wn(l)**2
         King(s) = King_from_Dpol_2(DPol) 
@@ -279,7 +279,7 @@ contains
         nd_stp(s) = 2.546899e19_dp
 
       case('SF6')
-        ! Use Sneeps & Ubachs (2005) expression
+        ! Use the expression from Sneep & Ubachs (2005).
         n_ref(s) = (71517.0_dp + 4.996e-6_dp*wn(l)**2)/1e8_dp + 1.0_dp
         King(s) = 1.0_dp
 
@@ -508,14 +508,14 @@ contains
 
     if (first_call .eqv. .True.) then
       inquire(iolength=reclen) Ray_write
-      !print*, 'Outputing Rayleigh.cmcrt'
+      !print*, 'Outputting Rayleigh.cmcrt'
       ! Output k-table in 1D or flattened 3D CMCRT format k_CMCRT.ktb (single precision)
       open(newunit=uRay, file='Rayleigh.cmcrt', action='readwrite',&
         & form='unformatted',status='replace', access='direct',recl=reclen)
       first_call = .False.
     end if
 
-    ! Convert to single precision on output, also care for underfloat
+    ! Convert to single precision on output and protect against underflow.
     Ray_write(:) = real(max(Ray_out(:),1.0e-30_dp),kind=sp)
     write(uRay,rec=l) Ray_write
 

@@ -3,7 +3,7 @@ module CIA_tables_Hminus
   use ieee_arithmetic
   implicit none
 
-  ! John (1988) paramaters
+  ! Parameters from John (1988).
   real(kind=dp), dimension(6), parameter :: &
     & An_ff1 = (/518.1021_dp, 472.2636_dp, -482.2089_dp, 115.5291_dp, 0.0_dp, 0.0_dp/), &
     & Bn_ff1 = (/-734.8666_dp, 1443.4137_dp, -737.1616_dp, 169.6374_dp, 0.0_dp, 0.0_dp/), &

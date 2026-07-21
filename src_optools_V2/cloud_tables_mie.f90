@@ -15,10 +15,10 @@ module cloud_tables_mie
 contains
 
 
-  subroutine cl_mie(l,nd,a,eps,cl_out_k,cl_out_a,cl_out_g)
+  subroutine cl_mie(z,l,nd,a,eps,cl_out_k,cl_out_a,cl_out_g)
     implicit none
 
-    integer, intent(in) :: l
+    integer, intent(in) :: z, l
     real(kind=dp), intent(in) :: nd, a
     complex(kind=dp), intent(in) :: eps
     real(kind=dp), intent(out) :: cl_out_k, cl_out_a, cl_out_g
@@ -26,7 +26,7 @@ contains
     real(kind=dp) :: rQext, rQsca, rQabs, rQbk, rQpr, ralbedo, rg
     real(kind=dp) :: x, xsec, xsec_ext, xsec_sca
 
-    !! Parameters for MIEX - set as paramaters to avoid messing up for now
+    !! Parameters for MIEX; keep them fixed here for now.
     integer, parameter :: rnang = 1
     integer :: rier
     complex(kind=dp), dimension(rnang) :: rSA1, rSA2
@@ -46,6 +46,16 @@ contains
     !! Variables for q_DHS
     real(kind=dp) :: a_mant, e1, e2
 
+    if (.not. ieee_is_finite(nd) .or. .not. ieee_is_finite(a) .or. &
+      & .not. ieee_is_finite(real(eps,kind=dp)) .or. &
+      & .not. ieee_is_finite(aimag(eps)) .or. nd < 0.0_dp .or. a <= 0.0_dp) then
+      print*, 'ERROR - Invalid cloud input passed to Mie theory - STOPPING'
+      print*, 'Layer, wavelength index, wavelength [um]: ', z, l, wl(l)
+      print*, 'Number density, radius [cm], refractive index: ', nd, a, eps
+      print*, 'Mie method: ', imie
+      stop
+    end if
+
     xsec = pi * a**2
 
     x = (twopi * a)/wl_cm(l)
@@ -59,8 +69,8 @@ contains
     select case(imie)
 
     case(0)
-      !! Special limiting cases for efficency
-      x = (twopi * a)/wl_cm(l) ! Unlimit size parameter
+      !! Special limiting cases for efficiency.
+      x = (twopi * a)/wl_cm(l) ! Use the unrestricted size parameter.
 
       if (x < 0.01_dp) then
         !! Use rayleigh scattering approximation
@@ -69,59 +79,29 @@ contains
         call madt(x, eps, rQabs, rQsca, rQext, rg)
       else
         !! Call LX-MIE with negative k value
-        eps_in = cmplx(real(eps,dp),-aimag(eps))
+        eps_in = cmplx(real(eps,kind=dp),-aimag(eps),kind=dp)
         call lxmie(eps_in, x, rQext, rQsca, rQabs, rg)
       end if
 
       cl_out_k = rQext * xsec * nd
-      cl_out_a = rQsca/rQext
-      cl_out_g = rg
-
-      if ((ieee_is_nan(cl_out_a) .eqv. .True.) .or. (rier /= 0)) then
-        print*, 'Special: NaN: ', l, real(wl(l)), rQext, a, x, eps
-      end if
 
     case(1)
 
       !! Use the MIEX Mie theory routine
-      ! - careful with memory in parallel for large x
+      ! Take care with per-thread memory use when x is large.
       call shexqnn2(eps, x, rQext, rQsca, rQabs, rQbk, rQpr, ralbedo, rg, &
         & rier, rSA1, rSA2, rdoSA, rnang)
 
       cl_out_k = rQext * xsec * nd
-      cl_out_a = ralbedo
-      cl_out_g = rg
-     
-      if ((ieee_is_nan(cl_out_a) .eqv. .True.) .or. (rier /= 0)) then
-        if (x > 100.0_dp) then
-           print*, 'MieX: lx approx: ', l, real(wl(l)), rQext, a, x, eps
-           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.9_dp
-        else
-          print*, 'MieX: zero approx: ', l, real(wl(l)), rQext, a, x, eps
-          cl_out_k = 0.0_dp ; cl_out_a = 0.0_dp ; cl_out_g = 0.0_dp
-        end if
-      end if
 
     case(2)
 
       !! Use the MieExt routine
-      eps_in = cmplx(real(eps,dp),-aimag(eps))
+      eps_in = cmplx(real(eps,kind=dp),-aimag(eps),kind=dp)
 
       call MieExt(x, eps_in, rQext, rQsca, rg, rier)
 
       cl_out_k = rQext * xsec * nd
-      cl_out_a = rQsca/rQext
-      cl_out_g = rg
-
-      if ((ieee_is_nan(cl_out_k) .eqv. .True.) .or. (rier /= 0)) then
-        if (x > 100.0_dp) then
-           print*, 'MieExt: lx approx: ', l, real(wl(l)), rQext, a, x, eps_in
-           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.9_dp
-        else
-          print*, 'MieExt: zero approx: ', l, real(wl(l)), rQext, a, x, eps_in
-          cl_out_k = 0.0_dp ; cl_out_a = 0.0_dp ; cl_out_g = 0.0_dp
-        end if
-      end if
 
     case(3)
       
@@ -129,18 +109,6 @@ contains
       call BHMIE(x, eps, nang, S1, S2, rQext, rQsca, rQbk, rg, rier)
 
       cl_out_k = rQext * xsec * nd
-      cl_out_a = rQsca/rQext
-      cl_out_g = rg
-
-      if ((ieee_is_nan(cl_out_a) .eqv. .True.) .or. (rier /= 0)) then
-        if (x > 100.0_dp) then
-           print*, 'BHMIE: lx approx: ', l, real(wl(l)), rQext, a, x, eps
-           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.9_dp
-        else
-          print*, 'BHMIE: zero approx: ', l, real(wl(l)), rQext, a, x, eps
-          cl_out_k = 0.0_dp ; cl_out_a = 0.0_dp ; cl_out_g = 0.0_dp
-        end if
-      end if
 
     case(4)
 
@@ -154,19 +122,6 @@ contains
       call q_dhs(e1, e2, wl(l), a_mant, rQext, rQsca, rg, fmax, rier)
 
       cl_out_k = rQext*1e-8_dp * nd
-      cl_out_a = rQsca/rQext
-      cl_out_g = rg
-      !print*, cl_out_k, cl_out_a, cl_out_g
-
-      if ((ieee_is_nan(cl_out_a) .eqv. .True.) .or. (rier /= 0)) then
-        if (x > 100.0_dp) then
-           print*, 'DHS: lx approx: ', l, real(wl(l)), rQext, a, x, eps
-           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.9_dp
-        else
-          print*, 'DHS: zero approx: ', l, real(wl(l)), rQext, a, x, eps
-          cl_out_k = 0.0_dp ; cl_out_a = 0.0_dp ; cl_out_g = 0.0_dp
-        end if
-      end if
 
     case(5)
 
@@ -181,43 +136,49 @@ contains
       call BHCOAT(x_core, x_mant, eps_core, eps_mant, rQext, rQsca, rQbk, rg)
 
       cl_out_k = rQext * xsec * nd
-      cl_out_a = rQsca/rQext
-      cl_out_g = rg
-
-      if ((ieee_is_nan(cl_out_a) .eqv. .True.) .or. (rier /= 0)) then
-        if (x > 100.0_dp) then
-           print*, 'BHCOAT: lx approx: ', l, real(wl(l)), rQext, a, x, eps
-           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.9_dp
-        else
-          print*, 'BHCOAT: zero approx: ', l, real(wl(l)), rQext, a, x, eps
-          cl_out_k = 0.0_dp ; cl_out_a = 0.0_dp ; cl_out_g = 0.0_dp
-        end if
-      end if
 
     case(6)
 
       !! use the LX-MIE routine translated from Kitzmann & Heng (2018)
-      eps_in = cmplx(real(eps,dp),-aimag(eps))
+      eps_in = cmplx(real(eps,kind=dp),-aimag(eps),kind=dp)
       call lxmie(eps_in, x, rQext, rQsca, rQabs, rg)
 
       cl_out_k = rQext * xsec * nd
-      cl_out_a = rQsca/rQext
-      cl_out_g = rg
-
-      if ((ieee_is_nan(cl_out_a) .eqv. .True.) .or. (rier /= 0)) then
-        if (x > 100.0_dp) then
-           print*, 'LX-MIE: lx approx: ', l, real(wl(l)), rQext, rQsca, a, x, eps
-           cl_out_k = 2.0_dp * xsec * nd ; cl_out_a = 0.9_dp ; cl_out_g = 0.9_dp
-        else
-          print*, 'LX-MIE: zero approx: ', l, real(wl(l)), rQext, rQsca, a, x, eps
-          cl_out_k = 0.0_dp ; cl_out_a = 0.0_dp ; cl_out_g = 0.0_dp
-        end if
-      end if     
      
     case default
       print*, 'Invalid Mie theory method selected: ',imie
       stop
     end select
+
+    if (rier /= 0 .or. .not. ieee_is_finite(rQext) .or. &
+      & .not. ieee_is_finite(rQsca) .or. .not. ieee_is_finite(cl_out_k) .or. &
+      & rQext < 0.0_dp .or. rQsca < 0.0_dp .or. cl_out_k < 0.0_dp) then
+      print*, 'ERROR - Corrupted Mie output - STOPPING'
+      print*, 'Layer, wavelength index, wavelength [um]: ', z, l, wl(l)
+      print*, 'Number density, radius [cm], refractive index: ', nd, a, eps
+      print*, 'Method, size parameter, status: ', imie, x, rier
+      print*, 'Qext, Qsca, g, opacity: ', rQext, rQsca, rg, cl_out_k
+      stop
+    end if
+
+    cl_out_k = max(cl_out_k,1.0e-199_dp)
+    if (rQext <= 0.0_dp) then
+      cl_out_a = 0.0_dp
+      cl_out_g = 0.0_dp
+    else if (rQsca <= 0.0_dp) then
+      cl_out_a = 0.0_dp
+      cl_out_g = 0.0_dp
+    else
+      if (.not. ieee_is_finite(rg)) then
+        print*, 'ERROR - Non-finite Mie asymmetry parameter - STOPPING'
+        print*, 'Layer, wavelength index, wavelength [um]: ', z, l, wl(l)
+        print*, 'Number density, radius [cm], refractive index: ', nd, a, eps
+        print*, 'Method, Qext, Qsca, g: ', imie, rQext, rQsca, rg
+        stop
+      end if
+      cl_out_a = min(1.0_dp,max(0.0_dp,rQsca/rQext))
+      cl_out_g = min(1.0_dp,max(-1.0_dp,rg))
+    end if
 
   end subroutine cl_mie
 

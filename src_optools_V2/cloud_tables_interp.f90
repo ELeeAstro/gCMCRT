@@ -44,21 +44,23 @@ contains
         case(.False.)
           ! Linear decrease in k proportional to wl
           ! n assumed constant at highest wl value
-          n_work(s) = cl_tab(s)%n(nwl)
-          k_work(s) = cl_tab(s)%k(nwl) * (cl_tab(s)%wl(nwl)/wl(l))
+          n_work(s) = cl_tab(s)%n(cl_tab(s)%nwl)
+          k_work(s) = cl_tab(s)%k(cl_tab(s)%nwl) * &
+            & (cl_tab(s)%wl(cl_tab(s)%nwl)/wl(l))
         case(.True.)
           ! ln-ln extrapolate n and k to higher wavelengths
-          wl_ex = 0.7_dp * cl_tab(s)%wl(nwl)
+          wl_ex = 0.7_dp * cl_tab(s)%wl(cl_tab(s)%nwl)
           call locate(cl_tab(s)%wl(:),wl_ex,iwl_ex)
           ! Check that at least 3 points back is used for extrapolation
           if ((iwl_ex > cl_tab(s)%nwl - 3) .or. (iwl_ex == 0)) then
             iwl_ex = cl_tab(s)%nwl - 3
           end if
-          fac = log(wl(l)/cl_tab(s)%wl(nwl))/log(cl_tab(s)%wl(iwl_ex)/cl_tab(s)%wl(nwl))
-          n_work(s) = exp(log(cl_tab(s)%n(nwl)) &
-            & + fac * log(cl_tab(s)%n(iwl_ex)/cl_tab(s)%n(nwl)))
-          k_work(s) = exp(log(cl_tab(s)%k(nwl)) &
-            & + fac * log(cl_tab(s)%k(iwl_ex)/cl_tab(s)%k(nwl)))
+          fac = log(wl(l)/cl_tab(s)%wl(cl_tab(s)%nwl)) / &
+            & log(cl_tab(s)%wl(iwl_ex)/cl_tab(s)%wl(cl_tab(s)%nwl))
+          n_work(s) = exp(log(cl_tab(s)%n(cl_tab(s)%nwl)) &
+            & + fac * log(cl_tab(s)%n(iwl_ex)/cl_tab(s)%n(cl_tab(s)%nwl)))
+          k_work(s) = exp(log(cl_tab(s)%k(cl_tab(s)%nwl)) &
+            & + fac * log(cl_tab(s)%k(iwl_ex)/cl_tab(s)%k(cl_tab(s)%nwl)))
         end select
 
       else if (iwl < 1) then
@@ -81,7 +83,7 @@ contains
         call linear_log_interp(xval, x0, x1, y0k, y1k, yvalk)
         k_work(s) = yvalk
 
-        ! Check for NaN's from interpolation
+        ! Check for NaNs from interpolation.
         if ((ieee_is_nan(n_work(s)) .eqv. .True.) .or. (ieee_is_nan(k_work(s)) .eqv. .True.)) then
           print*, 'cl: NaN in cl table: ',  l, s, cl_tab(s)%sp, cl_tab(s)%conducting
           print*, '---', xval, yvaln, yvalk, x0, x1, y0n, y1n, y0k, y1k, extrap_flag, '---'

@@ -40,7 +40,7 @@ contains
     a00 = CIA_tab(s)%tab(1,iwl,iT) ; a10 = CIA_tab(s)%tab(1,iwl1,iT)
     a01 = CIA_tab(s)%tab(1,iwl,iT1) ; a11 = CIA_tab(s)%tab(1,iwl1,iT1)
 
-    ! Perform bi-linear interpolation
+    ! Perform bilinear interpolation.
     call bilinear_interp(xval, yval, x0, x1, y0, y1, a00, a10, a01, a11, aval)
 
     CIA_spec = 1.0e-26_dp * aval * (VMR_lay(CIA_tab(s)%iVMR(1),z) * N_lay(z)) * (VMR_lay(CIA_tab(s)%iVMR(2),z) * N_lay(z) &

@@ -22,7 +22,7 @@ contains
     integer :: m, idist_m
     real(kind=dp), dimension(3) :: cl_out_k2, cl_out_a2, cl_out_g2
     real(kind=dp) :: beta, alpha, aeff, const, Ev, Var, muu, sigg, lam
-    real(kind=dp) :: z_val, ext_int, sca_int
+    real(kind=dp) :: z_val, ext_int, sca_int, g_int
 
 
     Ev = a_cl_lay(z)
@@ -34,16 +34,16 @@ contains
     case(1)
 
       ! Single particle size (idist = 1, nmode = 1)
-      call cl_mie(l,nd_cl_lay(z),a_cl_lay(z),eps_comb,cl_out_k,cl_out_a,cl_out_g)
+      call cl_mie(z,l,nd_cl_lay(z),a_cl_lay(z),eps_comb,cl_out_k,cl_out_a,cl_out_g)
 
       !print*, l, nd_cl_lay(z),a_cl_lay(z),eps_comb,cl_out_k,cl_out_a,cl_out_g
 
     case(2)
 
-      ! Small 3 size peaked size distribution @ 1% delta a to smooth Mie ressonance bumps
-      call cl_mie(l,nd_cl_lay(z),a_cl_lay(z)*0.99_dp,eps_comb,cl_out_k2(1),cl_out_a2(1),cl_out_g2(1))
-      call cl_mie(l,nd_cl_lay(z),a_cl_lay(z),eps_comb,cl_out_k2(2),cl_out_a2(2),cl_out_g2(2))
-      call cl_mie(l,nd_cl_lay(z),a_cl_lay(z)*1.01_dp,eps_comb,cl_out_k2(3),cl_out_a2(3),cl_out_g2(3))
+      ! Narrow three-size distribution with 1% radius spacing to smooth Mie-resonance features.
+      call cl_mie(z,l,nd_cl_lay(z),a_cl_lay(z)*0.99_dp,eps_comb,cl_out_k2(1),cl_out_a2(1),cl_out_g2(1))
+      call cl_mie(z,l,nd_cl_lay(z),a_cl_lay(z),eps_comb,cl_out_k2(2),cl_out_a2(2),cl_out_g2(2))
+      call cl_mie(z,l,nd_cl_lay(z),a_cl_lay(z)*1.01_dp,eps_comb,cl_out_k2(3),cl_out_a2(3),cl_out_g2(3))
 
       cl_out_k = sum(cl_out_k2(:))/3.0_dp
       cl_out_a = sum(cl_out_a2(:))/3.0_dp
@@ -72,7 +72,7 @@ contains
         nd_dist(m) = exp(-z_tr(m)**2)
 
         ! Call Mie routine with unit number density to obtain pure cross-sections
-        call cl_mie(l, 1.0_dp, r_dist(m), eps_comb, ifunc_k(m), ifunc_a(m), ifunc_g(m))
+        call cl_mie(z,l,1.0_dp,r_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
 
       end do
 
@@ -81,16 +81,16 @@ contains
       wsca(:) = wext(:) * ifunc_a(:)
       ext_int  = trapz(z_tr(:), wext(:))
       sca_int  = trapz(z_tr(:), wsca(:))
+      g_int = trapz(z_tr(:), wsca(:) * ifunc_g(:))
 
       ! Integrate in z-space; N/sqrt(pi) only enters cl_out_k, cancels in SSA and g
-      cl_out_k = (nd_cl_lay(z) / sqrt(pi)) * ext_int
-      cl_out_a = sca_int / ext_int
-      cl_out_g = trapz(z_tr(:), wsca(:) * ifunc_g(:)) / sca_int
+      call set_cloud_moments(z,l,eps_comb,(nd_cl_lay(z)/sqrt(pi))*ext_int, &
+        & ext_int,sca_int,g_int,cl_out_k,cl_out_a,cl_out_g)
 
     case(4)
 
-      !! Gamma distribution - particle size in prf sets the parameters of the distribution
-      !! Use an eff_fac to give varience as width of mean particle size, typically 0 < eff_fac << 1 (~0.1)
+      !! Gamma distribution: the particle size in the PRF sets the distribution parameters.
+      !! Use eff_fac to set the variance relative to the mean particle size, typically 0 < eff_fac << 1 (~0.1).
 
       alpha = Ev**2/Var
       beta = Ev/Var
@@ -109,14 +109,14 @@ contains
         nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
 
         ! Call mie theory routine for this distribution point
-        call cl_mie(l,nd_dist(m),a_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
+        call cl_mie(z,l,nd_dist(m),a_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
 
       end do
 
     case(5)
 
-      !! Inverse-Gamma distribution - particle size in prf sets the paramaters of the distribution
-      !! Use an eff_fac to give varience as width of mean particle size, typically 0 < eff_fac << 1 (~0.1)
+      !! Inverse-gamma distribution: the particle size in the PRF sets the distribution parameters.
+      !! Use eff_fac to set the variance relative to the mean particle size, typically 0 < eff_fac << 1 (~0.1).
 
       alpha = Ev**2/Var + 2.0_dp
       beta = Ev*(alpha - 1.0_dp)
@@ -135,15 +135,15 @@ contains
         nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
 
         ! Call mie theory routine for this distribution point
-        call cl_mie(l,nd_dist(m),a_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
+        call cl_mie(z,l,nd_dist(m),a_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
 
       end do
 
     case(6)
 
-      !! Rayleigh distribution - particle size in prf sets the sigma of the distribution
+      !! Rayleigh distribution: the particle size in the PRF sets the distribution sigma.
 
-      !! sig is directly related to the distribution mean or varience
+      !! sig is directly related to the distribution mean or variance.
       sig = Ev/sqrt(pi/2.0_dp)
       !sig = sqrt(Var/(2.0_dp - pi/2.0_dp))
 
@@ -159,16 +159,16 @@ contains
         nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
 
         ! Call mie theory routine for this distribution point
-        call cl_mie(l,nd_dist(m),a_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
+        call cl_mie(z,l,nd_dist(m),a_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
 
       end do
 
     case(7)
 
-      !! Hansen distribution - particle size in prf sets the effective size of the distribution
+      !! Hansen distribution: the particle size in the PRF sets the effective distribution size.
       !! According to Hansen - 0 < veff < 0.5 typically
 
-      !! variables related to the effective size and effective varience
+      !! Variables related to the effective size and effective variance.
       !! veff is a namelist variable!
 
       aeff = a_cl_lay(z)
@@ -190,7 +190,7 @@ contains
         nd_dist(m) = max(nd_dist(m),1.0e-99_dp)
 
         ! Call mie theory routine for this distribution point
-        call cl_mie(l,nd_dist(m),a_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
+        call cl_mie(z,l,nd_dist(m),a_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
 
       end do
 
@@ -215,7 +215,7 @@ contains
         nd_dist(m) = exp(-z_val) * z_val
 
         ! Call Mie routine with unit number density to obtain pure cross-sections
-        call cl_mie(l, 1.0_dp, r_dist(m), eps_comb, ifunc_k(m), ifunc_a(m), ifunc_g(m))
+        call cl_mie(z,l,1.0_dp,r_dist(m),eps_comb,ifunc_k(m),ifunc_a(m),ifunc_g(m))
 
       end do
 
@@ -224,11 +224,11 @@ contains
       wsca(:) = wext(:) * ifunc_a(:)
       ext_int  = trapz(z_tr(:), wext(:))
       sca_int  = trapz(z_tr(:), wsca(:))
+      g_int = trapz(z_tr(:), wsca(:) * ifunc_g(:))
 
       ! Integrate over u; N only enters cl_out_k, cancels in SSA and g
-      cl_out_k = nd_cl_lay(z) * ext_int
-      cl_out_a = sca_int / ext_int
-      cl_out_g = trapz(z_tr(:), wsca(:) * ifunc_g(:)) / sca_int
+      call set_cloud_moments(z,l,eps_comb,nd_cl_lay(z)*ext_int, &
+        & ext_int,sca_int,g_int,cl_out_k,cl_out_a,cl_out_g)
 
     case default
       print*, 'ERROR - idist size distribution selection integer not valid - STOPPING'
@@ -255,25 +255,16 @@ contains
         ! Use trapezoid rule - function in [cm-3 cm-1]
         ! Pre-compute scattering integrand once to avoid duplicate array products
         wsca(:) = ifunc_k(:) * ifunc_a(:)
-        cl_out_k = trapz(a_dist(:), ifunc_k(:))
+        ext_int = trapz(a_dist(:), ifunc_k(:))
         sca_int  = trapz(a_dist(:), wsca(:))
-        cl_out_g = trapz(a_dist(:), wsca(:) * ifunc_g(:)) / sca_int
-        cl_out_a = sca_int / cl_out_k
+        g_int = trapz(a_dist(:), wsca(:) * ifunc_g(:))
+        call set_cloud_moments(z,l,eps_comb,ext_int,ext_int,sca_int,g_int, &
+          & cl_out_k,cl_out_a,cl_out_g)
 
-      case(2)
-        ! Use simpson 1/3 rule - function in [cm-3 um-1]
-
-      case(3)
-        ! Use simpson 3/8 rule - function in [cm-3 um-1]
-
-      case(4)
-
-        ! piecewise cubic Hermitian interpolation and integration
-        ! cl_out_k = PCHI(a_dist(:), ifunc_k(:), amin, amax)
-        ! cl_out_a = PCHI(a_dist(:), ifunc_k(:) * ifunc_a(:), amin, amax) ! Store intermediate result for cl_out_g
-        ! cl_out_g = PCHI(a_dist(:), ifunc_k(:) * ifunc_a(:) * ifunc_g(:), amin, amax) /cl_out_a
-        !
-        ! cl_out_a = cl_out_a / cl_out_k
+      case(2:4)
+        print*, 'ERROR - Cloud integration method is not implemented - STOPPING'
+        print*, 'idist, idist_int: ', idist, idist_int
+        stop
 
       case default
         print*, 'ERROR - idist > 2, but idist_int method not valid - STOPPING'
@@ -284,7 +275,71 @@ contains
 
     end if
 
+    call validate_cloud_output(z,l,eps_comb,cl_out_k,cl_out_a,cl_out_g)
 
   end subroutine dist_cl
+
+  subroutine set_cloud_moments(z,l,eps_comb,opacity,ext_moment,sca_moment, &
+    & g_moment,cl_out_k,cl_out_a,cl_out_g)
+    implicit none
+
+    integer, intent(in) :: z, l
+    complex(kind=dp), intent(in) :: eps_comb
+    real(kind=dp), intent(in) :: opacity, ext_moment, sca_moment, g_moment
+    real(kind=dp), intent(out) :: cl_out_k, cl_out_a, cl_out_g
+
+    if (.not. ieee_is_finite(opacity) .or. .not. ieee_is_finite(ext_moment) .or. &
+      & .not. ieee_is_finite(sca_moment) .or. .not. ieee_is_finite(g_moment) .or. &
+      & opacity < 0.0_dp .or. ext_moment < 0.0_dp .or. sca_moment < 0.0_dp) then
+      print*, 'ERROR - Corrupted cloud distribution moments - STOPPING'
+      print*, 'Layer, wavelength index, wavelength [um]: ', z, l, wl(l)
+      print*, 'Layer number density, radius [cm], variance: ', &
+        & nd_cl_lay(z), a_cl_lay(z), var_cl_lay(z)
+      print*, 'Refractive index, idist, idist_int, imie: ', &
+        & eps_comb, idist, idist_int, imie
+      print*, 'Opacity, extinction, scattering, scattering-g moments: ', &
+        & opacity, ext_moment, sca_moment, g_moment
+      stop
+    end if
+
+    cl_out_k = max(opacity,1.0e-199_dp)
+    if (ext_moment <= 0.0_dp .or. sca_moment <= 0.0_dp) then
+      cl_out_a = 0.0_dp
+      cl_out_g = 0.0_dp
+    else
+      cl_out_a = min(1.0_dp,max(0.0_dp,sca_moment/ext_moment))
+      cl_out_g = min(1.0_dp,max(-1.0_dp,g_moment/sca_moment))
+    end if
+
+  end subroutine set_cloud_moments
+
+  subroutine validate_cloud_output(z,l,eps_comb,cl_out_k,cl_out_a,cl_out_g)
+    implicit none
+
+    integer, intent(in) :: z, l
+    complex(kind=dp), intent(in) :: eps_comb
+    real(kind=dp), intent(inout) :: cl_out_k, cl_out_a, cl_out_g
+
+    if (.not. ieee_is_finite(cl_out_k) .or. .not. ieee_is_finite(cl_out_a) .or. &
+      & .not. ieee_is_finite(cl_out_g) .or. cl_out_k < 0.0_dp) then
+      print*, 'ERROR - Corrupted cloud distribution output - STOPPING'
+      print*, 'Layer, wavelength index, wavelength [um]: ', z, l, wl(l)
+      print*, 'Layer number density, radius [cm], variance: ', &
+        & nd_cl_lay(z), a_cl_lay(z), var_cl_lay(z)
+      print*, 'Refractive index, idist, idist_int, imie: ', &
+        & eps_comb, idist, idist_int, imie
+      print*, 'Opacity, albedo, asymmetry: ', cl_out_k, cl_out_a, cl_out_g
+      stop
+    end if
+
+    cl_out_k = max(cl_out_k,1.0e-199_dp)
+    cl_out_a = min(1.0_dp,max(0.0_dp,cl_out_a))
+    if (cl_out_a <= 0.0_dp) then
+      cl_out_g = 0.0_dp
+    else
+      cl_out_g = min(1.0_dp,max(-1.0_dp,cl_out_g))
+    end if
+
+  end subroutine validate_cloud_output
 
 end module cloud_tables_dist

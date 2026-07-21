@@ -1,5 +1,5 @@
 !!! E. K.H. Lee: Rewrite of the distribution of hollow spheres (DHS) code of M. Min.
-!!! - Orginal history: 
+!!! - Original history:
 ! c This subroutine computes the extinction and scattering cross sections
 ! c of DHS grains with f_max=maxf.
 ! c e1	real part of the refractive index
@@ -11,7 +11,7 @@
 ! c maxf	f_max of the DHS (between 0 and 1).
 !!! - 
 module dhs_mod
-  use, intrinsic :: iso_fortran_env ! Requires fortran 2008
+  use, intrinsic :: iso_fortran_env ! Requires Fortran 2008.
   implicit none
 
   integer, parameter :: dp = REAL64

@@ -24,7 +24,7 @@ module optools_table_class
     real(kind=dp), allocatable, dimension(:) :: wn ! Central wavenumbers of table (cm-1)
     real(kind=dp), allocatable, dimension(:) :: freq ! Central frequencies of table (Hz)
 
-    integer :: iVMR ! VMR index for consituent species
+    integer :: iVMR ! VMR index for the constituent species.
 
     integer :: nT ! Number of temperature points in table
     real(kind=dp), allocatable, dimension(:) :: T, lT  ! Temperature points in table (K)
@@ -32,8 +32,8 @@ module optools_table_class
     integer :: nP ! Number of pressure points in table
     real(kind=dp), allocatable, dimension(:) :: P, lP ! Pressure points in table (dyne) [CARE UNITS!!]
 
-    integer :: nG ! Number of g-ordinances (for corr-k)
-    real(kind=dp), allocatable, dimension(:) :: Gx, Gw ! Gx ordinances in table, Gw weight of ordinances
+    integer :: nG ! Number of g ordinates for correlated-k.
+    real(kind=dp), allocatable, dimension(:) :: Gx, Gw ! Table g ordinates and their weights.
 
     real(kind=dp), allocatable, dimension(:,:,:,:) :: k_abs, lk_abs ! Kappa values [cm2 molecule-1] (CARE: convert units from table source)
 
@@ -59,7 +59,7 @@ module optools_table_class
     real(kind=dp), allocatable, dimension(:) :: wn ! Central wavenumbers of table (cm-1)
     real(kind=dp), allocatable, dimension(:) :: freq ! Central frequencies of table (Hz)
 
-    integer :: iVMR ! VMR index for consituent species
+    integer :: iVMR ! VMR index for the constituent species.
 
     integer :: nT ! Number of temperature points in table
     real(kind=dp), allocatable, dimension(:) :: T, lT  ! Temperature points in table (K) + log10 values
@@ -87,7 +87,7 @@ module optools_table_class
     logical :: i3 = .False. ! Flag for 3 part special species
     character(len=10), dimension(2) :: sp_con ! Constituent species (for CIA)
     character(len=10), dimension(3) :: sp_con_3 ! Constituent species for 3 part special
-    integer, dimension(2) :: iVMR ! VMR index for consituent species
+    integer, dimension(2) :: iVMR ! VMR indices for the constituent species.
     integer, dimension(3) :: iVMR_3 ! VMR index for 3 part special
     character(len=150) :: path ! Path to table data
 
@@ -131,7 +131,7 @@ module optools_table_class
     real(kind=dp), allocatable, dimension(:) :: wn ! Central wavenumbers of table (cm-1)
     real(kind=dp), allocatable, dimension(:) :: freq ! Central frequencies of table (Hz)
 
-    integer :: iVMR ! VMR index for consituent species
+    integer :: iVMR ! VMR index for the constituent species.
 
     logical :: conducting ! Species is conducting flag
 
@@ -154,7 +154,7 @@ module optools_table_class
     integer :: nwl
     real(kind=dp), allocatable, dimension(:) :: wl ! Central wavelengths of table (um)
 
-    integer :: iVMR ! VMR index for consituent species
+    integer :: iVMR ! VMR index for the constituent species.
 
     real(kind=dp), allocatable, dimension(:) :: x_abs, lx_abs ! Kappa values [cm2 molecule-1]
     !(CARE: convert units from table source) + log10 values

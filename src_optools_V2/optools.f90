@@ -9,8 +9,8 @@ program optools
   use xsec_tables_mod, only: calc_xsec_table
   implicit none
 
-  !! Idea is run this opacity toolkit separatly, and output opacity variables for each cell
-  !! Then run MC code to read in the opacity files and perform the radiative transfer calcultions
+  !! Run this opacity toolkit separately and output opacity variables for each cell.
+  !! The MC code then reads the opacity files and performs the radiative-transfer calculations.
 
   ! Read basic parameter file
   call read_optools_par()
@@ -18,12 +18,12 @@ program optools
   ! Read the 1D or 3D flattened 3D T-p and gas Volume Mixing Ratio (VMR) file
   call read_prf()
 
-  ! If cloud opacity wanted, read cloud prf
+  ! Read the cloud PRF if cloud opacity is requested.
   if (cloud_opc .eqv. .True.) then
       call read_clprf()
   end if
 
-  ! Read wavelength array file wavelength.wl at bin centers
+  ! Read the wavelength array from wavelength.wl at the bin centres.
   call read_wavelengths()
 
   ! Read input k-tables and perform interpolation (+ random overlap)
@@ -39,7 +39,7 @@ program optools
   end if
 
   ! Read continuum data tables and perform interpolation
-  ! Output CMCRT contiuum formatted file
+  ! Output the CMCRT-formatted continuum file.
   if (conti .eqv. .True.) then
     call calc_CIA_table()
   end if

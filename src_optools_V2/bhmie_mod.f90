@@ -1,7 +1,7 @@
-!!! E. K.H. Lee: Rewrite into fortran 90 of the classic BHMIE f77 code (with Draine edits)
-!!! - Orginal history: 
+!!! E. K.H. Lee: Fortran 90 rewrite of the classic BHMIE Fortran 77 code, including Draine's edits.
+!!! - Original history:
 ! C Subroutine BHMIE is derived from the Bohren-Huffman Mie scattering
-! C     subroutine to calculate scattering and absorption by a homogenous
+! C     subroutine to calculate scattering and absorption by a homogeneous
 ! C     isotropic sphere.
 ! C Given:
 ! C    X = 2*pi*a/lambda
@@ -11,10 +11,10 @@
 ! C           if called with NANG<2, will set NANG=2 and will compute
 ! C           scattering for theta=0,90,180.
 ! C Returns:
-! C    S1(1 - 2*NANG-1) = -i*f_22 (incid. E perp. to scatt. plane,
-! C                                scatt. E perp. to scatt. plane)
-! C    S2(1 - 2*NANG-1) = -i*f_11 (incid. E parr. to scatt. plane,
-! C                                scatt. E parr. to scatt. plane)
+! C    S1(1 - 2*NANG-1) = -i*f_22 (incident E perpendicular to scattering plane,
+! C                                scattered E perpendicular to scattering plane)
+! C    S2(1 - 2*NANG-1) = -i*f_11 (incident E parallel to scattering plane,
+! C                                scattered E parallel to scattering plane)
 ! C    QEXT = C_ext/pi*a**2 = efficiency factor for extinction
 ! C    QSCA = C_sca/pi*a**2 = efficiency factor for scattering
 ! C    QBACK = 4.*pi*(dC_sca/domega)/pi*a**2
@@ -24,21 +24,21 @@
 ! C S1 and S2 are the diagonal elements of the "amplitude scattering matrix"
 ! C (see eq. 3.12 of Bohren & Huffman 1983) -- the off-diagonal elements
 ! C vanish for a spherical target.
-! C For unpolarized incident light, the intensity of scattered light a
+! C For unpolarised incident light, the intensity of scattered light a
 ! C distance r from the sphere is just
 ! C          1
 ! C  I_s = ------ * I_in * S_11
 ! C        (kr)^2
 ! C
 ! C where k=2*pi/lambda 
-! C and the "Muller matrix element" S_11 = 0.5*( |S_1|^2 + |S_2|^2 )
+! C and the "Mueller matrix element" S_11 = 0.5*( |S_1|^2 + |S_2|^2 )
 ! C
-! C for incident light polarized perp to the scattering plane,
-! C the scattered light is polarized perp to the scattering plane
+! C for incident light polarised perpendicular to the scattering plane,
+! C the scattered light is polarised perpendicular to the scattering plane
 ! C with intensity I_s = I_in * |S_1|^2 / (kr)^2
 ! C
-! C for incident light polarized parallel to the scattering plane,
-! C the scattered light is polarized parallel to the scattering plane
+! C for incident light polarised parallel to the scattering plane,
+! C the scattered light is polarised parallel to the scattering plane
 ! C with intensity I_s = I_in * |S_2|^2 / (kr)^2
 ! C
 ! C History:
@@ -46,12 +46,12 @@
 ! C Modified by B.T.Draine, Princeton Univ. Obs., 90.10.26
 ! C in order to compute <cos(theta)>
 ! C 91.05.07 (BTD): Modified to allow NANG=1
-! C 91.08.15 (BTD): Corrected error (failure to initialize P)
-! C 91.08.15 (BTD): Modified to enhance vectorizability.
+! C 91.08.15 (BTD): Corrected error (failure to initialise P)
+! C 91.08.15 (BTD): Modified to improve vectorisability.
 ! C 91.08.15 (BTD): Modified to make NANG=2 if called with NANG=1
 ! C 91.08.15 (BTD): Changed definition of QBACK.
 ! C 92.01.08 (BTD): Converted to full double precision and double complex
-! C                 eliminated 2 unneed lines of code
+! C                 eliminated two unnecessary lines of code
 ! C                 eliminated redundant variables (e.g. APSI,APSI0)
 ! C                 renamed RN -> EN = double precision N
 ! C                 Note that DOUBLE COMPLEX and DCMPLX are not part
@@ -93,7 +93,7 @@
 ! C
 !!! - 
 module bhmie_mod
-  use, intrinsic :: iso_fortran_env ! Requires fortran 2008
+  use, intrinsic :: iso_fortran_env ! Requires Fortran 2008.
   implicit none
 
   integer, parameter :: dp = REAL64

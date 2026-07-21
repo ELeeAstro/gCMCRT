@@ -1,10 +1,10 @@
-!!! E.K.H. Lee -  Translation into fortran 90 of the c++ code LX-MIE from Kitzmann & Heng (2018)
-!!! original comments have been retained
+!!! E.K.H. Lee - Fortran 90 translation of the C++ code LX-MIE from Kitzmann & Heng (2018).
+!!! Original comments have been retained.
 !!! - input : ri - refractive index (with negative k, m = n - k), x size parameter
-!!! - output : q_ext, qsca, q_abs efficencies and asymmetry parameter (g)
+!!! - output: q_ext, qsca and q_abs efficiencies, and asymmetry parameter (g)
 !!! - 
 module lxmie_mod
-  use, intrinsic :: iso_fortran_env ! Requires fortran 2008
+  use, intrinsic :: iso_fortran_env ! Requires Fortran 2008.
   implicit none
 
   integer, parameter :: dp = REAL64
@@ -33,7 +33,7 @@ contains
     !! See Eq. 22
     nb = int(x + 4.3_dp * x**(1.0_dp/3.0_dp)) + 2
 
-    !! Allocate the mie coffiecent arrays
+    !! Allocate the Mie-coefficient arrays.
     allocate(mie_coeff_a(nb),mie_coeff_b(nb))
 
     call calcMieCoefficients(nb, ri, x, mie_coeff_a, mie_coeff_b)

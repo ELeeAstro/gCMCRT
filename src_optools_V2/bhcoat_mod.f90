@@ -1,23 +1,23 @@
 !!! E. K.H. Lee: Rewrite of the bhcoat (coated spheres) classic routine (with Draine edits).
-!!! - Orginal history: 
+!!! - Original history:
 !***********************************************************************
 !
 ! Subroutine BHCOAT calculates Q_ext, Q_sca, Q_back, g=<cos> 
 ! for coated sphere.
-! All bessel functions computed by upward recurrence.
+! All Bessel functions are computed by upward recurrence.
 ! Input:
 !        X = 2*PI*RCORE*REFMED/WAVEL
 !        Y = 2*PI*RMANT*REFMED/WAVEL
 !        RFREL1 = REFCOR/REFMED
 !        RFREL2 = REFMAN/REFMED 
-! where  REFCOR = complex refr.index of core)
-!        REFMAN = complex refr.index of mantle)
-!        REFMED = real refr.index of medium)
+! where  REFCOR = complex refractive index of the core
+!        REFMAN = complex refractive index of the mantle
+!        REFMED = real refractive index of the medium
 !        RCORE = radius of core
 !        RMANT = radius of mantle
 !        WAVEL = wavelength of light in ambient medium
 
-! returns:
+! Returns:
 !        QQEXT = C_ext/pi*rmant^2
 !        QQSCA = C_sca/pi*rmant^2
 !        QBACK = 4*pi*(dQ_sca/dOmega)
@@ -37,7 +37,7 @@
 !***********************************************************************
 !!! -
 module bhcoat_mod
-  use, intrinsic :: iso_fortran_env ! Requires fortran 2008
+  use, intrinsic :: iso_fortran_env ! Requires Fortran 2008.
   implicit none
 
   integer, parameter :: dp = REAL64

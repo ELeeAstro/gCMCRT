@@ -112,7 +112,7 @@ contains
     ! if (x <= 1.0_dp) then
     !   phix = 1.185_dp*x**4*(1.0_dp - 0.4_dp*x**2 + 0.096_dp*x**4) 
     ! else if (x > 1.0_dp .and. x <= 2.0_dp) then
-    !   phix = 1.92_dp*x**2 - 1.084*x ! Note, think typo in textbooks, x**2 fits better than x**4
+    !   phix = 1.92_dp*x**2 - 1.084*x ! The textbook may contain a typo; x**2 fits better than x**4.
     ! else if (x > 2.0_dp .and. x <= 12.5_dp) then
     !   phix = 2.122_dp*x**2 - 1.456_dp*x
     ! else
@@ -198,7 +198,7 @@ contains
 
   end subroutine geo_optics
 
-  !! Cosine integral calculation adpated from special_functions.f90 (cisib)
+  !! Cosine-integral calculation adapted from special_functions.f90 (cisib).
   !! https://people.math.sc.edu/Burkardt/f_src/special_functions/special_functions.f90
   !! Shanjie Zhang, Jianming Jin, Computation of Special Functions, Wiley, 1996
   subroutine cisib(x, ci)

@@ -1,12 +1,12 @@
-!!! E. K.H. Lee: Rewrite into fortran 90 of the Grainger AOPP EDOG IDL/Fortran 77 Mie code
-!!! - Orginal history: 
+!!! E. K.H. Lee: Fortran 90 rewrite of the Grainger AOPP EDOG IDL/Fortran 77 Mie code.
+!!! - Original history:
 !     General purpose Mie scattering routine for single particles
 !
 !     Author: R Grainger 1990
 !
 !     History:
 !       G Thomas, March 2005: Added calculation of Phase function and
-!         code to ensure correct calculation of backscatter coeficient
+!         code to ensure correct calculation of the backscatter coefficient
 !       G Thomas, November 2006: Calculation of backscatter efficiency
 !         now done using the A and B values rather than the intensity at
 !         180 degrees.
@@ -22,7 +22,7 @@
 !         to the old phase function output DPh.
 
 module mieext_mod
-  use, intrinsic :: iso_fortran_env ! Requires fortran 2008
+  use, intrinsic :: iso_fortran_env ! Requires Fortran 2008.
   implicit none
 
   integer, parameter :: dp = REAL64

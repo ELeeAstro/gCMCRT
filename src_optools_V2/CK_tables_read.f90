@@ -49,15 +49,14 @@ contains
 
   end subroutine read_CK_tables
 
-  !! Reads a CMCRT formatted ascii CK table
+  !! Read a CMCRT-formatted ASCII CK table.
   subroutine read_CK_CMCRT(s,pre_mixed)
     implicit none
 
     integer, intent(in) :: s
     logical, intent(in) :: pre_mixed
 
-    integer :: np, nt, n_bins, ng,  l, u, i, j, p, t, g
-    character(len=10) sp
+    integer :: np, nt, n_bins, ng, l, u, i, j, g
     real(kind=dp), allocatable, dimension(:) :: press, temp, wll, wnn, gx, gw
     real(kind=dp), allocatable, dimension(:) :: k_abs
 
@@ -76,12 +75,12 @@ contains
     CK_tab(s)%nG = ng
 
     ! Allocate local arrays
-    allocate(press(np),temp(nt),wll(n_bins),wnn(n_bins),k_abs(ng),gx(ng),gw(ng))
+    allocate(press(np),temp(nt),wll(n_bins+1),wnn(n_bins+1),k_abs(ng),gx(ng),gw(ng))
 
     ! Allocate table arrays
     allocate(CK_tab(s)%T(CK_tab(s)%nT),CK_tab(s)%lT(CK_tab(s)%nT))
     allocate(CK_tab(s)%P(CK_tab(s)%nP),CK_tab(s)%lP(CK_tab(s)%nP))
-    allocate(CK_tab(s)%wl(CK_tab(s)%nwl+1),CK_tab(s)%wn(CK_tab(s)%nwl+1))
+    allocate(CK_tab(s)%wl(CK_tab(s)%nwl),CK_tab(s)%wn(CK_tab(s)%nwl))
     allocate(CK_tab(s)%Gx(CK_tab(s)%nG),CK_tab(s)%Gw(CK_tab(s)%nG))
     allocate(CK_tab(s)%k_abs(CK_tab(s)%nwl,CK_tab(s)%nP,CK_tab(s)%nT,CK_tab(s)%nG))
     allocate(CK_tab(s)%lk_abs(CK_tab(s)%nwl,CK_tab(s)%nP,CK_tab(s)%nT,CK_tab(s)%nG))
@@ -112,15 +111,18 @@ contains
     CK_tab(s)%lT(:) = log10(CK_tab(s)%T(:))
     CK_tab(s)%lP(:) = log10(CK_tab(s)%P(:))
 
-    ! Give g ordinance x and weights to object
+    ! Store the g ordinates and weights in the table object.
     CK_tab(s)%Gx(:) = gx(:)
     CK_tab(s)%Gw(:) = gw(:)
 
 
-    ! Reverse l index as table is in wavenumber order
+    ! Reverse l index as the table is in wavenumber order. The input arrays
+    ! contain bin edges, while CK_tab stores one representative wavelength
+    ! and wavenumber per opacity bin.
     do l = 1, CK_tab(s)%nwl
-      CK_tab(s)%wl(l) = wll(CK_tab(s)%nwl-l+1)
-      CK_tab(s)%wn(l) = wnn(CK_tab(s)%nwl-l+1)
+      CK_tab(s)%wl(l) = 0.5_dp * (wll(CK_tab(s)%nwl-l+1) + &
+        & wll(CK_tab(s)%nwl-l+2))
+      CK_tab(s)%wn(l) = 1.0e4_dp / CK_tab(s)%wl(l)
     end do
 
 
@@ -129,7 +131,7 @@ contains
     ! print*, CK_tab(s)%T(:)
     ! print*, CK_tab(s)%wl(:)
 
-    ! Read in the table data - the CMCRT format from the HELIOS-K data is a bit weird, wavelength is in the inner loop
+    ! Read the table data. In the HELIOS-K CMCRT format, wavelength is the innermost loop.
     if (pre_mixed .eqv. .True.) then
       ! The premixed table goes as pressure first due to GGchem constraints
       do j = 1, CK_tab(s)%nP
@@ -158,7 +160,7 @@ contains
     end if
 
     ! Deallocate work arrays and close units
-    deallocate(press,temp,wll,k_abs,gx,gw)
+    deallocate(press,temp,wll,wnn,k_abs,gx,gw)
     close(u)
 
 
@@ -211,7 +213,8 @@ contains
 
     !! Start reading data from NEMESIS table
 
-    ! Wavelength grid for now (TODO: use NEMESIS code to check for wn or wl grid in k_table - Ryan + Katy use wl grid.
+    ! Use a wavelength grid for now. TODO: use the NEMESIS metadata to distinguish
+    ! wavenumber and wavelength grids; Ryan and Katy use a wavelength grid.
     vmax = vmin + (npoint - 1)*delv
     CK_tab(s)%wl(1) = real(vmin, kind=dp)
     do l = 2, CK_tab(s)%nwl
@@ -220,7 +223,7 @@ contains
 
     irec = 11
 
-    ! Read in g-ordinances
+    ! Read the g ordinates.
     do g = 1, CK_tab(s)%nG
       read(u, rec=irec) g1_dum
       CK_tab(s)%Gx(g) = real(g1_dum, kind=dp)
@@ -256,7 +259,7 @@ contains
       irec = irec + 1
     end do
 
-    ! Check if custion wavelength grid is to read
+    ! Check whether a custom wavelength grid should be read.
     if (delv < 0.0_dp) then
       do l = 1, CK_tab(s)%nwl
         read(u,rec=irec) v_dum

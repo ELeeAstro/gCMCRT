@@ -3,6 +3,7 @@ module CK_tables_mod
   use CK_tables_read
   use CK_tables_interp
   use CK_table_RO
+  use, intrinsic :: ieee_arithmetic, only : ieee_is_finite
   !use CK_table_rebin
   implicit none
 
@@ -25,7 +26,7 @@ module CK_tables_mod
   namelist /CK_nml/ iopts, form, paths, nG, gmin1, gmax1, gmin2, gmax2, &
     & pre_mixed, rebin, nrebin, interp_wl
 
-  private :: output_CK_table, output_CK_gord
+  private :: output_CK_table, output_CK_gord, validate_CK_tables
   public :: calc_CK_table
 
 
@@ -39,7 +40,7 @@ contains
     real(kind=dp), allocatable, dimension(:) :: CK_RO
     real(kind=dp), allocatable, dimension(:,:) :: CK_work
 
-    ! Note, the order the array allocations is important (due to namelist order)
+    ! The array-allocation order is important because it follows the namelist order.
 
     ! Allocate number of CK tables
     allocate(CK_tab(nCK))
@@ -49,6 +50,12 @@ contains
 
     ! Read CK namelist parameters
     read(u_nml, nml=CK_nml)
+
+    if (rebin .eqv. .True.) then
+      print*, 'ERROR - CK rebinning is not implemented - STOPPING'
+      print*, 'Set rebin = .False. in CK_nml.'
+      stop
+    end if
 
     ! Allocate work arrays
     allocate(CK_out(nG,nlay),CK_write(nG,nlay))
@@ -65,7 +72,7 @@ contains
     CK_tab(:)%form = form(:)
     CK_tab(:)%path = paths(:)
 
-    ! Find the prf VMR_indexes of the CK species
+    ! Find the PRF VMR indices of the CK species.
     if (pre_mixed .eqv. .False.) then
       do s = 1, nCK
         exists = .False.
@@ -77,7 +84,7 @@ contains
           end if
         end do
         if (exists .eqv. .False.) then
-          print*, 'ERROR - Specifed CK species not found in prf VMR list - STOPPING'
+          print*, 'ERROR - Specified CK species not found in prf VMR list - STOPPING'
           print*, 'Species: ', CK_tab(s)%sp
           stop
         end if
@@ -87,12 +94,15 @@ contains
     ! Read the CK tables
     call read_CK_tables(pre_mixed)
 
-    ! Rebin each k-table if wanted
+    ! Validate table dimensions and grids before interpolation or random overlap
+    call validate_CK_tables()
+
+    ! Rebin each k table if requested.
     !if (rebin .eqv. .True.) then
       !call rebin_CK_tables(nrebin,nG)
     !end if
 
-    ! make weights equal to 1st table for now.
+    ! Use the first table's g grid and weights.
     Gx(:) = CK_tab(1)%Gx(:)
     Gw(:) = CK_tab(1)%Gw(:)
 
@@ -103,25 +113,25 @@ contains
     end if
     print*, ' ~~ Please wait... ~~ '
 
-    !! Begin openMP loops
+    !! Begin OpenMP loops.
     !$omp parallel default (none), &
     !$omp& private (l,z), &
     !$omp& shared (nwl,wl,nlay,CK_out,RH_lay,nG,Gw,Gx,pre_mixed,N_lay,interp_wl), &
     !$omp& firstprivate(CK_work,CK_RO)
 
 
-    ! Perform CK table interpolation to layer T,p
-    ! Species loops are inside subroutines
+    ! Interpolate the CK tables to the layer temperature and pressure.
+    ! Species loops are contained within the interpolation subroutines.
     do l = 1, nwl
       !$omp single
-      if (mod(l,nwl/10) == 0) then
+      if (mod(l,max(1,nwl/10)) == 0) then
         print*, l, wl(l), nwl
       end if
       !$omp end single
       !$omp do schedule (dynamic)
       do z = 1, nlay
 
-        ! Find the CK opacity for this layer from tables
+        ! Determine the CK opacity for this layer from the input tables.
         if (interp_wl .eqv. .True.) then
           call interp_CK_tables_wl(l,z,nG,CK_work(:,:))
         else
@@ -130,14 +140,15 @@ contains
         end if
 
         if (pre_mixed .eqv. .True.) then
-          ! Pre-mixed, give back interpolated ck table to output array
+          ! Return the interpolated pre-mixed CK table to the output array.
           CK_out(:,z) = (CK_work(1,:)*N_lay(z))/RH_lay(z)
           !CK_out(:,z) = (CK_work(1,:))/RH_lay(z)
         else
-          ! Perform the random overlap for all species
-          call RO_CK_2(z,nG,Gw(:),Gx(:),CK_work(:,:),CK_RO(:))
+          ! Perform random overlap with resorting and rebinning for all species.
+          call RO_CK_RORR(z,nG,Gw(:),CK_work(:,:),CK_RO(:))
+          !call RO_CK_2(z,nG,Gw(:),Gx(:),CK_work(:,:),CK_RO(:))
           !call RO_CK(z,nG,Gw(:),CK_work(:,:),CK_RO(:))
-          ! Convert overlapped result to cm2 g-1 of atmosphere and add to output array
+          ! Convert the overlapped result to cm^2 g^-1 of atmosphere.
           CK_out(:,z) = CK_RO(:)/RH_lay(z)
         end if
 
@@ -146,7 +157,7 @@ contains
       !$omp end do
 
       !$omp single
-      ! Output CMCRT formatted CK table for layers
+      ! Write the CMCRT-formatted CK table for this wavelength bin.
       call output_CK_table(l)
       !$omp end single
 
@@ -155,18 +166,122 @@ contains
 
     print*, ' ~~ Quest completed ~~ '
 
-    ! Output g ordinances and weights
+    ! Write the g ordinates and weights.
     call output_CK_gord()
 
-    !deallocate all allocated arrays
+    ! Deallocate all local arrays.
     deallocate(CK_out,CK_write)
     deallocate(CK_work)
     deallocate(CK_tab)
     deallocate(form,paths)
-    ! Close uCK i/o unit
+    ! Close the CK output unit.
     close(uCK)
 
   end subroutine calc_CK_table
+
+  subroutine validate_CK_tables()
+    implicit none
+
+    integer :: s, i
+    real(kind=dp), parameter :: grid_tol = 1.0e-10_dp
+    real(kind=dp) :: scale
+
+    if (nCK < 1) then
+      print*, 'ERROR - Correlated-k opacity is enabled but no CK tables are configured - STOPPING'
+      stop
+    end if
+
+    do s = 1, nCK
+      if (.not. allocated(CK_tab(s)%Gx) .or. .not. allocated(CK_tab(s)%Gw) .or. &
+        & .not. allocated(CK_tab(s)%wl) .or. .not. allocated(CK_tab(s)%T) .or. &
+        & .not. allocated(CK_tab(s)%P)) then
+        print*, 'ERROR - CK table did not provide all required grids - STOPPING'
+        print*, 'Species, path: ', CK_tab(s)%sp, trim(CK_tab(s)%path)
+        stop
+      end if
+
+      if (CK_tab(s)%nG /= nG) then
+        print*, 'ERROR - CK table nG does not match the CK namelist - STOPPING'
+        print*, 'Species, file nG, namelist nG: ', CK_tab(s)%sp, CK_tab(s)%nG, nG
+        stop
+      end if
+
+      if (CK_tab(s)%nwl /= nwl) then
+        print*, 'ERROR - CK table wavelength count does not match wavelengths.wl - STOPPING'
+        print*, 'Species, table nwl, calculation nwl: ', CK_tab(s)%sp, CK_tab(s)%nwl, nwl
+        stop
+      end if
+
+      if (CK_tab(s)%nT < 3 .or. CK_tab(s)%nP < 3) then
+        print*, 'ERROR - CK Bezier interpolation requires at least 3 T and P points - STOPPING'
+        print*, 'Species, nT, nP: ', CK_tab(s)%sp, CK_tab(s)%nT, CK_tab(s)%nP
+        stop
+      end if
+
+      if (any(CK_tab(s)%T <= 0.0_dp) .or. any(CK_tab(s)%P <= 0.0_dp)) then
+        print*, 'ERROR - CK temperature and pressure grids must be positive - STOPPING'
+        print*, 'Species, path: ', CK_tab(s)%sp, trim(CK_tab(s)%path)
+        stop
+      end if
+
+      if (any(.not. ieee_is_finite(CK_tab(s)%T)) .or. &
+        & any(.not. ieee_is_finite(CK_tab(s)%P)) .or. &
+        & any(.not. ieee_is_finite(CK_tab(s)%lk_abs))) then
+        print*, 'ERROR - CK interpolation data must be finite - STOPPING'
+        print*, 'Species, path: ', CK_tab(s)%sp, trim(CK_tab(s)%path)
+        stop
+      end if
+
+      do i = 2, CK_tab(s)%nT
+        if (CK_tab(s)%T(i) <= CK_tab(s)%T(i-1)) then
+          print*, 'ERROR - CK temperature grid must be strictly increasing - STOPPING'
+          print*, 'Species, index, values: ', CK_tab(s)%sp, i, &
+            & CK_tab(s)%T(i-1), CK_tab(s)%T(i)
+          stop
+        end if
+      end do
+
+      do i = 2, CK_tab(s)%nP
+        if (CK_tab(s)%P(i) <= CK_tab(s)%P(i-1)) then
+          print*, 'ERROR - CK pressure grid must be strictly increasing - STOPPING'
+          print*, 'Species, index, values: ', CK_tab(s)%sp, i, &
+            & CK_tab(s)%P(i-1), CK_tab(s)%P(i)
+          stop
+        end if
+      end do
+
+      do i = 1, nwl
+        scale = max(1.0_dp, abs(CK_tab(s)%wl(i)), abs(wl(i)))
+        if (abs(CK_tab(s)%wl(i) - wl(i)) > grid_tol*scale) then
+          print*, 'ERROR - CK wavelength grid does not match wavelengths.wl - STOPPING'
+          print*, 'Species, index, table wl, calculation wl: ', CK_tab(s)%sp, i, &
+            & CK_tab(s)%wl(i), wl(i)
+          stop
+        end if
+      end do
+    end do
+
+    do s = 2, nCK
+      do i = 1, nG
+        scale = max(1.0_dp, abs(CK_tab(s)%Gx(i)), abs(CK_tab(1)%Gx(i)))
+        if (abs(CK_tab(s)%Gx(i) - CK_tab(1)%Gx(i)) > grid_tol*scale) then
+          print*, 'ERROR - CK Gx grids differ between species - STOPPING'
+          print*, 'Species, index, value, reference: ', CK_tab(s)%sp, i, &
+            & CK_tab(s)%Gx(i), CK_tab(1)%Gx(i)
+          stop
+        end if
+
+        scale = max(1.0_dp, abs(CK_tab(s)%Gw(i)), abs(CK_tab(1)%Gw(i)))
+        if (abs(CK_tab(s)%Gw(i) - CK_tab(1)%Gw(i)) > grid_tol*scale) then
+          print*, 'ERROR - CK Gw grids differ between species - STOPPING'
+          print*, 'Species, index, value, reference: ', CK_tab(s)%sp, i, &
+            & CK_tab(s)%Gw(i), CK_tab(1)%Gw(i)
+          stop
+        end if
+      end do
+    end do
+
+  end subroutine validate_CK_tables
 
   subroutine output_CK_table(l)
     implicit none
@@ -182,7 +297,7 @@ contains
       first_call = .False.
     end if
 
-    ! Convert to single precision on output, also care for underfloat
+    ! Convert to single precision on output and protect against underflow.
     CK_write = real(max(CK_out,1.0e-30_dp),kind=sp)
     write(uCK,rec=l) CK_write
 
@@ -193,9 +308,9 @@ contains
     integer :: g, u_g
     real(kind=dp) :: sum1
 
-    print*, ' ~~ Outputing gord.cmcrt ~~ '
+    print*, ' ~~ Outputting gord.cmcrt ~~ '
 
-    ! Output g-ordinances and delg with weights to file g.ord
+    ! Write the g ordinates and their weights to gord.cmcrt.
     open(newunit=u_g, file='gord.cmcrt', action='readwrite',form='formatted')
     write(u_g,*) nG
 

@@ -3,6 +3,7 @@ module CIA_tables_mod
   use optools_table_class
   use CIA_tables_read, only : read_CIA_tables
   use CIA_tables_interp, only : interp_CIA_tables, interp_CIA_tables_Bezier
+  use, intrinsic :: ieee_arithmetic, only : ieee_is_finite
   implicit none
 
   logical :: first_call = .True.
@@ -17,7 +18,7 @@ module CIA_tables_mod
 
   namelist /CIA_nml/ iopts, form, paths
 
-  private :: find_CIA_consituents, output_CIA_table
+  private :: find_CIA_consituents, output_CIA_table, validate_CIA_tables
   public :: calc_CIA_table
 
 contains
@@ -33,7 +34,7 @@ contains
 
     CIA_work = 0.0_dp
 
-    !Note, the order the array allocations is important
+    ! The array-allocation order is important because it follows the namelist order.
 
     ! Allocate number of CIA tables
     allocate(CIA_tab(nCIA))
@@ -55,7 +56,7 @@ contains
     ! Find the CIA constituents from lookup table
     call find_CIA_consituents()
 
-    ! Find the prf VMR_indexes of the CIA consituent species
+    ! Find the PRF VMR indices of the CIA constituent species.
     do s = 1, nCIA
 
       ! Check for 3 species special
@@ -100,10 +101,12 @@ contains
     ! Read the CIA tables
     call read_CIA_tables()
 
+    call validate_CIA_tables()
+
     print*, ' ~~ Performing CIA interpolation and output ~~ '
     print*, ' ~~ Please wait... ~~ '
 
-    !! Begin openMP loops
+    !! Begin OpenMP loops.
     !$omp parallel default (none), &
     !$omp& private (l,z), &
     !$omp& shared (nwl,nlay,CIA_out,RH_lay,wl), &
@@ -113,7 +116,7 @@ contains
     ! Species loops are inside subroutines
     do l = 1, nwl
       !$omp single
-      if (mod(l,nwl/10) == 0) then
+      if (mod(l,max(1,nwl/10)) == 0) then
         print*, l, wl(l), nwl
       end if
       !$omp end single
@@ -141,12 +144,80 @@ contains
     deallocate(CIA_out,CIA_write)
     deallocate(CIA_tab)
     deallocate(form,paths)
-    ! Close uCIA i/o unit
+    ! Close the CIA I/O unit.
     close(uCIA)
 
     print*, ' ~~ Quest completed  ~~ '
 
   end subroutine calc_CIA_table
+
+  subroutine validate_CIA_tables()
+    implicit none
+
+    integer :: s, sn, i
+
+    do s = 1, nCIA
+      if (CIA_tab(s)%form /= 4) cycle
+
+      if (.not. allocated(CIA_tab(s)%nT) .or. .not. allocated(CIA_tab(s)%irec) .or. &
+        & .not. allocated(CIA_tab(s)%T) .or. .not. allocated(CIA_tab(s)%wn) .or. &
+        & .not. allocated(CIA_tab(s)%ltab) .or. .not. allocated(CIA_tab(s)%Tmin) .or. &
+        & .not. allocated(CIA_tab(s)%Tmax) .or. .not. allocated(CIA_tab(s)%wn_s) .or. &
+        & .not. allocated(CIA_tab(s)%wn_e)) then
+        print*, 'ERROR - CIA table did not provide all required interpolation data - STOPPING'
+        print*, 'Species, path: ', CIA_tab(s)%sp, trim(CIA_tab(s)%path)
+        stop
+      end if
+
+      do sn = 1, CIA_tab(s)%nset
+        if (CIA_tab(s)%nT(sn) < 1) then
+          print*, 'ERROR - CIA table set must contain at least one temperature - STOPPING'
+          print*, 'Species, set, nT: ', CIA_tab(s)%sp, sn, CIA_tab(s)%nT(sn)
+          stop
+        end if
+
+        if (CIA_tab(s)%irec(sn) < 3) then
+          print*, 'ERROR - CIA Bezier interpolation requires at least 3 wavenumber points - STOPPING'
+          print*, 'Species, set, nwn: ', CIA_tab(s)%sp, sn, CIA_tab(s)%irec(sn)
+          stop
+        end if
+
+        if (any(.not. ieee_is_finite(CIA_tab(s)%T(sn,1:CIA_tab(s)%nT(sn)))) .or. &
+          & any(.not. ieee_is_finite(CIA_tab(s)%wn(sn,1:CIA_tab(s)%irec(sn)))) .or. &
+          & any(.not. ieee_is_finite(CIA_tab(s)%ltab(sn,1:CIA_tab(s)%irec(sn), &
+          & 1:CIA_tab(s)%nT(sn))))) then
+          print*, 'ERROR - CIA interpolation data must be finite - STOPPING'
+          print*, 'Species, set, path: ', CIA_tab(s)%sp, sn, trim(CIA_tab(s)%path)
+          stop
+        end if
+
+        if (any(CIA_tab(s)%T(sn,1:CIA_tab(s)%nT(sn)) <= 0.0_dp)) then
+          print*, 'ERROR - CIA temperature grid must be positive - STOPPING'
+          print*, 'Species, set: ', CIA_tab(s)%sp, sn
+          stop
+        end if
+
+        do i = 2, CIA_tab(s)%nT(sn)
+          if (CIA_tab(s)%T(sn,i) <= CIA_tab(s)%T(sn,i-1)) then
+            print*, 'ERROR - CIA temperature grid must be strictly increasing - STOPPING'
+            print*, 'Species, set, index, values: ', CIA_tab(s)%sp, sn, i, &
+              & CIA_tab(s)%T(sn,i-1), CIA_tab(s)%T(sn,i)
+            stop
+          end if
+        end do
+
+        do i = 2, CIA_tab(s)%irec(sn)
+          if (CIA_tab(s)%wn(sn,i) <= CIA_tab(s)%wn(sn,i-1)) then
+            print*, 'ERROR - CIA wavenumber grid must be strictly increasing - STOPPING'
+            print*, 'Species, set, index, values: ', CIA_tab(s)%sp, sn, i, &
+              & CIA_tab(s)%wn(sn,i-1), CIA_tab(s)%wn(sn,i)
+            stop
+          end if
+        end do
+      end do
+    end do
+
+  end subroutine validate_CIA_tables
 
   subroutine find_CIA_consituents()
     implicit none
@@ -317,7 +388,7 @@ contains
         CIA_tab(s)%nT(1) = 10
 
       case('CH4-Ar','Ar-CH4')
-        CIA_tab(s)%sp_con(1) = 'He'
+        CIA_tab(s)%sp_con(1) = 'CH4'
         CIA_tab(s)%sp_con(2) = 'Ar'
 
         CIA_tab(s)%nset = 1
@@ -380,7 +451,7 @@ contains
     integer :: z,  reclen
 
     if (first_call .eqv. .True.) then
-      !print*, 'Outputing CIA.cmcrt'
+      !print*, 'Outputting CIA.cmcrt'
       inquire(iolength=reclen) CIA_write
       ! Output k-table in 1D or flattened 3D CMCRT format k_CMCRT.ktb (single precision)
       open(newunit=uCIA, file='CIA.cmcrt', action='readwrite', &
@@ -388,7 +459,7 @@ contains
       first_call = .False.
     end if
 
-    ! Convert to single precision on output, also care for underfloat
+    ! Convert to single precision on output and protect against underflow.
     CIA_write(:) = real(max(CIA_out(:),1.0e-30_dp),kind=sp)
     write(uCIA,rec=l) CIA_write
 

@@ -19,7 +19,7 @@ contains
     ! Temperature [K]
     T = TG_lay(z)
 
-    ! Polynomial coefficents, frequency f in [Hz]
+    ! Polynomial coefficients for frequency f in Hz.
     a = 3.397e-46_dp + (-5.216e-31_dp + 7.039e-15_dp/freq(l))/freq(l)
     b = -4.116e-42_dp + (1.067e-26_dp + 8.135e-11_dp/freq(l))/freq(l)
     c = 5.081e-37_dp + (-8.724e-23_dp - 5.659e-8_dp/freq(l))/freq(l)
@@ -69,7 +69,7 @@ contains
     a00 = CIA_tab(s)%tab(1,iwl,iT) ; a10 = CIA_tab(s)%tab(1,iwl1,iT)
     a01 = CIA_tab(s)%tab(1,iwl,iT1) ; a11 = CIA_tab(s)%tab(1,iwl1,iT1)
 
-    ! Perform bi-linear interpolation
+    ! Perform bilinear interpolation.
     call bilinear_interp(xval, yval, x0, x1, y0, y1, a00, a10, a01, a11, aval)
 
     CIA_spec = 1.0e-26_dp * aval * (VMR_lay(CIA_tab(s)%iVMR(1),z) * N_lay(z)) * (VMR_lay(CIA_tab(s)%iVMR(2),z) * N_lay(z) &

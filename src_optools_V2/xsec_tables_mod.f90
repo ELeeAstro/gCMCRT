@@ -2,6 +2,7 @@ module xsec_tables_mod
   use optools_data_mod
   use xsec_tables_read
   use xsec_tables_interp
+  use, intrinsic :: ieee_arithmetic, only : ieee_is_finite
   implicit none
 
   logical :: first_call = .True.
@@ -16,7 +17,7 @@ module xsec_tables_mod
 
   namelist /xsec_nml/ iopts, form, paths
 
-  private :: output_xsec_table, combine_xsec_opacity
+  private :: output_xsec_table, combine_xsec_opacity, validate_xsec_tables
   public :: calc_xsec_table
 
 contains
@@ -51,7 +52,7 @@ contains
     xsec_tab(:)%form = form(:)
     xsec_tab(:)%path = paths(:)
 
-    ! Find the prf VMR_indexes of the xsec species
+    ! Find the PRF VMR indices of the cross-section species.
     do s = 1, nxsec
       exists = .False.
       do j = 1, ngas
@@ -62,7 +63,7 @@ contains
         end if
       end do
       if (exists .eqv. .False.) then
-        print*, 'ERROR - Specifed xsec species not found in prf VMR list - STOPPING'
+        print*, 'ERROR - Specified xsec species not found in prf VMR list - STOPPING'
         print*, 'Species: ', xsec_tab(s)%sp
         stop
       end if
@@ -71,10 +72,12 @@ contains
     ! Read the xsec tables
     call read_xsec_tables()
 
+    call validate_xsec_tables()
+
     print*, ' ~~ Performing xsec interpolation, combining and output ~~ '
     print*, ' ~~ Please wait... ~~ '
 
-    !! Begin openMP loops
+    !! Begin OpenMP loops.
     !$omp parallel default (none), &
     !$omp& private (l,z), &
     !$omp& shared (nwl,wl,nlay,xsec_out,RH_lay), &
@@ -84,7 +87,7 @@ contains
     ! Species loops are inside subroutines
     do l = 1, nwl
       !$omp single
-      if (mod(l,nwl/10) == 0) then
+      if (mod(l,max(1,nwl/10)) == 0) then
         print*, l, wl(l), nwl
       end if
       !$omp end single
@@ -112,7 +115,56 @@ contains
     end do
     !$omp end parallel
 
+    deallocate(xsec_tab)
+    deallocate(form,paths)
+    deallocate(xsec_out,xsec_write)
+    deallocate(xsec_work)
+    close(uxsec)
+
   end subroutine calc_xsec_table
+
+  subroutine validate_xsec_tables()
+    implicit none
+
+    integer :: s, i
+
+    do s = 1, nxsec
+      if (.not. allocated(xsec_tab(s)%wl) .or. .not. allocated(xsec_tab(s)%lx_abs)) then
+        print*, 'ERROR - Xsec table did not provide all required interpolation data - STOPPING'
+        print*, 'Species, path: ', xsec_tab(s)%sp, trim(xsec_tab(s)%path)
+        stop
+      end if
+
+      if (xsec_tab(s)%nwl < 3) then
+        print*, 'ERROR - Xsec Bezier interpolation requires at least 3 wavelength points - STOPPING'
+        print*, 'Species, nwl: ', xsec_tab(s)%sp, xsec_tab(s)%nwl
+        stop
+      end if
+
+      if (any(.not. ieee_is_finite(xsec_tab(s)%wl)) .or. &
+        & any(.not. ieee_is_finite(xsec_tab(s)%lx_abs))) then
+        print*, 'ERROR - Xsec interpolation data must be finite - STOPPING'
+        print*, 'Species, path: ', xsec_tab(s)%sp, trim(xsec_tab(s)%path)
+        stop
+      end if
+
+      if (any(xsec_tab(s)%wl <= 0.0_dp)) then
+        print*, 'ERROR - Xsec wavelength grid must be positive - STOPPING'
+        print*, 'Species, path: ', xsec_tab(s)%sp, trim(xsec_tab(s)%path)
+        stop
+      end if
+
+      do i = 2, xsec_tab(s)%nwl
+        if (xsec_tab(s)%wl(i) <= xsec_tab(s)%wl(i-1)) then
+          print*, 'ERROR - Xsec wavelength grid must be strictly increasing - STOPPING'
+          print*, 'Species, index, values: ', xsec_tab(s)%sp, i, &
+            & xsec_tab(s)%wl(i-1), xsec_tab(s)%wl(i)
+          stop
+        end if
+      end do
+    end do
+
+  end subroutine validate_xsec_tables
 
   subroutine combine_xsec_opacity(z,xsec_work,xsec_comb)
     implicit none
@@ -141,14 +193,14 @@ contains
 
     if (first_call .eqv. .True.) then
       inquire(iolength=reclen) xsec_write
-      !print*, 'Outputing xsec.cmcrt'
+      !print*, 'Outputting xsec.cmcrt'
       ! Output table in 1D or flattened 3D CMCRT format k_CMCRT.ktb (single precision)
       open(newunit=uxsec, file='xsec.cmcrt', action='readwrite',&
         & form='unformatted',status='replace', access='direct',recl=reclen)
       first_call = .False.
     end if
 
-    ! Convert to single precision on output, also care for underfloat
+    ! Convert to single precision on output and protect against underflow.
     xsec_write(:) = real(max(xsec_out(:),1.0e-30_dp),kind=sp)
     write(uxsec,rec=l) xsec_write
 

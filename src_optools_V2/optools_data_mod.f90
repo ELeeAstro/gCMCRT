@@ -20,7 +20,7 @@ module optools_data_mod
   real(kind=dp), parameter :: hp_bar = hp/twopi
   real(kind=dp), parameter :: c_s = 2.99792458e10_dp ! cm s-1 - Vacuum speed of light
   real(kind=dp), parameter :: amu = 1.66053906660e-24_dp ! g - Atomic mass unit
-  real(kind=dp), parameter :: Rgas = 8.31446261815324e7
+  real(kind=dp), parameter :: Rgas = 8.31446261815324e7_dp
   real(kind=dp), parameter :: m_el = 9.1093837015e-28_dp ! g - electron mass
   real(kind=dp), parameter :: N_A = 6.02214076e23_dp ! mol-1 - Avogadro's constant
   real(kind=dp), parameter :: a_fine = 7.2973525693e-3_dp ! fine structure constant
@@ -37,7 +37,7 @@ module optools_data_mod
   real(kind=dp), parameter :: P_stp = atm ! Standard pressure [dyne]
   real(kind=dp), parameter :: N_stp = P_stp / (kb * T_stp) ! Standard number density [cm-3]
 
-  !--------------- Global paramaters ---------------------
+  !--------------- Global parameters ---------------------
 
   ! ---- Main Switches ---- !
   logical :: corr_k
@@ -60,7 +60,7 @@ module optools_data_mod
   ! ---- Experiment name ---- !
   character(len=50) :: exp_name
 
-  ! ---- Cloud distribution paramaters and options ---- !
+  ! ---- Cloud-distribution parameters and options ---- !
   integer :: imix, idist, imie, ndist, idist_int
   real(kind=dp) :: sig, lsig, eff_fac, veff
   real(kind=dp) :: amin, amax, lamin, lamax

@@ -70,7 +70,7 @@ contains
 
     read(u,*); read(u,*); read(u,*)
     read(u,*) nxsec
-    allocate(xsec_name(ncl))
+    allocate(xsec_name(nxsec))
     do c = 1, nxsec
       read(u,*) xsec_name(c)
     end do
@@ -231,7 +231,7 @@ contains
   subroutine read_clprf()
     implicit none
 
-    integer :: u, i, j, k, l, sdum
+    integer :: u, i, j, k, l, sdum, nlay_cl
     real(kind=dp) :: a_dum, var_dum, nd_dum
     real(kind=dp), allocatable, dimension(:) :: VMR_dum, a_dum_C, nd_dum_C
 
@@ -241,7 +241,13 @@ contains
     open(newunit=u, file=trim(exp_name)//'.clprf', form='formatted', status='old', action='read')
 
     read(u,*); read(u,*)
-    read(u,*) nlay, nmode
+    read(u,*) nlay_cl, nmode
+
+    if (nlay_cl /= nlay) then
+      print*, 'ERROR - Cloud and gas profiles have different layer counts - STOPPING'
+      print*, 'Gas profile nlay, cloud profile nlay: ', nlay, nlay_cl
+      stop
+    end if
 
     read(u,*)
     read(u,*) ndust

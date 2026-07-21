@@ -1,6 +1,8 @@
 module CIA_tables_interp
   use optools_data_mod
-  use optools_aux, only : locate, linear_log_interp, bilinear_log_interp, Bezier_interp
+  use optools_aux, only : locate, locate_triplet, locate_inside, locate_below, &
+    & locate_above, linear_interp, linear_log_interp, bilinear_log_interp, &
+    & Bezier_interp
   use ieee_arithmetic
   implicit none
 
@@ -16,8 +18,9 @@ contains
     integer, intent(in) :: l, z
     real(kind=dp), intent(out) :: CIA_work
 
-    integer :: s, sn, j
-    integer :: iwn1, iwn2, iwn3, iT1, iT2, iT3
+    integer :: s, sn, j, nTs
+    integer :: iwn_idx(3), iT_idx(3), wn_region, T_region
+    integer :: iwn_exact, iT_exact, iT_fixed
     real(kind=dp) :: T, iCIA
     real(kind=dp), dimension(3) :: Ta, wna, ka, ka_cia
 
@@ -37,8 +40,8 @@ contains
       sn = 0
       if (CIA_tab(s)%nset > 1) then
         do j = 1, CIA_tab(s)%nset
-          if (wn(l) > CIA_tab(s)%wn_s(j) .and. wn(l) < CIA_tab(s)%wn_e(j)) then
-            if (T > CIA_tab(s)%Tmin(j) .and. T < CIA_tab(s)%Tmax(j)) then
+          if (wn(l) >= CIA_tab(s)%wn_s(j) .and. wn(l) <= CIA_tab(s)%wn_e(j)) then
+            if (T >= CIA_tab(s)%Tmin(j) .and. T <= CIA_tab(s)%Tmax(j)) then
               sn = j
               exit
             end if
@@ -48,12 +51,12 @@ contains
         if (sn == 0) then
 
           do j = 1, CIA_tab(s)%nset
-            if (wn(l) > CIA_tab(s)%wn_s(j) .and. wn(l) < CIA_tab(s)%wn_e(j)) then
-              if (T < CIA_tab(s)%Tmin(j)) then
+            if (wn(l) >= CIA_tab(s)%wn_s(j) .and. wn(l) <= CIA_tab(s)%wn_e(j)) then
+              if (T <= CIA_tab(s)%Tmin(j)) then
                 sn = j
                 exit
               end if
-              if (T > CIA_tab(s)%Tmax(j)) then
+              if (T >= CIA_tab(s)%Tmax(j)) then
                 sn = j
                 exit
               end if
@@ -70,86 +73,65 @@ contains
        sn = 1
       end if
 
-      ! Locate required wn indexes in CIA wn array
-      call locate(CIA_tab(s)%wn(sn,1:CIA_tab(s)%irec(sn)),wn(l),iwn2)
+      call locate_triplet(CIA_tab(s)%wn(sn,1:CIA_tab(s)%irec(sn)),wn(l), &
+        & iwn_idx,wn_region,iwn_exact)
 
-      ! Check in wavenumber within bounds
-      if ((iwn2+1 > CIA_tab(s)%irec(sn)) .or. (iwn2 < 1)) then
-        cycle
-      else
-        iwn1 = iwn2 - 1
-        iwn3 = iwn2 + 1
-        if (iwn1 <= 0) then
-          iwn1 = 1
-          iwn2 = 2
-          iwn3 = 3
-        else if (iwn3 > CIA_tab(s)%irec(sn)) then
-          iwn1 = CIA_tab(s)%irec(sn) - 2
-          iwn2 = CIA_tab(s)%irec(sn) - 1
-          iwn3 = CIA_tab(s)%irec(sn)
+      ! CIA opacity is zero outside the selected set's wavenumber range.
+      if (wn_region /= locate_inside) cycle
+
+      wna(:) = CIA_tab(s)%wn(sn,iwn_idx(:))
+      nTs = CIA_tab(s)%nT(sn)
+      iT_fixed = 0
+
+      if (nTs == 1) then
+        iT_fixed = 1
+      else if (nTs == 2) then
+        if (T <= CIA_tab(s)%T(sn,1)) then
+          iT_fixed = 1
+        else if (T >= CIA_tab(s)%T(sn,2)) then
+          iT_fixed = 2
         end if
-      end if
-
-      wna(1) = CIA_tab(s)%wn(sn,iwn1)
-      wna(2) = CIA_tab(s)%wn(sn,iwn2)
-      wna(3) = CIA_tab(s)%wn(sn,iwn3)
-
-      ! Locate required T indexes in CIA wn array for layer temperature
-      call locate(CIA_tab(s)%T(sn,1:CIA_tab(s)%nT(sn)),T,iT2)
-      iT1 = iT2 - 1
-      iT3 = iT2 + 1
-
-      if (iT1 <= 0) then
-        iT1 = 1
-        iT2 = 2
-        iT3 = 3
-      else if (iT3 > CIA_tab(s)%nT(sn)) then
-        iT1 = CIA_tab(s)%nT(sn) - 2
-        iT2 = CIA_tab(s)%nT(sn) - 1
-        iT3 = CIA_tab(s)%nT(sn)
-      end if
-
-      Ta(1) = CIA_tab(s)%T(sn,iT1)
-      Ta(2) = CIA_tab(s)%T(sn,iT2)
-      Ta(3) = CIA_tab(s)%T(sn,iT3)
-
-      if (T <= CIA_tab(s)%Tmin(sn)) then
-        ! Interpolate at minimum T for set
-        ka(1) = CIA_tab(s)%ltab(sn,iwn1,1)
-        ka(2) = CIA_tab(s)%ltab(sn,iwn2,1)
-        ka(3) = CIA_tab(s)%ltab(sn,iwn3,1)
-        call Bezier_interp(wna(:), ka(:), 3, wn(l), iCIA)
-        CIA_work = CIA_work +  10.0_dp**iCIA &
-          & * VMR_lay(CIA_tab(s)%iVMR(1),z) * N_lay(z) &
-          & * VMR_lay(CIA_tab(s)%iVMR(2),z) * N_lay(z)
-      else if (T >= CIA_tab(s)%Tmax(sn)) then
-        ! Interpolate at maximum T for set
-        ka(1) = CIA_tab(s)%ltab(sn,iwn1,CIA_tab(s)%nT(1))
-        ka(2) = CIA_tab(s)%ltab(sn,iwn2,CIA_tab(s)%nT(1))
-        ka(3) = CIA_tab(s)%ltab(sn,iwn3,CIA_tab(s)%nT(1))
-        call Bezier_interp(wna(:), ka(:), 3, wn(l), iCIA)
-        CIA_work = CIA_work +  10.0_dp**iCIA &
-          & * VMR_lay(CIA_tab(s)%iVMR(1),z) * N_lay(z) &
-          & * VMR_lay(CIA_tab(s)%iVMR(2),z) * N_lay(z)
       else
-        ! Both wavenumber and temperature are within table bounds, perform Bezier interpolation 4 times
-        ka(1) = CIA_tab(s)%ltab(sn,iwn1,iT1)
-        ka(2) = CIA_tab(s)%ltab(sn,iwn2,iT1)
-        ka(3) = CIA_tab(s)%ltab(sn,iwn3,iT1)
-        call Bezier_interp(wna(:), ka(:), 3, wn(l), ka_cia(1)) ! Result at T1, wn_in
-        ka(1) = CIA_tab(s)%ltab(sn,iwn1,iT2)
-        ka(2) = CIA_tab(s)%ltab(sn,iwn2,iT2)
-        ka(3) = CIA_tab(s)%ltab(sn,iwn3,iT2)
-        call Bezier_interp(wna(:), ka(:), 3, wn(l), ka_cia(2)) ! Result at T2, wn_in
-        ka(1) = CIA_tab(s)%ltab(sn,iwn1,iT3)
-        ka(2) = CIA_tab(s)%ltab(sn,iwn2,iT3)
-        ka(3) = CIA_tab(s)%ltab(sn,iwn3,iT3)
-        call Bezier_interp(wna(:), ka(:), 3, wn(l), ka_cia(3)) ! Result at T3, wn_in
-        call Bezier_interp(Ta(:), ka_cia(:), 3, T, iCIA) ! Result at T_in, wn_in
-        CIA_work = CIA_work +  10.0_dp**iCIA &
-          & * VMR_lay(CIA_tab(s)%iVMR(1),z) * N_lay(z) &
-          & * VMR_lay(CIA_tab(s)%iVMR(2),z) * N_lay(z)
+        call locate_triplet(CIA_tab(s)%T(sn,1:nTs),T,iT_idx,T_region,iT_exact)
+        iT_fixed = iT_exact
+        if (T_region == locate_below) iT_fixed = 1
+        if (T_region == locate_above) iT_fixed = nTs
       end if
+
+      if (iT_fixed > 0) then
+        if (iwn_exact > 0) then
+          iCIA = CIA_tab(s)%ltab(sn,iwn_exact,iT_fixed)
+        else
+          ka(:) = CIA_tab(s)%ltab(sn,iwn_idx(:),iT_fixed)
+          call Bezier_interp(wna,ka,wn(l),iCIA)
+        end if
+      else if (nTs == 2) then
+        do j = 1, 2
+          if (iwn_exact > 0) then
+            ka_cia(j) = CIA_tab(s)%ltab(sn,iwn_exact,j)
+          else
+            ka(:) = CIA_tab(s)%ltab(sn,iwn_idx(:),j)
+            call Bezier_interp(wna,ka,wn(l),ka_cia(j))
+          end if
+        end do
+        call linear_interp(T,CIA_tab(s)%T(sn,1),CIA_tab(s)%T(sn,2), &
+          & ka_cia(1),ka_cia(2),iCIA)
+      else
+        Ta(:) = CIA_tab(s)%T(sn,iT_idx(:))
+        do j = 1, 3
+          if (iwn_exact > 0) then
+            ka_cia(j) = CIA_tab(s)%ltab(sn,iwn_exact,iT_idx(j))
+          else
+            ka(:) = CIA_tab(s)%ltab(sn,iwn_idx(:),iT_idx(j))
+            call Bezier_interp(wna,ka,wn(l),ka_cia(j))
+          end if
+        end do
+        call Bezier_interp(Ta,ka_cia,T,iCIA)
+      end if
+
+      CIA_work = CIA_work + 10.0_dp**iCIA &
+        & * VMR_lay(CIA_tab(s)%iVMR(1),z) * N_lay(z) &
+        & * VMR_lay(CIA_tab(s)%iVMR(2),z) * N_lay(z)
       
     end do
 
@@ -177,8 +159,8 @@ contains
       sn = 0
       if (CIA_tab(s)%nset > 1) then
         do j = 1, CIA_tab(s)%nset
-          if (wn(l) > CIA_tab(s)%wn_s(j) .and. wn(l) < CIA_tab(s)%wn_e(j)) then
-            if (TG_lay(z) > CIA_tab(s)%Tmin(j) .and. TG_lay(z) < CIA_tab(s)%Tmax(j)) then
+          if (wn(l) >= CIA_tab(s)%wn_s(j) .and. wn(l) <= CIA_tab(s)%wn_e(j)) then
+            if (TG_lay(z) >= CIA_tab(s)%Tmin(j) .and. TG_lay(z) <= CIA_tab(s)%Tmax(j)) then
               sn = j
               exit
             end if
@@ -188,12 +170,12 @@ contains
         if (sn == 0) then
 
           do j = 1, CIA_tab(s)%nset
-            if (wn(l) > CIA_tab(s)%wn_s(j) .and. wn(l) < CIA_tab(s)%wn_e(j)) then
-              if (TG_lay(z) < CIA_tab(s)%Tmin(j)) then
+            if (wn(l) >= CIA_tab(s)%wn_s(j) .and. wn(l) <= CIA_tab(s)%wn_e(j)) then
+              if (TG_lay(z) <= CIA_tab(s)%Tmin(j)) then
                 sn = j
                 exit
               end if
-              if (TG_lay(z) > CIA_tab(s)%Tmax(j)) then
+              if (TG_lay(z) >= CIA_tab(s)%Tmax(j)) then
                 sn = j
                 exit
               end if
@@ -210,14 +192,14 @@ contains
        sn = 1
       end if
 
-      ! Locate required wn indexes in CIA wn array
+      ! Locate the required wavenumber indices in the CIA array.
       call locate(CIA_tab(s)%wn(sn,1:CIA_tab(s)%irec(sn)),wn(l),iwn)
       iwn1 = iwn + 1
       ! Check in wavenumber within bounds
       if ((iwn1 > CIA_tab(s)%irec(sn)) .or. (iwn < 1)) then
         cycle
       end if
-      ! Locate required T indexes in CIA wn array for layer temperature
+      ! Locate the required temperature indices for the layer temperature.
       call locate(CIA_tab(s)%T(sn,1:CIA_tab(s)%nT(sn)),TG_lay(z),iT)
       iT1 = iT + 1
 
@@ -231,10 +213,10 @@ contains
         xval = wn(l) ; x0 = CIA_tab(s)%wn(sn,iwn) ; x1 = CIA_tab(s)%wn(sn,iwn1)
         y0 = CIA_tab(s)%tab(sn,iwn,1) ; y1 = CIA_tab(s)%tab(sn,iwn1,1)
 
-        ! Perform log linear interpolation
+        ! Perform log-linear interpolation.
         call linear_log_interp(xval, x0, x1, y0, y1, yval)
 
-        ! Check for NaN's from interpolation
+        ! Check for NaNs from interpolation.
         if (ieee_is_nan(yval) .eqv. .True.) then
           print*, 'CIA: NaN in CIA table linear_log_interp: ', l, z, CIA_tab(s)%sp
           print*, '--', xval, yval, x0, x1, y0, y1
@@ -252,12 +234,13 @@ contains
 
         ! Perform wn linear interp to maxval(T)
         xval = wn(l) ; x0 = CIA_tab(s)%wn(sn,iwn) ; x1 = CIA_tab(s)%wn(sn,iwn1)
-        y0 = CIA_tab(s)%tab(sn,iwn,CIA_tab(s)%nT(1)) ; y1 = CIA_tab(s)%tab(sn,iwn1,CIA_tab(s)%nT(1))
+        y0 = CIA_tab(s)%tab(sn,iwn,CIA_tab(s)%nT(sn))
+        y1 = CIA_tab(s)%tab(sn,iwn1,CIA_tab(s)%nT(sn))
 
-        ! Perform log linear interpolation
+        ! Perform log-linear interpolation.
         call linear_log_interp(xval, x0, x1, y0, y1, yval)
 
-        ! Check for NaN's from interpolation
+        ! Check for NaNs from interpolation.
         if (ieee_is_nan(yval) .eqv. .True.) then
           print*, 'CIA: NaN in CIA table linear_log_interp: ', l, z, CIA_tab(s)%sp
           print*, '--', xval, yval, x0, x1, y0, y1
@@ -276,10 +259,10 @@ contains
         a00 = CIA_tab(s)%tab(sn,iwn,iT) ; a10 = CIA_tab(s)%tab(sn,iwn1,iT)
         a01 = CIA_tab(s)%tab(sn,iwn,iT1) ; a11 = CIA_tab(s)%tab(sn,iwn1,iT1)
 
-        ! Perform bi-linear interpolation
+        ! Perform bilinear interpolation.
         call bilinear_log_interp(xval, yval, x0, x1, y0, y1, a00, a10, a01, a11, aval)
 
-        ! Check for NaN's from bi-linear interpolation
+        ! Check for NaNs from bilinear interpolation.
         if (ieee_is_nan(aval) .eqv. .True.) then
           print*, 'CIA: NaN in CIA table bilinear_log_interp: ', l, z, CIA_tab(s)%sp
           print*, '--', xval, yval, x0, x1, y0, y1, a00, a10, a01, a11, aval
@@ -338,7 +321,7 @@ contains
 
     end select
 
-    ! Check for NaN's from interpolation
+    ! Check for NaNs from interpolation.
     if (ieee_is_nan(CIA_spec) .eqv. .True.) then
       print*, 'CIA: NaN in CIA table special: ', s, l, z, CIA_tab(s)%sp
       print*, '--', CIA_spec

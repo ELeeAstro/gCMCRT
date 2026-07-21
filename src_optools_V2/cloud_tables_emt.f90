@@ -112,7 +112,7 @@ contains
   end function m2e
 
   !!! Combine using Bruggeman formula
-  ! define function to be minimized
+  ! Define the function to be minimised.
   pure subroutine Bruggeman(M_eff,M_inc,V_inc,FF)
     implicit none
 
@@ -136,7 +136,7 @@ contains
   end subroutine Bruggeman
 
   ! -------------------------------------------------------------------------------------------------
-  ! A program for function minimization using the Newton-Raphson method.
+  ! A program for function minimisation using the Newton-Raphson method.
   ! -------------------------------------------------------------------------------------------------
   pure subroutine NR(M_inc,V_inc,M_eff0,M_eff,unphysical)
     implicit none

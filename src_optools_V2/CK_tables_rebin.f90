@@ -27,8 +27,8 @@ contains
     allocate(wn_e(nwl-1))
     allocate(wn_ne(nnbin+1),wl_nc(nnbin))
 
-    ! We need to calculate the wavenumber grid edges of the k-table, but we are given the wavelength bin center
-    ! therefore ignore the first and last bin, as they cannot be accuratly rebinned
+    ! We need to calculate the wavenumber-grid edges of the k table, but we are given the wavelength-bin centre.
+    ! Therefore, ignore the first and last bins, as they cannot be accurately rebinned.
     ! We use the first table as the wavenumber grid
     ! this fundamentally assumes that the wavelength grid is equal for all k-tables
 

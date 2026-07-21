@@ -44,7 +44,7 @@ contains
     integer :: i, i1, j, num1
     complex(kind=r2) :: s, s1
     !-------------------------------------------------------------------------------------------------
-    ! initialisierung: not necessary (+ slowes the code down remarkably)
+    ! Initialisation is unnecessary and slows the code considerably.
     ! ru(:) = (0.0, 0.0)
 
     s       = a / ri
@@ -64,17 +64,17 @@ contains
   ! --------
   ! - for a given size parameter 'x' and (complex) refractive index 'ri' the following quantities
   !   are determined:
-  !   * Qext     - extinction effiency
-  !   * Qsca     - scattering effiency
-  !   * Qabs     - absorption effiency
-  !   * Qbk      - backscattering effiency
-  !   * Qpr      - radiation pressure effiency
+  !   * Qext     - extinction efficiency
+  !   * Qsca     - scattering efficiency
+  !   * Qabs     - absorption efficiency
+  !   * Qbk      - backscattering efficiency
+  !   * Qpr      - radiation-pressure efficiency
   !   * albedo   - Albedo
-  !   * g        - g scattering assymetry factor
+  !   * g        - scattering asymmetry factor
   !   * SA1, SA2 - scattering amplitude function
   ! - further input parameters
   !   * doSA = .true.  ->  calculation of the scattering amplitudes
-  !   * nang ... half number of scattering angles theta in the intervall 0...PI/2
+  !   * nang ... half the number of scattering angles theta in the interval 0...PI/2
   !              (equidistantly distributed)
   ! - this routine is based on the routine 'shexqnn' published by
   !       N.V.Voshchinnikov: "Optics of Cosmic Dust",
@@ -107,7 +107,7 @@ contains
     !-------------------------------------------------------------------------------------------------
     ! Maximum number of terms to be considered
     nterms = 20000000
-    ! this works for x up to 1.d9, but needs a hell more of memory!!
+    ! This works for x up to 1.d9, but requires considerably more memory.
     !nterms= 550000000
 
     ! Accuracy to be achieved
@@ -117,7 +117,7 @@ contains
     xmin   = 1.0e-6_r2
 
     !-------------------------------------------------------------------------------------------------
-    ! initialization
+    ! Initialisation.
     if (.not.allocated(ru)) then
       allocate( ru(1:nterms), mu(1:nang), fpi(1:nang), &
               & fpi0(1:nang), fpi1(1:nang), ftau(1:nang))
@@ -174,7 +174,7 @@ contains
           ! ------------------------------------------------------------------------------------------
           ! FIRST TERM
           ! ------------------------------------------------------------------------------------------
-          ! initialize term counter
+          ! Initialise the term counter.
           iterm = 1
 
           ! Bessel functions

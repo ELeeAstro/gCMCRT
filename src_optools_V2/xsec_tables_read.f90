@@ -72,6 +72,8 @@ contains
       !print*, xsec_tab(s)%sp, l, xsec_tab(s)%wl(l), xsec_tab(s)%lx_abs(l)
     end do
 
+    close(u)
+
   end subroutine read_xsec_VULCAN
 
  subroutine read_xsec_PSG(s)
@@ -114,6 +116,8 @@ contains
       xsec_tab(s)%lx_abs(l) = log10(max(cross_sec,1.0e-99_dp))
       !print*, xsec_tab(s)%sp, l, xsec_tab(s)%wl(l), xsec_tab(s)%lx_abs(l)
     end do
+
+    close(u)
 
   end subroutine read_xsec_PSG
 

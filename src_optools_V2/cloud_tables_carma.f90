@@ -21,7 +21,7 @@ contains
     real(kind=dp) :: rQext, rQsca, rQabs, rQbk, rQpr, ralbedo, rg
     real(kind=dp) :: x, xsec, xsec_ext, xsec_sca
 
-    !! Parameters for MIEX - set as paramaters to avoid messing up for now
+    !! Parameters for MIEX; keep them fixed here for now.
     integer, parameter :: rnang = 1
     integer :: rier
     complex(kind=dp), dimension(rnang) :: rSA1, rSA2
@@ -34,11 +34,22 @@ contains
 
     ! Now to loop over species
     do s = 1, ncl
-      eps = cmplx(n_work(cl_tab(s)%iVMR),k_work(cl_tab(s)%iVMR),kind=dp)
+      eps = cmplx(n_work(s),k_work(s),kind=dp)
       ! Do loop over bin
       do b = 1, nmode
         a = a_C_cl_lay(cl_tab(s)%iVMR,b)
         nd = nd_C_cl_lay(cl_tab(s)%iVMR,b,z)
+
+        if (.not. ieee_is_finite(a) .or. .not. ieee_is_finite(nd) .or. &
+          & .not. ieee_is_finite(real(eps,kind=dp)) .or. &
+          & .not. ieee_is_finite(aimag(eps)) .or. a <= 0.0_dp .or. nd < 0.0_dp) then
+          print*, 'ERROR - Invalid CARMA cloud input passed to Mie theory - STOPPING'
+          print*, 'Layer, wavelength index, wavelength [um]: ', z, l, wl(l)
+          print*, 'Species, size bin, radius [cm], number density: ', &
+            & cl_tab(s)%sp, b, a, nd
+          print*, 'Refractive index: ', eps
+          stop
+        end if
 
         if (nd < 1e-99_dp) then
           cycle
@@ -54,26 +65,52 @@ contains
         end if
 
         !! Use the MIEX Mie theory routine
-        ! - careful with memory in parallel for large x
+        ! Take care with per-thread memory use when x is large.
         call shexqnn2(eps, x, rQext, rQsca, rQabs, rQbk, rQpr, ralbedo, rg, &
           & rier, rSA1, rSA2, rdoSA, rnang)
+
+        if (rier /= 0 .or. .not. ieee_is_finite(rQext) .or. &
+          & .not. ieee_is_finite(rQsca) .or. rQext < 0.0_dp .or. rQsca < 0.0_dp .or. &
+          & (rQsca > 0.0_dp .and. .not. ieee_is_finite(rg))) then
+          print*, 'ERROR - Corrupted CARMA Mie output - STOPPING'
+          print*, 'Layer, wavelength index, wavelength [um]: ', z, l, wl(l)
+          print*, 'Species, size bin, radius [cm], number density: ', &
+            & cl_tab(s)%sp, b, a, nd
+          print*, 'Refractive index, size parameter, status: ', eps, x, rier
+          print*, 'Qext, Qsca, g: ', rQext, rQsca, rg
+          stop
+        end if
+
+        if (rQext <= 0.0_dp .or. rQsca <= 0.0_dp) then
+          ralbedo = 0.0_dp
+          rg = 0.0_dp
+        else
+          ralbedo = min(1.0_dp,max(0.0_dp,rQsca/rQext))
+          rg = min(1.0_dp,max(-1.0_dp,rg))
+        end if
 
         kext = kext +  rQext * xsec * nd
         ksca = ksca + rQext * xsec * nd * ralbedo
         kscag = kscag + rQext * xsec * nd * ralbedo * rg
-
-        if ((ieee_is_normal(kext) .eqv. .False.) .or. (kext == 0.0_dp) .or.  (rier /= 0)) then
-          print*, 'cl: NaN in carma mie theory: ', l, s, b, a, nd, x, rQext, ralbedo, rg
-        end if
       end do
     end do
 
-    kext = max(kext,1e-99_dp)
-    ksca = max(ksca,1e-99_dp)
+    if (.not. ieee_is_finite(kext) .or. .not. ieee_is_finite(ksca) .or. &
+      & .not. ieee_is_finite(kscag) .or. kext < 0.0_dp .or. ksca < 0.0_dp) then
+      print*, 'ERROR - Corrupted integrated CARMA cloud output - STOPPING'
+      print*, 'Layer, wavelength index, wavelength [um]: ', z, l, wl(l)
+      print*, 'Extinction, scattering, scattering-g: ', kext, ksca, kscag
+      stop
+    end if
 
-    cl_out_k = kext
-    cl_out_a = ksca/kext
-    cl_out_g = kscag/ksca
+    cl_out_k = max(kext,1.0e-199_dp)
+    if (kext <= 0.0_dp .or. ksca <= 0.0_dp) then
+      cl_out_a = 0.0_dp
+      cl_out_g = 0.0_dp
+    else
+      cl_out_a = min(1.0_dp,max(0.0_dp,ksca/kext))
+      cl_out_g = min(1.0_dp,max(-1.0_dp,kscag/ksca))
+    end if
 
     !print*, kext, ksca, kscag
 
