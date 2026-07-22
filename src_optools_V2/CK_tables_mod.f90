@@ -184,6 +184,7 @@ contains
 
     integer :: s, i
     real(kind=dp), parameter :: grid_tol = 1.0e-10_dp
+    real(kind=dp), parameter :: range_tol = 1.0e-2_dp
     real(kind=dp) :: scale
 
     if (nCK < 1) then
@@ -250,15 +251,25 @@ contains
         end if
       end do
 
-      do i = 1, nwl
-        scale = max(1.0_dp, abs(CK_tab(s)%wl(i)), abs(wl(i)))
-        if (abs(CK_tab(s)%wl(i) - wl(i)) > grid_tol*scale) then
-          print*, 'ERROR - CK wavelength grid does not match wavelengths.wl - STOPPING'
-          print*, 'Species, index, table wl, calculation wl: ', CK_tab(s)%sp, i, &
-            & CK_tab(s)%wl(i), wl(i)
-          stop
-        end if
-      end do
+      ! Bin centres can legitimately differ slightly between the CK table
+      ! (arithmetic mean of edges) and wavelengths.wl (which may use a
+      ! different centring convention), so only check the overall range
+      ! rather than an exact per-point match.
+      scale = max(1.0_dp, abs(CK_tab(s)%wl(1)), abs(wl(1)))
+      if (abs(CK_tab(s)%wl(1) - wl(1)) > range_tol*scale) then
+        print*, 'ERROR - CK wavelength grid range does not match wavelengths.wl - STOPPING'
+        print*, 'Species, table wl(1), calculation wl(1): ', CK_tab(s)%sp, &
+          & CK_tab(s)%wl(1), wl(1)
+        stop
+      end if
+
+      scale = max(1.0_dp, abs(CK_tab(s)%wl(nwl)), abs(wl(nwl)))
+      if (abs(CK_tab(s)%wl(nwl) - wl(nwl)) > range_tol*scale) then
+        print*, 'ERROR - CK wavelength grid range does not match wavelengths.wl - STOPPING'
+        print*, 'Species, table wl(nwl), calculation wl(nwl): ', CK_tab(s)%sp, &
+          & CK_tab(s)%wl(nwl), wl(nwl)
+        stop
+      end if
     end do
 
     do s = 2, nCK

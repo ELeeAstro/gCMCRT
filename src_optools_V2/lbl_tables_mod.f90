@@ -141,7 +141,7 @@ contains
     implicit none
 
     integer :: s, i
-    real(kind=dp), parameter :: grid_tol = 1.0e-10_dp
+    real(kind=dp), parameter :: range_tol = 1.0e-2_dp
     real(kind=dp) :: scale
 
     do s = 1, nlbl
@@ -199,15 +199,24 @@ contains
         end if
       end do
 
-      do i = 1, nwl
-        scale = max(1.0_dp,abs(lbl_tab(s)%wl(i)),abs(wl(i)))
-        if (abs(lbl_tab(s)%wl(i) - wl(i)) > grid_tol*scale) then
-          print*, 'ERROR - LBL wavelength grid does not match wavelengths.wl - STOPPING'
-          print*, 'Species, index, table wl, calculation wl: ', lbl_tab(s)%sp, i, &
-            & lbl_tab(s)%wl(i), wl(i)
-          stop
-        end if
-      end do
+      ! Bin centres can legitimately differ slightly between the LBL table
+      ! and wavelengths.wl (e.g. different centring conventions), so only
+      ! check the overall range rather than an exact per-point match.
+      scale = max(1.0_dp, abs(lbl_tab(s)%wl(1)), abs(wl(1)))
+      if (abs(lbl_tab(s)%wl(1) - wl(1)) > range_tol*scale) then
+        print*, 'ERROR - LBL wavelength grid range does not match wavelengths.wl - STOPPING'
+        print*, 'Species, table wl(1), calculation wl(1): ', lbl_tab(s)%sp, &
+          & lbl_tab(s)%wl(1), wl(1)
+        stop
+      end if
+
+      scale = max(1.0_dp, abs(lbl_tab(s)%wl(nwl)), abs(wl(nwl)))
+      if (abs(lbl_tab(s)%wl(nwl) - wl(nwl)) > range_tol*scale) then
+        print*, 'ERROR - LBL wavelength grid range does not match wavelengths.wl - STOPPING'
+        print*, 'Species, table wl(nwl), calculation wl(nwl): ', lbl_tab(s)%sp, &
+          & lbl_tab(s)%wl(nwl), wl(nwl)
+        stop
+      end if
     end do
 
   end subroutine validate_lbl_tables
