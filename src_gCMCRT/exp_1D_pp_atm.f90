@@ -219,12 +219,12 @@ subroutine exp_1D_pp_atm()
     print*, i, theta(i), intensity(i), sigmai(i), energy(i)
   end do
 
-  open(newunit=u1,file='moment_gpu_pp.txt',action='readwrite')
+  open(newunit=u1,file='moment_gpu_pp.txt',status='replace',action='write')
   do i = 1, grid%n_lev
     write(u1,*) i, jp(i), hp(i), kp(i), jm(i), hm(i), km(i)
   end do
 
-  open(newunit=u2,file='inten_gpu_pp.txt',action='readwrite')
+  open(newunit=u2,file='inten_gpu_pp.txt',status='replace',action='write')
   do i = 1, n_mu
     write(u2,*) i, theta(i), intensity(i), sigmai(i), energy(i)
   end do

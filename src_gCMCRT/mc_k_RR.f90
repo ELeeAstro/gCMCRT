@@ -7,7 +7,7 @@ module mc_k_RR
   implicit none
 
   real(dp), parameter :: RR_thresh = 0.1_dp
-  real(dp), parameter :: RR_boost = 10.0_dp
+  real(dp), parameter :: RR_boost = 1.0_dp/RR_thresh
   real(dp), parameter :: iRR_cut = 1.0e-6_dp
 
 contains
@@ -17,7 +17,7 @@ contains
 
     type(pac), intent(inout) :: ph
 
-    if (ph%wght > iRR_cut) then
+    if (ph%wght >= iRR_cut) then
       ph%p_flag = 0
     else if ((ph%wght < iRR_cut) .and. (curand_uniform(ph%iseed) < RR_thresh)) then
       ph%wght = ph%wght * RR_boost

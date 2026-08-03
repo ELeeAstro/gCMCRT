@@ -53,6 +53,10 @@ module mc_data_mod
 
   integer :: u_nml
 
+  !! Reproducible base seed for host and device random-number generators.
+  integer :: random_seed = 12345
+  integer(8), device :: random_seed_d
+
   logical :: lbl, ck
   logical :: do_infslab, do_diffuse, do_cart_3D
 
@@ -66,8 +70,10 @@ module mc_data_mod
   logical :: do_moments
   logical, device :: do_moments_d
 
-  logical :: do_trans
-  logical, device :: do_trans_d
+  !! Internal mode for the standard/high-resolution transmission-spectrum
+  !! annulus sampler and scattered-light correction. Not a namelist option.
+  logical :: do_trans_spectrum
+  logical, device :: do_trans_spectrum_d
 
   logical :: do_cf
   logical, device :: do_cf_d
@@ -86,7 +92,6 @@ module mc_data_mod
   integer :: xpix, ypix
   real(dp) :: rimage
 
-  logical :: do_Draine
   real(dp) :: Draine_alp
   real(dp), device :: Draine_alp_d
 
@@ -117,6 +122,21 @@ module mc_data_mod
   real(dp), allocatable, dimension(:) :: T_trans, T_trans_east, T_trans_west
   real(dp), device :: T_trans_d, T_trans_east_d, T_trans_west_d
 
+  !! Optional per-CUDA-block transport accumulators.  The legacy scalar
+  !! atomics remain available for A/B testing through each experiment's
+  !! use_block_accum namelist option.
+  integer, parameter :: BLOCK_ACC_TOTAL = 1
+  integer, parameter :: BLOCK_ACC_EAST = 2
+  integer, parameter :: BLOCK_ACC_WEST = 3
+  integer, parameter :: BLOCK_ACC_F = 4
+  integer, parameter :: BLOCK_ACC_Q = 5
+  integer, parameter :: BLOCK_ACC_U = 6
+  integer, parameter :: BLOCK_ACC_F_OCC = 7
+  integer, parameter :: N_BLOCK_ACC = 7
+  logical, device :: use_block_accum_d
+  real(dp), allocatable, dimension(:,:), device :: block_accum_d
+  integer, allocatable, dimension(:), device :: block_nscat_accum_d
+
   !! Transit light-curve accumulators: LD-weighted, on-star atmospheric
   !! absorption (in units of the disk-area MC estimator, normalised on the host).
   !! The opaque solid-body depth is calculated deterministically on the host.
@@ -143,8 +163,8 @@ module mc_data_mod
   integer, device :: trans_state_d
   logical :: do_phase, do_eclipse
   logical, device :: do_phase_d, do_eclipse_d
-  real(dp) :: Rs, inc, phase, ecc, sm_ax, orbital_period
-  real(dp), device :: Rs_d, inc_d, phase_d, ecc_d, sm_ax_d, orbital_period_d, R_s_sq_d
+  real(dp) :: Rs, inc, ecc, sm_ax, orbital_period
+  real(dp), device :: Rs_d, inc_d, sm_ax_d, orbital_period_d, R_s_sq_d
 
   real(dp), allocatable, dimension(:) :: viewphi_n, viewthet_n, phi_key, xstar, ystar, zstar
   real(dp), device :: xstar_d, ystar_d
@@ -175,10 +195,10 @@ module mc_data_mod
   real(dp), allocatable, dimension(:) :: x_ran, y_ran, z_ran
   real(dp), allocatable, dimension(:), device :: x_ran_d, y_ran_d, z_ran_d
 
-  namelist /main/ xper, exp_name, oneD, threeD, do_infslab, do_diffuse, do_cart_3D, do_images, do_moments, do_trans &
+  namelist /main/ xper, exp_name, oneD, threeD, do_infslab, do_diffuse, do_cart_3D, do_images, do_moments &
     & lbl, ck, orbital_period, sm_ax, systemic_velocity, winds_on, rotation_on, orbit_on, doppler_on, &
-    & inc_ck, inc_lbl, inc_CIA, inc_Ray, inc_cld, inc_xsec, do_cf, xpix, ypix, wght_deg, Draine_alp, do_Draine, &
-    & do_LD, ilimb, LD_c, Rs, inc, phase, do_g_bias, do_scat_loop, do_BB_band, n_phase, do_surf, T_surf, emis_surf, alb_surf, LHS, &
-    & do_phase, do_eclipse, ecc, inc, n_ecl
+    & inc_ck, inc_lbl, inc_CIA, inc_Ray, inc_cld, inc_xsec, do_cf, xpix, ypix, wght_deg, Draine_alp, &
+    & do_LD, ilimb, LD_c, Rs, inc, do_g_bias, do_scat_loop, do_BB_band, n_phase, do_surf, T_surf, emis_surf, alb_surf, LHS, &
+    & do_phase, do_eclipse, ecc, n_ecl, random_seed
 
 end module mc_data_mod

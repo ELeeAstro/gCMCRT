@@ -1,10 +1,9 @@
 &main
 
 exp_name = 'FMS'
-xper = '3D_sph_trans_lc'
+xper = '3D_sph_trans'
 ! Set xper = '3D_sph_trans_lc' to run the primary-transit light-curve block below.
-! Set xper = '3D_sph_em' and do_trans = .False. to run the emission block.
-do_trans = .True.
+! Set xper = '3D_sph_em' to run the emission block.
 
 oneD = .False.
 threeD = .True.
@@ -33,6 +32,7 @@ lbl = .False.
 ck = .True.
 
 LHS = .False.
+random_seed = 12345
 
 ! Wind parameters for hi-res los velocity
 doppler_on = .False.
@@ -45,7 +45,6 @@ systemic_velocity = 0.0    ! Systematic velocity (km s-1)
 xpix = 200
 ypix = 200
 
-do_Draine = .False.
 Draine_alp = 0.5
 
 
@@ -58,7 +57,6 @@ sm_ax = 0.0486             ! semi-major axis (AU)
 Rs = 0.895
 inc = 87.7369
 ecc = 0.0
-phase = 0.0
 
 ! Emission phase-curve/eclipsing controls. These are off for the default
 ! transmission-spectrum run. For a phase curve set do_phase = .True.; for
@@ -73,9 +71,11 @@ n_ecl = 10
 &sph_3D_em
 
 ! Dormant WASP-39b emission setup. To use this block set xper = '3D_sph_em'
-! and do_trans = .False. in &main. With do_phase = .False., viewphi/viewthet
-! define one view. With do_phase = .True., viewphi is generated from n_phase.
+! in &main. With do_phase = .False., viewphi/viewthet define one view. With
+! do_phase = .True., viewphi is generated from n_phase.
 Nph_tot = 1024000
+! Set false to restore the legacy scalar-atomic accumulator for A/B testing.
+use_block_accum = .True.
 s_wl = 1
 n_wl = 503
 pl = 0.51
@@ -94,6 +94,8 @@ xi_emb = 0.99
 &sph_3D_trans
 
 Nph = 1024000
+! Set false to restore the legacy scalar-atomic accumulator for A/B testing.
+use_block_accum = .True.
 s_wl = 1
 n_wl = 503
 pl = 0.51
@@ -114,6 +116,8 @@ nb_cf = 301
 ! Transit light-curve settings. To use this block, set xper = '3D_sph_trans_lc'
 ! in &main. n_trans mirrors n_phase + n_ecl above for comparable sampling.
 Nph = 1024000
+! Set false to restore the legacy scalar-atomic accumulator for A/B testing.
+use_block_accum = .True.
 s_wl = 1
 n_wl = 503
 n_trans = 26

@@ -3,7 +3,11 @@ module random_cpu
   use mc_precision
   implicit none
   private
-  public :: rng_seed, rng_uniform, rng_next_uint64
+  public :: splitmix64_next, rng_seed, rng_uniform, rng_next_uint64
+
+  integer(int64), parameter :: splitmix_gamma = int(Z'9E3779B97F4A7C15', int64)
+  integer(int64), parameter :: splitmix_mul1 = int(Z'BF58476D1CE4E5B9', int64)
+  integer(int64), parameter :: splitmix_mul2 = int(Z'94D049BB133111EB', int64)
 
   integer(int64) :: s(4) = [0_int64,0_int64,0_int64,0_int64]  ! xoshiro256+ state
 
@@ -14,32 +18,33 @@ contains
     integer,        intent(in) :: k
     integer(int64)             :: r
     ! rotate-left using logical shifts and OR
-    r = ior( ishft(x,  k), ishft(x, k-64) )
+    r = ior(shiftl(x, k), shiftr(x, 64-k))
   end function rotl
 
-  pure function splitmix64_step(z) result(znext)
-    ! One step of SplitMix64 (returns next state)
-    integer(int64), intent(in) :: z
-    integer(int64)             :: znext
-    integer(int64) :: t
+  subroutine splitmix64_next(state, value)
+    ! Fixed-increment SplitMix64 reference step.  Integer arithmetic is
+    ! intentionally modulo 2^64, represented in a signed int64 container.
+    integer(int64), intent(inout) :: state
+    integer(int64), intent(out) :: value
+    integer(int64) :: z
 
-    t = z + int(Z'9E3779B97F4A7C15', int64)
-    t = ieor(t, ishft(t, 13));  t = t * int(Z'BF58476D1CE4E5B9', int64)
-    t = ieor(t, ishft(t,  7));  t = t * int(Z'94D049BB133111EB', int64)
-    t = ieor(t, ishft(t, 17))
-    znext = t
-  end function splitmix64_step
+    state = state + splitmix_gamma
+    z = state
+    z = ieor(z, shiftr(z, 30)) * splitmix_mul1
+    z = ieor(z, shiftr(z, 27)) * splitmix_mul2
+    value = ieor(z, shiftr(z, 31))
+
+  end subroutine splitmix64_next
 
   subroutine rng_seed(iseed)
     ! Seed xoshiro256+ via SplitMix64 stream
     integer, intent(in) :: iseed
-    integer(int64) :: z
+    integer(int64) :: state
     integer :: i
 
-    z = int(iseed,int64)
+    state = int(iseed,int64)
     do i = 1, 4
-      z   = splitmix64_step(z + int(i, int64))
-      s(i) = z
+      call splitmix64_next(state, s(i))
     end do
     ! Avoid all-zero state
     if (all(s == 0_int64)) s(1) = int(Z'1', int64)
@@ -53,7 +58,7 @@ contains
     s0 = s(1); s1 = s(2); s2 = s(3); s3 = s(4)
 
     res = s0 + s3
-    t   = ishft(s1, 17)
+    t   = shiftl(s1, 17)
 
     s2 = ieor(s2, s0)
     s3 = ieor(s3, s1)
@@ -73,9 +78,8 @@ contains
     integer(int64) :: x
     integer(int64) :: hi53
     call rng_next_uint64(x)
-    hi53 = ishft(x, -11)                     ! keep top 53 bits
+    hi53 = shiftr(x, 11)                     ! keep top 53 bits
     u = real(hi53, dp) * 2.0_dp**(-53)
   end subroutine rng_uniform
 
 end module random_cpu
-

@@ -32,9 +32,10 @@ module mc_opacset
 
 contains
 
-  subroutine set_grid_opac()
+  subroutine set_grid_opac(iscat)
     implicit none
 
+    integer, intent(in) :: iscat
     integer :: k, j, i, g
     real(dp) :: k_tot_ext(ng), k_tot_scat
 
@@ -77,7 +78,7 @@ contains
         end do
       end do
 
-      if (do_Draine .eqv. .True.) then
+      if (iscat == 6) then
         call Draine_G()
       end if
 
@@ -105,7 +106,7 @@ contains
 
     if (first_call .eqv. .True.) then
 
-      if (ck .eqv. .True.) then
+      if (ck .and. inc_ck) then
 
         ! Allocate dummy variable for reading in k-table
         allocate(k_dum(ng))
@@ -119,7 +120,7 @@ contains
         print*, 'unit _k :', u_k, reclen, ng, grid%n_cell, l
         print*, '- Complete -'
 
-      else if (lbl .eqv. .True.) then
+      else if (lbl .and. inc_lbl) then
 
         allocate(lbl_dum_arr(grid%n_cell))
         inquire(iolength=reclen) lbl_dum_arr
@@ -197,7 +198,7 @@ contains
 
       end if
 
-      if (inc_lbl .eqv. .True.) then
+      if (lbl .eqv. .True.) then
         ng = 1
         ng_d = ng
       end if

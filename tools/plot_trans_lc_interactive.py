@@ -11,7 +11,7 @@ plt.rc("font", serif="Helvetica Neue")
 plt.rc("text", usetex="false")
 
 
-DEFAULT_PERIOD_DAYS = 4.0552941
+DEFAULT_PERIOD_DAYS = 4.055
 STATE_LABELS = {
     0: "out",
     1: "partial",

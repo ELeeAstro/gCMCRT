@@ -113,7 +113,8 @@ subroutine exp_3D_cart_galaxy()
   real(dp) :: taueq, taupole, delta, g2
   real(dp) :: temp, diff, rand
 
-  integer :: Nph, ncell, Nph_sum
+  integer :: Nph, ncell, Nph_sum, nml_iostat
+  character(len=512) :: nml_iomsg
   type(dim3) :: blocks, threads
 
   integer :: seq, offset, seed = 3898
@@ -129,7 +130,11 @@ subroutine exp_3D_cart_galaxy()
   print*, 'In diffuse'
 
   !! Read paramaters from the namelist for this experiment
-  read(u_nml, nml=diffuse_nml)
+  read(u_nml, nml=diffuse_nml, iostat=nml_iostat, iomsg=nml_iomsg)
+  if (nml_iostat /= 0) then
+    print*, 'ERROR reading &diffuse_nml from CMCRT.nml: ', trim(nml_iomsg)
+    stop
+  end if
 
   pl_d = pl
   pc_d = pc
@@ -309,34 +314,34 @@ subroutine exp_3D_cart_galaxy()
 
 
   ! Output images
-  open(unit=10,file='fimage.dat',status='unknown',form='unformatted')
+  open(unit=10,file='fimage.dat',status='replace',action='write',form='unformatted')
   write(10) real(f)
   close(10)
 
-  open(unit=10,file='qimage.dat',status='unknown',form='unformatted')
+  open(unit=10,file='qimage.dat',status='replace',action='write',form='unformatted')
   write(10) real(q)
   close(10)
 
-  open(unit=10,file='uimage.dat',status='unknown',form='unformatted')
+  open(unit=10,file='uimage.dat',status='replace',action='write',form='unformatted')
   write(10) real(u)
   close(10)
 
   ! Output images
-  open(unit=10,file='fimage_ascii.dat',action='readwrite',form='formatted')
+  open(unit=10,file='fimage_ascii.dat',status='replace',action='write',form='formatted')
   write(10,*)  im%fsum
   do i = 1, im%x_pix
     write(10,*) (f(j,i), j = 1, im%y_pix)
   end do
   close(10)
 
-  open(unit=10,file='qimage_ascii.dat',action='readwrite',form='formatted')
+  open(unit=10,file='qimage_ascii.dat',status='replace',action='write',form='formatted')
   write(10,*)  im%qsum
   do i = 1, im%x_pix
     write(10,*) (q(j,i), j = 1, im%y_pix)
   end do
   close(10)
 
-  open(unit=10,file='uimage_ascii.dat',action='readwrite',form='formatted')
+  open(unit=10,file='uimage_ascii.dat',status='replace',action='write',form='formatted')
   write(10,*)  im%fsum
   do i = 1, im%x_pix
     write(10,*) (u(j,i), j = 1, im%y_pix)

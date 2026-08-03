@@ -112,6 +112,8 @@ contains
     real(dp), dimension(4) :: root, posroot
     real(dp) :: bb, cc, det
 
+    iface = -1
+
     ! IND array indicates which "face" is associated with which roots
     ind(1) = 0
     ind(2) = 0
@@ -287,7 +289,7 @@ contains
 
     ! First theta face.
     if (tan2tha < 0.0_dp) then
-       ! Polar/special face represented as z = 0 plane.
+       ! Equatorial face represented as the z = 0 plane.
        if (abs(nzp) <= 1.0e-14_dp) then
           root(1) = -999.0_dp
           root(2) = -999.0_dp

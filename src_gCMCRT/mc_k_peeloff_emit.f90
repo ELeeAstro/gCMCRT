@@ -75,13 +75,23 @@ contains
 
     !! Add energy to total counters
     !istat = atomicadd(p_noise(ph%bin_idx,na), 1)
-    rstat = atomicadd(im_d%fsum, phot)
-    rstat = atomicadd(im_d%qsum, photq)
-    rstat = atomicadd(im_d%usum, photu)
+    if (use_block_accum_d .eqv. .True.) then
+      rstat = atomicadd(block_accum_d(blockIdx%x,BLOCK_ACC_F), phot)
+      rstat = atomicadd(block_accum_d(blockIdx%x,BLOCK_ACC_Q), photq)
+      rstat = atomicadd(block_accum_d(blockIdx%x,BLOCK_ACC_U), photu)
+    else
+      rstat = atomicadd(im_d%fsum, phot)
+      rstat = atomicadd(im_d%qsum, photq)
+      rstat = atomicadd(im_d%usum, photu)
+    end if
 
     if (occ_state_d == 0) then
       !! non occulated - Return uneclipsed result
-      rstat = atomicadd(im_d%fsum_occ, phot)
+      if (use_block_accum_d .eqv. .True.) then
+        rstat = atomicadd(block_accum_d(blockIdx%x,BLOCK_ACC_F_OCC), phot)
+      else
+        rstat = atomicadd(im_d%fsum_occ, phot)
+      end if
     else if (occ_state_d == 1) then
       !! partial occulatation - test from raytracing position
 
@@ -97,7 +107,11 @@ contains
         continue
       else
         ! Is visible behind star, add flux to occulated flux sum
-        rstat = atomicadd(im_d%fsum_occ, phot)
+        if (use_block_accum_d .eqv. .True.) then
+          rstat = atomicadd(block_accum_d(blockIdx%x,BLOCK_ACC_F_OCC), phot)
+        else
+          rstat = atomicadd(im_d%fsum_occ, phot)
+        end if
       end if
     else if (occ_state_d == 2) then
       ! Planet is fully behind star - no test required - zero flux

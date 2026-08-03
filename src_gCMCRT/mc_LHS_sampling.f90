@@ -20,8 +20,8 @@ contains
   !   x, y, z   : arrays of size N with values in [0,1)
   !
   ! Notes:
-  !   - This routine does NOT call random_seed(). Seed once in your
-  !     main program if you want non-reproducible runs each time.
+  !   - This routine does not seed the generator. Seed once in the calling
+  !     program; reuse a seed for reproducibility or change it between runs.
   !   - Each axis is stratified into N bins and independently permuted.
   !--------------------------------------------------------------------
   subroutine LHS_sample(N, Ndim, x, y, z, center)
@@ -32,46 +32,67 @@ contains
 
     real(dp), dimension(N), intent(out) :: x, y, z
 
-    integer :: i, k
-    real(dp) :: r
-    integer, dimension(N) :: perm
-    logical :: use_center
+    if (N < 1) then
+      print*, 'ERROR: LHS sample count must be positive.'
+      stop
+    end if
+    if ((Ndim < 1) .or. (Ndim > 3)) then
+      print*, 'ERROR: LHS dimension must be between 1 and 3.'
+      print*, 'Ndim: ', Ndim
+      stop
+    end if
 
-    real(dp), dimension(N,Ndim) :: samp
-
-    ! Loop over the number of dimensions
-    do k = 1, Ndim
-      if (center .eqv. .True.) then
-        do i = 1, N
-          samp(i,k) = (i - 0.5_dp) / real(N,dp)
-        end do
-      else
-        !call random_number(r)
-        do i = 1, N
-          call rng_uniform(r)
-          samp(i,k) = (i - 1 + r) / real(N,dp)
-        end do
-      end if
-      call random_permutation(N, perm)
-      samp(:,k) = samp(perm,k)
-    end do
+    ! Generate one axis at a time.  The former N-by-Ndim automatic array and
+    ! automatic permutation array could exhaust the stack at production Nph.
+    call sample_axis(N, center, x)
 
     if (Ndim == 1) then
-      x(:) = samp(:,1)
       y(:) = 0.0_dp
       z(:) = 0.0_dp
     else if  (Ndim == 2) then
-      x(:) = samp(:,1)
-      y(:) = samp(:,2)
+      call sample_axis(N, center, y)
       z(:) = 0.0_dp
     else
-      x(:) = samp(:,1)
-      y(:) = samp(:,2)
-      z(:) = samp(:,3)
+      call sample_axis(N, center, y)
+      call sample_axis(N, center, z)
     end if
 
 
   end subroutine LHS_sample
+
+  subroutine sample_axis(N, center, axis)
+    implicit none
+
+    integer, intent(in) :: N
+    logical, intent(in) :: center
+    real(dp), dimension(N), intent(out) :: axis
+
+    integer :: i
+    integer, allocatable, dimension(:) :: perm
+    real(dp), allocatable, dimension(:) :: strata
+    real(dp) :: r
+
+    allocate(perm(N), strata(N))
+
+    if (center .eqv. .True.) then
+      do i = 1, N
+        strata(i) = (real(i,dp) - 0.5_dp) / real(N,dp)
+      end do
+    else
+      do i = 1, N
+        call rng_uniform(r)
+        strata(i) = (real(i-1,dp) + r) / real(N,dp)
+      end do
+    end if
+
+    call random_permutation(N, perm)
+    do i = 1, N
+      axis(i) = strata(perm(i))
+    end do
+
+    deallocate(perm, strata)
+
+  end subroutine sample_axis
 
   ! Fisher–Yates shuffle for 1..N
   subroutine random_permutation(N, perm)

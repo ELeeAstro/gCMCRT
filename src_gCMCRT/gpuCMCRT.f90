@@ -31,16 +31,9 @@ program gpuCMCRT
   print*, 'Starting Experiment'
 
   select case(trim(xper))
-  case('1D_pp')
-    !call exp_1D_pp_atm()
-  case('1D_sph')
-    !call exp_1D_sph_atm()
-  case('2D_car_gal')
-    !call exp_3D_cart_galaxy()
-  case('3D_sph_tests')
-    call exp_3D_sph_atm()
   case('3D_sph_pol')
-    call exp_3D_sph_atm_pol()
+    print*, 'ERROR: 3D_sph_pol is disabled because Stokes propagation is not currently valid.'
+    stop
   case('3D_sph_alb')
     call exp_3D_sph_atm_albedo()
   case('3D_sph_trans')
@@ -55,6 +48,7 @@ program gpuCMCRT
     call exp_3D_sph_atm_trans_hires()
   case default
     print*, 'Invalid experiment selected: ', trim(xper)
+    stop
   end select
 
 end program gpuCMCRT

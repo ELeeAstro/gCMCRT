@@ -5,7 +5,9 @@ module mc_views
   implicit none
 
 
-  public :: set_phase_views_em, set_transit_views, transit_lens_geom
+  public :: set_phase_views_em, set_transit_views, transit_lens_geom, &
+    & transit_geometry_tolerance
+  private :: angle_minus_sin
 
 contains
 
@@ -312,7 +314,7 @@ contains
     integer :: i, j, n_side, n_tot, je
     real(dp) :: R_p, R_s, a, inc_r
     real(dp) :: dphi_out, dphi_in, arg_out, arg_in
-    real(dp) :: delta, R_in, R_out, u, s, phi_unwrapped
+    real(dp) :: delta, R_in, R_out, geom_tol, u, s, phi_unwrapped
     real(dp) :: sinto, costo, sinpo, cospo
     real(dp) :: e1x, e2x, obsx
     logical :: has_tot, use_bands
@@ -337,6 +339,7 @@ contains
     R_s_sq_d = R_s**2
     a = sm_ax * Au
     inc_r = inc * pi / 180.0_dp
+    geom_tol = transit_geometry_tolerance(R_p, R_s, a)
 
     arg_out = (R_s + R_p)**2 - (a*cos(inc_r))**2
     if (arg_out <= 0.0_dp) then
@@ -423,14 +426,14 @@ contains
       zstar(i) = a * obsx
 
       delta = sqrt(xstar(i)**2 + ystar(i)**2)
-      R_in  = R_s - R_p
+      R_in  = abs(R_s - R_p)
       R_out = R_s + R_p
 
       if (zstar(i) >= 0.0_dp) then
         trans_state(i) = 0
-      else if (delta >= R_out) then
+      else if (delta >= R_out - geom_tol) then
         trans_state(i) = 0
-      else if (delta <= R_in) then
+      else if (delta <= R_in + geom_tol) then
         trans_state(i) = 2
       else
         trans_state(i) = 1
@@ -442,28 +445,64 @@ contains
   end subroutine set_transit_views
 
 
+  !! Scale-aware tolerance shared by transit-state classification and the
+  !! circle-overlap calculation.  The orbital separation is included because
+  !! xstar/ystar are obtained by projecting vectors of that scale.
+  pure real(dp) function transit_geometry_tolerance(R_p, R_s, a) result(tol)
+    implicit none
+
+    real(dp), intent(in) :: R_p, R_s, a
+
+    tol = 128.0_dp * epsilon(1.0_dp) * &
+      & max(1.0_dp, abs(R_p), abs(R_s), abs(a))
+
+  end function transit_geometry_tolerance
+
+
+  !! Stable evaluation of angle - sin(angle).  Direct subtraction loses most
+  !! significant digits for the small segment angles encountered near contact.
+  pure real(dp) function angle_minus_sin(angle) result(value)
+    implicit none
+
+    real(dp), intent(in) :: angle
+    real(dp) :: angle2
+
+    if (abs(angle) < 1.0e-3_dp) then
+      angle2 = angle**2
+      value = angle*angle2/6.0_dp * (1.0_dp - angle2/20.0_dp + &
+        & angle2**2/840.0_dp - angle2**3/60480.0_dp)
+    else
+      value = angle - sin(angle)
+    end if
+
+  end function angle_minus_sin
+
+
   !! Star/planet overlap ("lens") geometry for the transit LC partial-phase
   !! sampler.  Works in a frame rotated so the star centre lies on +x at
   !! distance d = sqrt(xs^2 + ys^2); psi rotates that frame back to the (e1,e2)
   !! sky basis.  Returns the analytic circle-circle overlap area A_lens and a
   !! tight bounding box [x_lo,x_hi] x [-y_max,y_max] of the lens (all in cm).
-  subroutine transit_lens_geom(R_p, R_s, xs, ys, A_lens, psi, x_lo, x_hi, y_max)
+  subroutine transit_lens_geom(R_p, R_s, xs, ys, geom_tol, A_lens, psi, &
+    & x_lo, x_hi, y_max)
     implicit none
 
-    real(dp), intent(in)  :: R_p, R_s, xs, ys
+    real(dp), intent(in)  :: R_p, R_s, xs, ys, geom_tol
     real(dp), intent(out) :: A_lens, psi, x_lo, x_hi, y_max
 
-    real(dp) :: d, x_star, a1, a2, tri
+    real(dp) :: d, tol, x_planet, x_star, y_cross
+    real(dp) :: alpha_planet, alpha_star, root_product
 
     d   = sqrt(xs**2 + ys**2)
     psi = atan2(ys, xs)
+    tol = max(0.0_dp, geom_tol)
 
-    if (d >= R_p + R_s) then
+    if (d >= R_p + R_s - tol) then
       ! No overlap (out of transit).
       A_lens = 0.0_dp
       x_lo = 0.0_dp; x_hi = 0.0_dp; y_max = 0.0_dp
       return
-    else if (d <= abs(R_p - R_s)) then
+    else if (d <= abs(R_p - R_s) + tol) then
       ! One disk fully inside the other (full transit / total block).
       A_lens = pi * min(R_p, R_s)**2
       x_lo   = max(-R_p, d - R_s)
@@ -472,18 +511,36 @@ contains
       return
     end if
 
-    ! Partial lens: planet at origin, star centre at (d,0).
-    x_star = (d**2 + R_p**2 - R_s**2) / (2.0_dp*d)
-    y_max  = sqrt(max(R_p**2 - x_star**2, 0.0_dp))
+    ! Partial lens: planet at origin, star centre at (d,0).  Evaluate the
+    ! intersection height from the factored Heron product; R_p^2-x^2 loses
+    ! precision close to either contact.
+    root_product = sqrt(max(0.0_dp, &
+      & (-d + R_p + R_s)*(d + R_p - R_s)* &
+      & (d - R_p + R_s)*(d + R_p + R_s)))
+    y_cross = root_product / (2.0_dp*d)
+    x_planet = (d**2 + R_p**2 - R_s**2) / (2.0_dp*d)
+    x_star = (d**2 + R_s**2 - R_p**2) / (2.0_dp*d)
+
+    ! The top of the smaller circle can lie inside the larger circle near
+    ! internal contact.  In that case the intersection chord is not the
+    ! vertical extent of the overlap and would under-bound rejection sampling.
+    if ((R_p <= R_s) .and. (d**2 + R_p**2 <= (R_s + tol)**2)) then
+      y_max = R_p
+    else if ((R_s < R_p) .and. (d**2 + R_s**2 <= (R_p + tol)**2)) then
+      y_max = R_s
+    else
+      y_max = y_cross
+    end if
     x_lo   = max(-R_p, d - R_s)
     x_hi   = min( R_p, d + R_s)
 
-    ! Analytic circle-circle intersection area.
-    a1  = R_p**2 * acos(min(1.0_dp, max(-1.0_dp, (d**2 + R_p**2 - R_s**2)/(2.0_dp*d*R_p))))
-    a2  = R_s**2 * acos(min(1.0_dp, max(-1.0_dp, (d**2 + R_s**2 - R_p**2)/(2.0_dp*d*R_s))))
-    tri = 0.5_dp * sqrt(max(0.0_dp, &
-      & (-d + R_p + R_s)*(d + R_p - R_s)*(d - R_p + R_s)*(d + R_p + R_s)))
-    A_lens = a1 + a2 - tri
+    ! Sum the two circular-segment areas.  angle_minus_sin avoids the severe
+    ! cancellation in the usual acos-plus-triangle formula near contact.
+    alpha_planet = 2.0_dp * atan2(y_cross, x_planet)
+    alpha_star = 2.0_dp * atan2(y_cross, x_star)
+    A_lens = 0.5_dp * (R_p**2*angle_minus_sin(alpha_planet) + &
+      & R_s**2*angle_minus_sin(alpha_star))
+    A_lens = min(pi*min(R_p, R_s)**2, max(0.0_dp, A_lens))
 
   end subroutine transit_lens_geom
 

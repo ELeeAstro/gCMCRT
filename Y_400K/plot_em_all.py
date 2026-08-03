@@ -1,15 +1,14 @@
 import numpy as np
 import matplotlib.pylab as plt
-import glob, os
+import glob
 import seaborn as sns
 from astropy.timeseries import LombScargle
 
 # Catch all file with same name
 
-files = glob.glob('./Em_*')
-files = sorted(files,key=os.path.getmtime)
-
-files.pop(-1)
+files = sorted(glob.glob('./Em_*.txt'))
+if not files:
+  raise FileNotFoundError('No Em_*.txt files found')
 
 print(files)
 
@@ -17,7 +16,8 @@ ns = len(files)
 
 print(ns)
 
-nwl = 503 
+first_head = np.atleast_1d(np.loadtxt(files[0],max_rows=1))
+nwl = int(first_head[0])
 wl = np.zeros(nwl)
 Fp = np.zeros((ns,nwl))
 
@@ -26,10 +26,12 @@ for i in range(ns):
   head = np.loadtxt(fname,max_rows=1)
   Rp_b = float(head[1])
   Rp_t = float(head[2])
-  data = np.loadtxt(fname,skiprows=1)
+  data = np.atleast_2d(np.loadtxt(fname,skiprows=1))
+  if len(data) != nwl:
+    raise ValueError(f'{fname}: expected {nwl} wavelength rows, got {len(data)}')
   wl[:] = data[:,0]
   frac = data[:,1]
-  Ltot = data[:,2]
+  Ltot = data[:,3] if data.shape[1] >= 4 else data[:,2]
   Fp[i,:] = (frac[:] * Ltot[:]) / (Rp_b**2)
 
 hrs = np.arange(0,ns,1)
@@ -166,5 +168,4 @@ plt.xlabel('Angular frequency [rad/s]')
 plt.ylabel('Normalized amplitude')
 
 plt.show()
-
 

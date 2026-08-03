@@ -3,6 +3,8 @@ module mc_set_em
   use mc_data_mod
   use mc_class_grid
   use mc_opacset, only : k_tot_abs
+  use random_cpu, only : rng_uniform
+  use ieee_arithmetic
   implicit none
 
 
@@ -13,7 +15,168 @@ module mc_set_em
 
   private :: F
 
-contains
+  contains
+
+  subroutine allocate_emission_packets(Nph_tot, xi_emb, Nph_cell, wght_start, Nph_sum)
+    implicit none
+
+    integer, intent(in) :: Nph_tot
+    real(dp), intent(in) :: xi_emb
+    integer, dimension(:,:,:), intent(out) :: Nph_cell
+    real(dp), dimension(:,:,:), intent(out) :: wght_start
+    integer, intent(out) :: Nph_sum
+
+    integer :: i, j, k, n, m, idx
+    integer :: n_active, n_residual, base_count
+    integer, allocatable, dimension(:) :: cell_i, cell_j, cell_k
+    real(dp), allocatable, dimension(:) :: proposal, remainder, residual_cdf
+    real(dp) :: p_cell, expected_count
+    real(dp) :: p_sum, q_sum, remainder_sum
+    real(dp) :: cumulative, rand, target
+
+    if (Nph_tot < 1) then
+      print*, 'ERROR: Nph_tot must be positive for emission packet allocation.'
+      stop
+    end if
+
+    if ((xi_emb < 0.0_dp) .or. (xi_emb > 1.0_dp)) then
+      print*, 'ERROR: xi_emb must lie in the interval [0,1].'
+      print*, 'xi_emb: ', xi_emb
+      stop
+    end if
+
+    if (any(shape(Nph_cell) /= shape(l_cell)) .or. &
+      & any(shape(wght_start) /= shape(l_cell))) then
+      print*, 'ERROR: emission packet-allocation arrays do not match l_cell.'
+      stop
+    end if
+
+    if (any(.not. ieee_is_finite(l_cell)) .or. any(l_cell < 0.0_dp)) then
+      print*, 'ERROR: emission cell luminosities must be finite and non-negative.'
+      stop
+    end if
+
+    if ((.not. ieee_is_finite(grid%lumtot)) .or. (grid%lumtot <= 0.0_dp)) then
+      print*, 'ERROR: total emission luminosity must be finite and positive.'
+      stop
+    end if
+
+    n_active = count(l_cell > 0.0_dp)
+    if (n_active < 1) then
+      print*, 'ERROR: no positive-luminosity cells are available for emission.'
+      stop
+    end if
+
+    allocate(cell_i(n_active), cell_j(n_active), cell_k(n_active))
+    allocate(proposal(n_active), remainder(n_active), residual_cdf(n_active))
+
+    Nph_cell(:,:,:) = 0
+    wght_start(:,:,:) = 0.0_dp
+
+    n = 0
+    p_sum = 0.0_dp
+    do k = 1, grid%n_theta-1
+      do j = 1, grid%n_phi-1
+        do i = 1, grid%n_lay
+          if (l_cell(i,j,k) <= 0.0_dp) cycle
+
+          n = n + 1
+          cell_i(n) = i
+          cell_j(n) = j
+          cell_k(n) = k
+
+          p_cell = l_cell(i,j,k) / grid%lumtot
+          p_sum = p_sum + p_cell
+          proposal(n) = (1.0_dp - xi_emb)*p_cell + &
+            & xi_emb/real(n_active,dp)
+        end do
+      end do
+    end do
+
+    if (n /= n_active) then
+      print*, 'ERROR: active emission cell list has an inconsistent size.'
+      stop
+    end if
+
+    if (abs(p_sum - 1.0_dp) > 1.0e-10_dp) then
+      print*, 'ERROR: emission luminosity probabilities do not sum to one.'
+      print*, 'Probability sum: ', p_sum
+      stop
+    end if
+
+    q_sum = sum(proposal)
+    if ((.not. ieee_is_finite(q_sum)) .or. (q_sum <= 0.0_dp)) then
+      print*, 'ERROR: invalid emission proposal-probability sum.'
+      stop
+    end if
+    proposal(:) = proposal(:) / q_sum
+
+    do n = 1, n_active
+      i = cell_i(n)
+      j = cell_j(n)
+      k = cell_k(n)
+
+      p_cell = l_cell(i,j,k) / grid%lumtot
+      wght_start(i,j,k) = p_cell / proposal(n)
+
+      expected_count = real(Nph_tot,dp) * proposal(n)
+      base_count = floor(expected_count)
+      Nph_cell(i,j,k) = base_count
+      remainder(n) = expected_count - real(base_count,dp)
+    end do
+
+    n_residual = Nph_tot - sum(Nph_cell)
+    if ((n_residual < 0) .or. (n_residual >= n_active)) then
+      print*, 'ERROR: invalid residual emission packet count.'
+      print*, 'Nph_tot, residual, active cells: ', Nph_tot, n_residual, n_active
+      stop
+    end if
+
+    remainder_sum = sum(remainder)
+    if (n_residual > 0) then
+      if ((.not. ieee_is_finite(remainder_sum)) .or. (remainder_sum <= 0.0_dp)) then
+        print*, 'ERROR: invalid residual emission allocation weights.'
+        stop
+      end if
+
+      cumulative = 0.0_dp
+      do n = 1, n_active
+        cumulative = cumulative + remainder(n)/remainder_sum
+        residual_cdf(n) = cumulative
+      end do
+      residual_cdf(n_active) = 1.0_dp
+
+      idx = 1
+      do m = 1, n_residual
+        call rng_uniform(rand)
+        target = (real(m-1,dp) + rand) / real(n_residual,dp)
+        do while ((idx < n_active) .and. (target > residual_cdf(idx)))
+          idx = idx + 1
+        end do
+
+        i = cell_i(idx)
+        j = cell_j(idx)
+        k = cell_k(idx)
+        Nph_cell(i,j,k) = Nph_cell(i,j,k) + 1
+      end do
+    end if
+
+    Nph_sum = sum(Nph_cell)
+    if (Nph_sum /= Nph_tot) then
+      print*, 'ERROR: exact emission packet allocation failed.'
+      print*, 'Required, allocated: ', Nph_tot, Nph_sum
+      stop
+    end if
+
+    if (any(.not. ieee_is_finite(wght_start)) .or. any(wght_start < 0.0_dp)) then
+      print*, 'ERROR: invalid emission starting weight.'
+      stop
+    end if
+
+    deallocate(cell_i, cell_j, cell_k)
+    deallocate(proposal, remainder, residual_cdf)
+
+  end subroutine allocate_emission_packets
 
   subroutine set_grid_em(l,n)
     implicit none
@@ -42,7 +205,9 @@ contains
       !! If 1D profile input then only 1 vertical profile required, use index j = 1, k = 1
 
       ! Calculate
-      itau3(1,1) = grid%n_lev - 1
+      ! itau3 is the deepest cell index that is omitted.  Zero means that the
+      ! optical-depth cutoff was not reached and every radial layer is kept.
+      itau3(1,1) = 0
       tau_sum = 0.0_dp
        do i = grid%n_lev, 2, -1
          itaul = i - 1
@@ -56,23 +221,24 @@ contains
           end if
           tau_sum = tau_sum + densav * abs((H(i)-H(i-1)))
            if (tau_sum > tau_cuttoff) then
-             if (itaul < itau3(1,1)) then
-               itau3(1,1) = itaul
-             end if
+             ! Retain the layer in which the threshold is crossed; only cells
+             ! wholly below it are removed from the emission proposal.
+             itau3(1,1) = max(itaul - 1, 0)
              exit
-           end if
-           if (i == 2) then
-             itau3(1,1) = itaul
            end if
        end do
 
        itau3(:,:) = itau3(1,1)
-       print*, 'itau: ', tau_sum, itau3(1,1), PG(itau3(1,1),1,1)/bar
+       if (itau3(1,1) > 0) then
+         print*, 'itau: ', tau_sum, itau3(1,1), PG(itau3(1,1),1,1)/bar
+       else
+         print*, 'itau: ', tau_sum, itau3(1,1), 'no fully hidden layer'
+       end if
 
      else if (threeD .eqv. .True.) then
 
        ! Calculate
-       itau3(:,:) = 1 !grid%n_lev - 1
+       itau3(:,:) = 0
        do k = 1, grid%n_theta-1
          do j = 1, grid%n_phi-1
            tau_sum = 0.0_dp
@@ -88,9 +254,7 @@ contains
                end if
                tau_sum = tau_sum + densav * abs((H(i)-H(i-1)))
                 if (tau_sum > tau_cuttoff) then
-                  !if (itaul < itau3(j,k)) then
-                    itau3(j,k) = itaul
-                  !end if
+                  itau3(j,k) = max(itaul - 1, 0)
                   exit
                 end if
             end do
@@ -135,7 +299,7 @@ contains
                    l_cell(i,j,k) = fourpi * RH(i,j,k) * v_cell(i,j,k) * k_tot_abs(1,i,j,k) * BB(wl(l),TG(i,j,k))
                  end if
                  grid%lumtot = grid%lumtot  + l_cell(i,j,k)
-                 n_cells = n_cells + 1.0_dp
+                 if (l_cell(i,j,k) > 0.0_dp) n_cells = n_cells + 1.0_dp
                  cycle
                end if
 
@@ -159,21 +323,29 @@ contains
               end do
               l_cell(i,j,k) = sum(l_cell_g(:,i,j,k))
               grid%lumtot = grid%lumtot + l_cell(i,j,k)
+              if (l_cell(i,j,k) <= 0.0_dp) then
+                cell_gord_cdf(:,i,j,k) = 0.0_dp
+                cell_gord_wght(:,i,j,k) = 0.0_dp
+                cycle
+              end if
               n_cells = n_cells + 1.0_dp
 
               !print*, i, l_cell(i,j,k), k_tot_abs(1,i,j,k), k_tot_abs(16,i,j,k)
 
          cell_gord_cdf(1,i,j,k) = 0.0_dp
           do g = 2, ng
-              cell_gord_cdf(g,i,j,k) = cell_gord_cdf(g-1,i,j,k) + l_cell_g(g,i,j,k)/l_cell(i,j,k)
+              cell_gord_cdf(g,i,j,k) = cell_gord_cdf(g-1,i,j,k) + l_cell_g(g-1,i,j,k)/l_cell(i,j,k)
           end do
 
 
           do g = 1, ng
-            !cell_gord_wght(g,i,j,k) = (real(ng,dp) * gord_w(g) *  l_cell_g(g,i,j,k))/l_cell(i,j,k)
-            cell_gord_wght(g,i,j,k) = (1.0_dp / ((1.0_dp - xi_g) + &
-            & xi_g * (l_cell(i,j,k) / real(ng,dp) &
-            & / l_cell_g(g,i,j,k))))
+            if (l_cell_g(g,i,j,k) > 0.0_dp) then
+              cell_gord_wght(g,i,j,k) = (1.0_dp / ((1.0_dp - xi_g) + &
+              & xi_g * (l_cell(i,j,k) / real(ng,dp) &
+              & / l_cell_g(g,i,j,k))))
+            else
+              cell_gord_wght(g,i,j,k) = 0.0_dp
+            end if
           end do
 
       end do

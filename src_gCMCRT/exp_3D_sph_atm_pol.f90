@@ -27,16 +27,15 @@ contains
     implicit none
 
     integer, intent(in) :: Nph
-    integer(8) :: id, seed
-    integer :: seq, offset
+    integer(8) :: id, seed, seq, offset
 
     id = (blockIdx%x - 1) * blockDim%x + threadIdx%x
     if (id > Nph) then
       return
     end if
 
-    seed = id + id**2 + id/2
-    seq = 0
+    seed = random_seed_d
+    seq = id - 1
     offset = 0
     call curand_init(seed, seq, offset, iseed(id))
 
@@ -145,18 +144,23 @@ subroutine exp_3D_sph_atm_pol()
   implicit none
 
 
-  integer :: Nph, l, uT, i, istat
+  integer :: Nph, l, uT, i, istat, nml_iostat
   integer, device :: l_d, Nph_d
   integer :: n_theta, n_phi, n_lay
   real(dp) :: viewthet, viewphi
   real(dp) :: pl, pc, sc, tau0, dtau, dr
+  character(len=512) :: nml_iomsg
 
   type(dim3) :: blocks, threads
 
 
   namelist /sph_3D_alb/ Nph, n_wl, pl, pc, sc, n_theta, n_phi, n_lay, viewthet, viewphi
 
-  read(u_nml, nml=sph_3D_alb)
+  read(u_nml, nml=sph_3D_alb, iostat=nml_iostat, iomsg=nml_iomsg)
+  if (nml_iostat /= 0) then
+    print*, 'ERROR reading polarization &sph_3D_alb from CMCRT.nml: ', trim(nml_iomsg)
+    stop
+  end if
 
   ! Give namelist paramaters to equilvanet values inside gCMCRT
   grid%n_lay = n_lay
@@ -203,7 +207,7 @@ subroutine exp_3D_sph_atm_pol()
   print*, Nph, threads, blocks
 
 
-  open(newunit=uT,file='Albedo.txt',action='readwrite')
+  open(newunit=uT,file='Albedo.txt',status='replace',action='write')
   write(uT,*) n_wl, H(1), H(grid%n_lev)
 
 
@@ -272,7 +276,7 @@ subroutine exp_3D_sph_atm_pol()
       q(:,:) = q_d(:,:)/real(Nph,dp)
       u(:,:) = u_d(:,:)/real(Nph,dp)
       im_err(:,:) = im_err_d(:,:)/real(Nph,dp)
-      call output_im(1,l)
+      call output_im(1,l,1)
     end if
 
     print*, l, wl(l), alb_out(l), im%qsum*pi, im%usum*pi

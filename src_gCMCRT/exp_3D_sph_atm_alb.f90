@@ -26,8 +26,7 @@ contains
     implicit none
 
     integer, intent(in) :: Nph
-    integer(8) :: id, seed
-    integer :: seq, offset
+    integer(8) :: id, seed, seq, offset
 
     ! Get packet id
     id = (blockIdx%x - 1) * blockDim%x + threadIdx%x
@@ -36,8 +35,8 @@ contains
     end if
 
     ! Set seed for packet
-    seed = id + id**2 + id/2
-    seq = 0
+    seed = random_seed_d
+    seq = id - 1
     offset = 0
     call curand_init(seed, seq, offset, iseed(id))
 
@@ -128,7 +127,11 @@ contains
     end do
 
     ! Add number of scatterings to total
-    istat = atomicadd(nscat_tot_d, nscat)
+    if (use_block_accum_d .eqv. .True.) then
+      istat = atomicadd(block_nscat_accum_d(blockIdx%x),nscat)
+    else
+      istat = atomicadd(nscat_tot_d,nscat)
+    end if
 
     ! Give back iseed to saved device array for next iteration with this ph%id
     iseed(ph%id) = ph%iseed
@@ -148,28 +151,49 @@ subroutine exp_3D_sph_atm_albedo()
   use mc_read_prf
   use LHS_sampling_mod, only : LHS_sample
   use random_cpu
+  use mc_k_scatt, only : validate_volume_scattering
   use cudafor
   implicit none
 
 
-  integer :: Nph, l, iscat, istat, s_wl, n
+  integer :: Nph, l, iscat, istat, s_wl, n, nml_iostat, n_wl_out
   integer, allocatable, dimension(:) :: uT
   integer, device :: l_d, Nph_d
   integer :: n_theta, n_phi, n_lay
   character (len=8) :: fmt
   character (len=3) :: n_str
+  character (len=512) :: nml_iomsg
   real(dp) :: viewthet
   real(dp) :: pl, pc, sc
   real(dp), allocatable, dimension(:) :: viewphi
+  real(dp), allocatable, dimension(:,:) :: block_accum
+  integer, allocatable, dimension(:) :: block_nscat_accum
+  logical :: use_block_accum
 
   type(dim3) :: blocks, threads
 
 
-  namelist /sph_3D_alb/ Nph, s_wl, n_wl, pl, pc, sc, n_theta, n_phi, n_lay, viewthet, viewphi, iscat
+  namelist /sph_3D_alb/ Nph, s_wl, n_wl, pl, pc, sc, n_theta, n_phi, n_lay, &
+    & viewthet, viewphi, iscat, use_block_accum
 
+  if (n_phase < 1) then
+    print*, 'ERROR: n_phase must be positive in 3D_sph_alb.'
+    stop
+  end if
   allocate(uT(n_phase),viewphi(n_phase))
 
-  read(u_nml, nml=sph_3D_alb)
+  use_block_accum = .True.
+  read(u_nml, nml=sph_3D_alb, iostat=nml_iostat, iomsg=nml_iomsg)
+  if (nml_iostat /= 0) then
+    print*, 'ERROR reading &sph_3D_alb from CMCRT.nml: ', trim(nml_iomsg)
+    stop
+  end if
+
+  if (Nph < 1) then
+    print*, 'ERROR: Nph must be positive in 3D_sph_alb.'
+    stop
+  end if
+  call validate_volume_scattering(iscat, '3D_sph_alb')
 
   fmt = '(I3.3)'
 
@@ -201,12 +225,27 @@ subroutine exp_3D_sph_atm_albedo()
   threads = dim3(128, 1, 1)
   blocks = dim3(ceiling(real(Nph,dp)/threads%x),1,1)
   allocate(iseed(Nph))
+  use_block_accum_d = use_block_accum
+  if (use_block_accum .eqv. .True.) then
+    allocate(block_accum(blocks%x,N_BLOCK_ACC))
+    allocate(block_accum_d(blocks%x,N_BLOCK_ACC))
+    allocate(block_nscat_accum(blocks%x))
+    allocate(block_nscat_accum_d(blocks%x))
+  end if
   Nph_d = Nph
   call set_iseed<<<blocks, threads>>>(Nph_d)
 
+  print*, 'Albedo per-block accumulators: ', use_block_accum
+
   call read_1D_prf()
-  call read_wl()
-  call read_g_ord()
+  call read_wl(s_wl)
+  n_wl_out = n_wl - s_wl + 1
+  if (ck .eqv. .True.) then
+    call read_g_ord()
+  else
+    ng = 1
+    ng_d = 1
+  end if
 
   call set_grid()
 
@@ -217,10 +256,15 @@ subroutine exp_3D_sph_atm_albedo()
 
   do n = 1, n_phase
     write(n_str,fmt) n
-    open(newunit=uT(n),file='Alb_'//trim(n_str)//'.txt',action='readwrite')
-    write(uT(n),*) n_wl, H(1), H(grid%n_lev), viewphi(n)
+    open(newunit=uT(n),file='Alb_'//trim(n_str)//'.txt',status='replace',action='write')
+    write(uT(n),*) n_wl_out, H(1), H(grid%n_lev), viewphi(n)
     call flush(uT(n))
   end do
+
+  if (LHS .eqv. .True.) then
+    allocate(x_ran(Nph),y_ran(Nph),z_ran(Nph),x_ran_d(Nph),y_ran_d(Nph),z_ran_d(Nph))
+    call rng_seed(random_seed)
+  end if
 
   call read_next_opac(s_wl)
 
@@ -228,7 +272,7 @@ subroutine exp_3D_sph_atm_albedo()
 
   do l = s_wl, n_wl
  
-    call set_grid_opac()
+    call set_grid_opac(iscat)
 
     do n = 1, n_phase
 
@@ -244,6 +288,7 @@ subroutine exp_3D_sph_atm_albedo()
       im%fsum = 0.0_dp
       im%qsum = 0.0_dp
       im%usum = 0.0_dp
+      im%fsum_occ = 0.0_dp
       im%fail_pscat = 0
       im%fail_pemit = 0
 
@@ -251,22 +296,22 @@ subroutine exp_3D_sph_atm_albedo()
        
       nscat_tot = 0
       nscat_tot_d = nscat_tot
+      if (use_block_accum .eqv. .True.) then
+        block_accum_d(:,:) = 0.0_dp
+        block_nscat_accum_d(:) = 0
+      end if
 
       alb_out(l) = 0.0_dp
       alb_out_d(l) = alb_out(l)
 
-      f(:,:) = 0.0_dp ; q(:,:) = 0.0_dp ; u(:,:) = 0.0_dp ; im_err(:,:) = 0.0_dp
-      f_d(:,:) = f(:,:) ; q_d(:,:) = q(:,:) ; u_d(:,:) = u(:,:) ; im_err_d(:,:) = im_err(:,:)
+      if (do_images .eqv. .True.) then
+        f(:,:) = 0.0_dp ; q(:,:) = 0.0_dp ; u(:,:) = 0.0_dp ; im_err(:,:) = 0.0_dp
+        f_d(:,:) = f(:,:) ; q_d(:,:) = q(:,:) ; u_d(:,:) = u(:,:) ; im_err_d(:,:) = im_err(:,:)
+      end if
 
       l_d = l
 
       if (LHS .eqv. .True.) then
-        if (l == s_wl) then
-          ! Allocate CPU and GPU arrays if first call
-          allocate(x_ran(Nph),y_ran(Nph),z_ran(Nph),x_ran_d(Nph),y_ran_d(Nph),z_ran_d(Nph))
-          !call random_seed()
-          call rng_seed(213)
-        end if
         ! Generate Nph samples using Latin Hypercube Sampling
         call LHS_sample(Nph, 2, x_ran, y_ran, z_ran, .False.)
         ! Send samples to GPU memory
@@ -281,8 +326,24 @@ subroutine exp_3D_sph_atm_albedo()
         call read_next_opac(l+1)
       end if
 
+      istat = cudaDeviceSynchronize()
+      if (istat /= 0) then
+        print*, 'ERROR after exp_3D_sph_atm_albedo_k:', istat
+        stop
+      end if
+
       im = im_d
-      nscat_tot = nscat_tot_d
+      if (use_block_accum .eqv. .True.) then
+        block_accum(:,:) = block_accum_d(:,:)
+        im%fsum = sum(block_accum(:,BLOCK_ACC_F))
+        im%qsum = sum(block_accum(:,BLOCK_ACC_Q))
+        im%usum = sum(block_accum(:,BLOCK_ACC_U))
+        im%fsum_occ = sum(block_accum(:,BLOCK_ACC_F_OCC))
+        block_nscat_accum(:) = block_nscat_accum_d(:)
+        nscat_tot = sum(block_nscat_accum(:))
+      else
+        nscat_tot = nscat_tot_d
+      end if
 
       ! Give fsum back to CPU
       alb_out(l) = im%fsum / real(Nph,dp) * pi
@@ -293,7 +354,7 @@ subroutine exp_3D_sph_atm_albedo()
       if (do_images .eqv. .True.) then
         f(:,:) = f_d(:,:)/real(Nph,dp) ; q(:,:) = q_d(:,:)/real(Nph,dp)
         u(:,:) = u_d(:,:)/real(Nph,dp) ; im_err(:,:) = im_err_d(:,:)
-        call output_im(n,l)
+        call output_im(n,l,n_phase)
       end if
 
       print*, n, l, real(wl(l)), alb_out(l)

@@ -15,6 +15,27 @@ module mc_k_scatt
 
 contains
 
+  subroutine validate_volume_scattering(iscat, experiment)
+    implicit none
+
+    integer, intent(in) :: iscat
+    character(len=*), intent(in) :: experiment
+
+    select case(iscat)
+    case(1, 3, 4, 5, 6)
+      return
+    case(2)
+      print*, 'ERROR: iscat=2 is a Lambertian surface law and cannot be used'
+      print*, 'for volumetric cloud scattering in ', trim(experiment), '.'
+      stop
+    case default
+      print*, 'ERROR: unsupported volumetric scattering choice in ', trim(experiment), '.'
+      print*, 'iscat must be one of 1, 3, 4, 5, or 6; received ', iscat
+      stop
+    end select
+
+  end subroutine validate_volume_scattering
+
   attributes(device) subroutine scatt_pac_iso(ph)
     implicit none
 
@@ -344,8 +365,10 @@ contains
 
     case default
 
-      call scatt_pac_iso(ph)
-      call depolarise_pac(ph)
+      ! Host-side validation should make this unreachable.  Terminate the
+      ! packet defensively instead of propagating it with a different phase
+      ! function from the peel-off estimator.
+      ph%p_flag = -1
       return
 
     end select

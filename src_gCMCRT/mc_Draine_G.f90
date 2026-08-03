@@ -19,6 +19,7 @@ contains
 
     integer :: i, j, k
     real(dp) :: a1, b1, g, g2, g3
+    real(dp), parameter :: g_zero_floor = 1.0e-4_dp
 
     if (first_call .eqv. .True.) then
       ! Need to limit alpha to non-zero small value to avoid numerical issues
@@ -36,13 +37,17 @@ contains
             Dgg(i,j,k) = cld_g(i,j,k)
             cycle
           end if
+          ! Avoid the special Dgg=0 propagation branch, which is isotropic
+          ! even though the Draine phase function is not isotropic for
+          ! non-zero alpha.  Preserve genuinely negative asymmetry values;
+          ! only an exactly zero input receives this negligible positive floor.
           if (cld_g(i,j,k) == 0.0_dp) then
-            Dgg(i,j,k) = 0.0_dp
-            cycle
+            g = g_zero_floor
+          else
+            g = cld_g(i,j,k)
           end if
-          g = cld_g(i,j,k)
-          g2 = cld_g(i,j,k)**2
-          g3 = cld_g(i,j,k)**3
+          g2 = g**2
+          g3 = g**3
           a1 = 1.0_dp/2.0_dp + 5.0_dp/(6.0_dp*Draine_alp) - (25.0_dp/81.0_dp)*g2
           b1 = (125.0_dp/729.0_dp)*g3 + 5.0_dp/(9.0_dp*Draine_alp)*g
           Dgg(i,j,k) = cbrt(sqrt(a1**3 + b1**2) + b1) - cbrt(sqrt(a1**3 + b1**2) - b1) + (5.0_dp/9.0_dp)*g

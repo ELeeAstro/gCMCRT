@@ -10,7 +10,7 @@ plt.rc("font", serif="Helvetica Neue")
 plt.rc("text", usetex="false")
 
 RSUN = 6.957e10
-RS = 0.932 * RSUN
+RS = 0.895 * RSUN
 
 
 def read_emission_file(path):

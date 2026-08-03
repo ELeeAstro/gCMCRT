@@ -2,6 +2,7 @@ module mc_read_prf
   use mc_precision
   use mc_data_mod
   use mc_class_grid
+  use ieee_arithmetic
   implicit none
 
 
@@ -11,8 +12,13 @@ contains
     implicit none
 
     integer :: u, i, j, k, jj, icount, nlay, nlev, ngas, n, l
+    integer :: nlay_expected, lay_idx, ios
     real(kind=dp) :: mu
     !real(kind=dp), allocatable, dimension(:) :: VMR_dum
+
+    if (threeD .eqv. .True.) then
+      call validate_spherical_grid_dimensions()
+    end if
 
     print*, ' - Reading in '//trim(exp_name)//'.prf file - '
 
@@ -20,6 +26,23 @@ contains
 
     read(u,*); read(u,*)
     read(u,*) nlay
+
+    if (grid%n_lay < 1) then
+      print*, 'ERROR: grid%n_lay must be positive before reading the profile.'
+      stop
+    end if
+
+    if (oneD .eqv. .True.) then
+      nlay_expected = grid%n_lay
+    else
+      nlay_expected = grid%n_lay * (grid%n_phi-1) * (grid%n_theta-1)
+    end if
+
+    if (nlay /= nlay_expected) then
+      print*, 'ERROR: profile row count does not match the configured grid.'
+      print*, 'File rows, required rows: ', nlay, nlay_expected
+      stop
+    end if
 
     nlev = nlay + 1
     nlay_1D = nlay
@@ -86,7 +109,12 @@ contains
     open(newunit=u,file=trim(exp_name)//'.hprf',action='read',status='old',form='formatted')
     allocate(H(grid%n_lev))
     do i = 1, grid%n_lev
-      read(u,*) lay(i), H(i)
+      read(u,*,iostat=ios) lay_idx, H(i)
+      if (ios /= 0) then
+        print*, 'ERROR: height profile has fewer rows than grid%n_lev.'
+        print*, 'Failed row, required rows: ', i, grid%n_lev
+        stop
+      end if
     end do
 
     allocate(H_d(grid%n_lev))
@@ -103,7 +131,7 @@ contains
   subroutine read_1D_wprf()
     implicit none
 
-    integer :: u, i, j, k, dum, n
+    integer :: u, i, j, k, dum, n, ios
 
     print*, ' - Reading in '//trim(exp_name)//'.wprf file - '
 
@@ -112,7 +140,12 @@ contains
     allocate(u_wind_1D(nlay_1D),v_wind_1D(nlay_1D),w_wind_1D(nlay_1D))
 
     do i = 1, nlay_1D
-      read(u,*) dum, u_wind_1D(i), v_wind_1D(i), w_wind_1D(i)
+      read(u,*,iostat=ios) dum, u_wind_1D(i), v_wind_1D(i), w_wind_1D(i)
+      if (ios /= 0) then
+        print*, 'ERROR: wind profile has fewer rows than the atmospheric profile.'
+        print*, 'Failed row, required rows: ', i, nlay_1D
+        stop
+      end if
     end do
 
     allocate(u_wind(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
@@ -149,14 +182,30 @@ contains
 
   end subroutine read_1D_wprf
 
-  subroutine read_wl()
+  subroutine read_wl(s_wl_in)
     implicit none
 
+    integer, intent(in), optional :: s_wl_in
     integer :: iwl, num_wl, l, uwl
 
     open(newunit=uwl,file='wavelengths.wl',action='read',status='old',form='formatted')
 
     read(uwl,*) num_wl
+
+    if ((n_wl < 1) .or. (n_wl > num_wl)) then
+      print*, 'ERROR: requested final wavelength index is outside wavelengths.wl.'
+      print*, 'n_wl, available wavelengths: ', n_wl, num_wl
+      stop
+    end if
+
+    if (present(s_wl_in)) then
+      if ((s_wl_in < 1) .or. (s_wl_in > n_wl)) then
+        print*, 'ERROR: requested starting wavelength index is outside 1:n_wl.'
+        print*, 's_wl, n_wl: ', s_wl_in, n_wl
+        stop
+      end if
+    end if
+
     allocate(wl(num_wl))
     do l = 1, num_wl
       read(uwl,*) iwl, wl(l)
@@ -182,11 +231,18 @@ contains
     implicit none
 
     integer :: u, g
+    real(dp) :: weight_sum
+    real(dp), parameter :: weight_tol = 1.0e-6_dp
 
     ! Read g-ordinances and delg with weights to file g.ord
     open(newunit=u, file='gord.cmcrt', status='old', action='read',form='formatted')
 
     read(u,*) ng
+
+    if (ng < 1) then
+      print*, 'ERROR: gord.cmcrt must contain at least one g ordinate.'
+      stop
+    end if
 
     allocate(gord_cdf(ng), gord_x(ng), gord_w(ng))
     do g = 1, ng
@@ -195,6 +251,24 @@ contains
     end do
 
     close(u)
+
+    if (any(.not. ieee_is_finite(gord_x)) .or. any(.not. ieee_is_finite(gord_w))) then
+      print*, 'ERROR: gord.cmcrt contains a non-finite ordinate or weight.'
+      stop
+    end if
+
+    if (any(gord_w < 0.0_dp)) then
+      print*, 'ERROR: gord.cmcrt contains a negative weight.'
+      stop
+    end if
+
+    weight_sum = sum(gord_w)
+    if (abs(weight_sum - 1.0_dp) > weight_tol) then
+      print*, 'ERROR: gord.cmcrt weights do not sum to one.'
+      print*, 'Weight sum, tolerance: ', weight_sum, weight_tol
+      stop
+    end if
+    gord_w(:) = gord_w(:) / weight_sum
 
     print*, 'Constructing g_ord_CDF'
 

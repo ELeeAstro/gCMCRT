@@ -6,7 +6,7 @@ from scipy.stats import binned_statistic
 
 
 RSUN = 6.957e10
-RS = 0.932 * RSUN
+RS = 0.895 * RSUN
 
 
 plt.rc("font", family="sans-serif")

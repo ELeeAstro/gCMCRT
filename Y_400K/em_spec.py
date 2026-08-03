@@ -9,10 +9,10 @@ nwl = int(head[0])
 Rp_b = float(head[1])
 Rp_t = float(head[2])
 Fp0 = np.zeros(nwl)
-data = np.loadtxt(fname,skiprows=1)
+data = np.atleast_2d(np.loadtxt(fname,skiprows=1))
 wl0 = data[:,0]
 frac = data[:,1]
-Ltot = data[:,2]
+Ltot = data[:,3] if data.shape[1] >= 4 else data[:,2]
 Fp0[:] = (frac[:] * Ltot[:]) / (Rp_t**2)
 
 fig = plt.figure()

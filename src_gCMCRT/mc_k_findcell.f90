@@ -38,7 +38,11 @@ contains
        rphi = rphi + twopi
     end if
 
-    call locate(phi_d(:), rphi, ph%c(2))
+    if (rphi <= phi_d(1)) then
+       ph%c(2) = 1
+    else
+       call locate(phi_d(:), rphi, ph%c(2))
+    end if
 
     ! Theta cell.
     ! Clip to avoid acos(NaN) from tiny round-off outside [-1, 1].
@@ -47,7 +51,11 @@ contains
 
     rtheta = acos(mu)
 
-    call locate(theta_d(:), rtheta, ph%c(3))
+    if (rtheta <= theta_d(1)) then
+       ph%c(3) = 1
+    else
+       call locate(theta_d(:), rtheta, ph%c(3))
+    end if
 
   end subroutine findcell  
 

@@ -40,11 +40,15 @@ contains
             v = v_wind(i,j,k)
             w = w_wind(i,j,k)
 
-            phi_cell = phiarr(j) + 0.5_dp * dphi           ! Central phi coordinate of cell
-            theta_cell = pi - (thetarr(k) + 0.5_dp*dtheta) ! Converted to -/+ pi radian
+            phi_cell = 0.5_dp * (phiarr(j) + phiarr(j+1))             ! Central phi coordinate of cell
+            theta_cell = pi - 0.5_dp * (thetarr(k) + thetarr(k+1))    ! Converted to -/+ pi radian
             Rz_cell = 0.5_dp*(H(i) + H(i+1))               ! Center of cell in radius assumed
 
             vlos = 0.0_dp
+
+            ! The observer-frame systemic shift is independent of whether the
+            ! phase-dependent orbital velocity is included.
+            vlos = vlos + vsys
 
             ! Add velocity component due to atmospheric winds (equation 7)
             if (winds_on .eqv. .True.) then
@@ -61,7 +65,7 @@ contains
             ! Add velocity component due to orbital motion (equation 12)
             if (orbit_on .eqv. .True.) then
                 orb_phase = pi - phi_v  ! phi_v already expressed in radians
-                vlos = vlos + vsys + vorb*sin(theta_v)*sin(orb_phase)
+                vlos = vlos + vorb*sin(theta_v)*sin(orb_phase)
             end if
 
             v_los(n,i,j,k) = vlos

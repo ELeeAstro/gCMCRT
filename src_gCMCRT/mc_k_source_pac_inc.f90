@@ -9,6 +9,10 @@ module mc_k_source_pac_inc
   use curand_device
   implicit none
 
+  integer, parameter :: TRANSIT_SOURCE_OK = 0
+  integer, parameter :: TRANSIT_SOURCE_TANGENT_CHORD = 1
+  integer, parameter :: TRANSIT_SOURCE_INVALID = -1
+
 contains
 
   attributes(device) subroutine source_pac_inc_1D(ph, mu_s)
@@ -65,7 +69,9 @@ contains
 
     type(pac), intent(inout) :: ph
     real(dp) :: rr2, r_num, ann_theta
-    real(dp) :: xp_help, yp_help, rot_angle
+    real(dp) :: b1, b2, s
+    real(dp) :: e1x, e1y, e1z, e2x, e2y, e2z
+    real(dp) :: kx, ky, kz
 
     !! For incident packets in 3D the incident angle is from the direction of the star
 
@@ -75,7 +81,7 @@ contains
 
       ann_theta = curand_uniform(ph%iseed) * twopi
 
-      if (do_trans_d .eqv. .True.) then
+      if (do_trans_spectrum_d .eqv. .True.) then
        ! Sample annulus
        rr2 = sqrt(grid_d%r_min**2 + (grid_d%r_max**2 - grid_d%r_min**2)*curand_uniform(ph%iseed))
        !rr2 = grid_d%r_min/grid_d%r_max + (1.0_dp - grid_d%r_min/grid_d%r_max)*sqrt(curand_uniform(ph%iseed))
@@ -89,7 +95,7 @@ contains
 
       ann_theta = x_ran_d(ph%id) * twopi
 
-      if (do_trans_d .eqv. .True.) then
+      if (do_trans_spectrum_d .eqv. .True.) then
        ! Sample annulus
        rr2 = sqrt(grid_d%r_min**2 + (grid_d%r_max**2 - grid_d%r_min**2)*y_ran_d(ph%id))
        !rr2 = grid_d%r_min/grid_d%r_max + (1.0_dp - grid_d%r_min/grid_d%r_max)*sqrt(curand_uniform(ph%iseed))
@@ -114,27 +120,47 @@ contains
       call limb_darkening(rr2, ann_theta,ph)
     end if
 
-    ! Rotate illumination for planet at a phase not at 0
-    ! rotate according to given viewing angle
-    if (im_d%vphi /= 180.0_dp .and. do_trans_d .eqv. .True.) then
-      rot_angle = im_d%vphi * pi/180.0_dp - pi
-      xp_help = ph%xp*cos(rot_angle) - ph%yp*sin(rot_angle)
-      yp_help = ph%xp*sin(rot_angle) + ph%yp*cos(rot_angle)
-      ph%xp = xp_help
-      ph%yp = yp_help
+    if (do_trans_spectrum_d .eqv. .True.) then
+      ! Build the launch point and direction from the same observer/image
+      ! basis.  At (vtheta,vphi)=(90,180) this reproduces the legacy +x launch
+      ! and -x propagation exactly, while rotated views now carry a consistent
+      ! incident direction into the optional multiple-scattering history.
+      e1x = -im_d%costo * im_d%cospo
+      e1y = -im_d%costo * im_d%sinpo
+      e1z =  im_d%sinto
+      e2x = -im_d%sinpo
+      e2y =  im_d%cospo
+      e2z =  0.0_dp
+      kx = im_d%obsx
+      ky = im_d%obsy
+      kz = im_d%obsz
+
+      b1 = ph%zp
+      b2 = -ph%yp
+      s = ph%xp
+      ph%xp = b1*e1x + b2*e2x - s*kx
+      ph%yp = b1*e1y + b2*e2y - s*ky
+      ph%zp = b1*e1z + b2*e2z - s*kz
+      ph%nxp = kx
+      ph%nyp = ky
+      ph%nzp = kz
+    else
+      ! Plane-parallel illumination used by the albedo experiment.
+      ph%nxp = -1.0_dp
+      ph%nyp = 0.0_dp
+      ph%nzp = 0.0_dp
     end if
 
-    !! NEEDS TO BE CHANGED FOR MULTIPLE SCATTERING MODE - RAY TRACING SHOULD WORK FINE
-    ! Incident radiation plane parallel from the x direction, so cost = 0, and towards phi = pi degrees
-    ph%cost = 0.0_dp
-    ph%sint = sqrt(1.0_dp-ph%cost**2)
-    ph%phi = pi
-    ph%cosp = -1.0_dp
-    ph%sinp = sqrt(1.0_dp-ph%cosp**2)
-
-    ph%nxp = ph%sint * ph%cosp
-    ph%nyp = ph%sint * ph%sinp
-    ph%nzp = ph%cost
+    ph%cost = max(-1.0_dp, min(1.0_dp, ph%nzp))
+    ph%sint = sqrt(max(1.0_dp-ph%cost**2, 0.0_dp))
+    if (ph%sint > 1.0e-300_dp) then
+      ph%cosp = ph%nxp/ph%sint
+      ph%sinp = ph%nyp/ph%sint
+    else
+      ph%cosp = 1.0_dp
+      ph%sinp = 0.0_dp
+    end if
+    ph%phi = atan2(ph%sinp, ph%cosp)
 
     ! Depolarised packet
     ph%fi = 1.0_dp
@@ -153,6 +179,9 @@ contains
     real(dp) :: e1x, e1y, e1z, e2x, e2y, e2z
     real(dp) :: kx, ky, kz
     real(dp) :: r2_star, mu, xb, yb, cps, sps, R_top_sq
+    real(dp) :: b_sq, b_sq_tol, outer_width, launch_dr, r_start
+
+    ph%p_flag = TRANSIT_SOURCE_OK
 
     ! Out of transit: the planet does not cover any part of the stellar disk
     ! (delta >= R_s + R_p) or the star is on the observer side (zstar >= 0).
@@ -212,7 +241,46 @@ contains
     ky = im_d%obsy
     kz = im_d%obsz
 
-    s = sqrt(max(grid_d%r_max**2 - (b1*b1 + b2*b2), 0.0_dp)) - 1.0e-12_dp
+    b_sq = b1*b1 + b2*b2
+    b_sq_tol = 128.0_dp * epsilon(1.0_dp) * &
+      & max(1.0_dp, grid_d%r2_max)
+    ph%bp = sqrt(max(b_sq, 0.0_dp))
+
+    ! Reject genuinely inconsistent sampler output, but handle a value within
+    ! roundoff of the outer tangent as an unresolved tangent chord rather than
+    ! an invalid ray.
+    if ((b_sq /= b_sq) .or. (b_sq < 0.0_dp) .or. &
+        & (b_sq > grid_d%r2_max + b_sq_tol)) then
+      ph%p_flag = TRANSIT_SOURCE_INVALID
+      ph%wght = 0.0_dp
+      return
+    end if
+
+    ! Start a resolved distance inside the outermost radial cell.  Subtracting
+    ! a fixed path distance from the tangent solution can make s negative when
+    ! the chord itself is shorter than that displacement.
+    outer_width = grid_d%r_max - r_d(grid_d%n_lay)
+    if ((outer_width /= outer_width) .or. (outer_width <= 0.0_dp)) then
+      ph%p_flag = TRANSIT_SOURCE_INVALID
+      ph%wght = 0.0_dp
+      return
+    end if
+    launch_dr = min(0.01_dp*outer_width, max( &
+      & 128.0_dp*epsilon(1.0_dp)*max(1.0_dp, grid_d%r_max), &
+      & 1.0e-10_dp*outer_width))
+    r_start = grid_d%r_max - launch_dr
+    if ((r_start >= grid_d%r_max) .or. (r_start <= r_d(grid_d%n_lay))) then
+      ph%p_flag = TRANSIT_SOURCE_INVALID
+      ph%wght = 0.0_dp
+      return
+    end if
+
+    if (b_sq >= r_start**2) then
+      ph%p_flag = TRANSIT_SOURCE_TANGENT_CHORD
+      ph%wght = 0.0_dp
+      return
+    end if
+    s = sqrt(r_start**2 - b_sq)
 
     ph%xp = b1*e1x + b2*e2x - s*kx
     ph%yp = b1*e1y + b2*e2y - s*ky
@@ -232,8 +300,6 @@ contains
     end if
     ph%phi = atan2(ph%sinp, ph%cosp)
 
-    ph%bp = sqrt(b1*b1 + b2*b2)
-
     if (do_LD_d .eqv. .True.) then
       mu = sqrt(max(1.0_dp - r2_star/R_s_sq_d, 0.0_dp))
       call limb_darkening_mu(mu, ph)
@@ -252,27 +318,31 @@ contains
 
     type(pac), intent(inout) :: ph
     real(dp), intent(in) :: mus
-    real(dp) :: Imus
+    real(dp) :: Imus, mu
+
+    mu = max(0.0_dp, min(1.0_dp, mus))
 
     select case(ilimb_d)
     case(1)
-      Imus = 1.0_dp - LD_c_d(1)*(1.0_dp - mus)
+      Imus = 1.0_dp - LD_c_d(1)*(1.0_dp - mu)
     case(2)
-      Imus = 1.0_dp - LD_c_d(1)*(1.0_dp - mus) - LD_c_d(2)*(1.0_dp - mus)**2
+      Imus = 1.0_dp - LD_c_d(1)*(1.0_dp - mu) - LD_c_d(2)*(1.0_dp - mu)**2
     case(3)
-      Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - mus) - LD_c_d(2)*(1.0_dp  - sqrt(mus))
+      Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - mu) - LD_c_d(2)*(1.0_dp  - sqrt(mu))
     case(4)
-      Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - mus) - LD_c_d(2)*mus*log(mus)
+      Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - mu) - LD_c_d(2)*mu*log(mu)
     case(5)
-      Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - mus) - LD_c_d(2)/(1.0 - exp(mus))
+      ! Startup rejects a nonzero second coefficient because the published
+      ! exponential law is singular at mu=0.  With zero it reduces to linear.
+      Imus = 1.0_dp - LD_c_d(1)*(1.0_dp - mu)
     case(6)
-      Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - mus) - LD_c_d(2)*(1.0_dp  - mus**(1.5_dp)) &
-      & - LD_c_d(3)*(1.0_dp  - mus**2)
+      Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - mu) - LD_c_d(2)*(1.0_dp  - mu**(1.5_dp)) &
+      & - LD_c_d(3)*(1.0_dp  - mu**2)
     case(7)
-      Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - sqrt(mus)) - LD_c_d(2)*(1.0_dp  - mus) &
-      & - LD_c_d(3)*(1.0_dp  - mus**(1.5_dp)) - LD_c_d(4)*(1.0_dp  - mus**2)
+      Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - sqrt(mu)) - LD_c_d(2)*(1.0_dp  - mu) &
+      & - LD_c_d(3)*(1.0_dp  - mu**(1.5_dp)) - LD_c_d(4)*(1.0_dp  - mu**2)
     case(8)
-      Imus = 1.0_dp - LD_c_d(1)*(1.0_dp - mus**LD_c_d(2))
+      Imus = 1.0_dp - LD_c_d(1)*(1.0_dp - mu**LD_c_d(2))
     case default
       Imus = 1.0_dp
     end select
@@ -336,7 +406,7 @@ contains
     thetas = acos(zs/Rstar) - pi/2.0_dp
     phis = atan2(ys, xs)
 
-    mus = cos(thetas) * cos(phis)
+    mus = max(0.0_dp, min(1.0_dp, cos(thetas) * cos(phis)))
 
     select case(ilimb_d)
       ! Laws and references taken from John Southworth's (Keele) website
@@ -354,7 +424,7 @@ contains
       Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - mus) - LD_c_d(2)*mus*log(mus)
     case(5)
       ! Exponential law - Claret & Hauschildt (2003)
-      Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - mus) - LD_c_d(2)/(1.0 - exp(mus))
+      Imus = 1.0_dp - LD_c_d(1)*(1.0_dp - mus)
     case(6)
       ! Three paramater - Sing (2009)
       Imus = 1.0_dp  - LD_c_d(1)*(1.0_dp  - mus) - LD_c_d(2)*(1.0_dp  - mus**(1.5_dp)) &

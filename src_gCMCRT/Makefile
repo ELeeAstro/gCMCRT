@@ -49,8 +49,6 @@ OBJECTS = \
     mc_set_em.o \
     mc_los_velocity.o \
     mc_LHS_sampling.o \
-    exp_3D_sph_atm_tests.o \
-    exp_3D_sph_atm_pol.o \
     exp_3D_sph_atm_alb.o \
     exp_3D_sph_atm_trans.o \
     exp_3D_sph_atm_trans_lc.o \

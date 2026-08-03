@@ -2,7 +2,6 @@
 
 exp_name = 'FMS'
 xper = '3D_sph_em'
-do_trans = .False.
 
 oneD = .False.
 threeD = .True.
@@ -30,7 +29,8 @@ alb_surf = 0.0
 lbl = .False.
 ck = .True.
 
-LHS = .True.
+LHS = .False.
+random_seed = 12345
 
 ! Wind paramaters for hi-res los velocity
 doppler_on = .False.
@@ -44,7 +44,6 @@ sm_ax = 0.024           ! semi-major axis (AU)
 xpix = 200
 ypix = 200
 
-do_Draine = .False.
 Draine_alp = 0.5
 
 
@@ -55,7 +54,6 @@ LD_c = 0.077, 0.311, 0.0, 0.0
 Rs = 0.805
 inc = 85.51
 ecc = 0.0
-phase = 0.005
 
 do_phase = .False.
 do_eclipse = .False.
@@ -68,6 +66,8 @@ n_ecl = 0
 &sph_3D_em
 
 Nph_tot = 10240000
+! Set false to restore the legacy scalar-atomic accumulator for A/B testing.
+use_block_accum = .True.
 s_wl = 1
 n_wl = 503
 pl = 0.51
@@ -87,6 +87,8 @@ xi_emb = 0.99
 &sph_3D_trans
 
 Nph = 1024000
+! Set false to restore the legacy scalar-atomic accumulator for A/B testing.
+use_block_accum = .True.
 s_wl = 1
 n_wl = 503
 pl = 0.51

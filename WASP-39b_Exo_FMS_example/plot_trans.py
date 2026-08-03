@@ -15,12 +15,12 @@ plt.rc('text', usetex='false')
 
 # Stellar radius
 Rsun = 6.957e10
-Rs =  0.932 * Rsun
+Rs =  0.895 * Rsun
 
 # Scaling factor 
 # NOTE: using this factor is usually required to fit observations, it is theoretically sound due to the radius-pressure degeneracy
 # i.e. you cannot know the exact radius -> pressure relation for the atmosphere and the `base' radius
-scalfac = -0.0068
+scalfac = -0.0071
 
 # Import the transmission spectra data
 fname = 'Transmission.txt'

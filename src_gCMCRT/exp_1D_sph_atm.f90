@@ -365,17 +365,17 @@ subroutine exp_1D_sph_atm()
   print*, '(energy per steradian)*4*pi ', ', error'
   print*, energy_tot, energy_tot * 1.0_dp/sqrt(erri_tot)
 
-  open(newunit=u1,file='moment_gpu_sph.txt',action='readwrite')
+  open(newunit=u1,file='moment_gpu_sph.txt',status='replace',action='write')
   do i = 1, grid%n_lev
     write(u1,*) i, r(i), (tau0-tau(i)), jp(i), hp(i), kp(i), jm(i), hm(i), km(i)
   end do
 
-  open(newunit=u2,file='inten_gpu_sph.txt',action='readwrite')
+  open(newunit=u2,file='inten_gpu_sph.txt',status='replace',action='write')
   do i = 1, n_mu
     write(u2,*) i, theta(i), intensity(i), sigmai(i), energy(i)
   end do
 
-  open(unit=u3,file='image_sph.txt',action='readwrite')
+  open(unit=u3,file='image_sph.txt',status='replace',action='write')
   do j = 1, nx
      write(u3,*) (image_sph(i,j),i=1,nx)
   enddo

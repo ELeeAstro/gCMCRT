@@ -65,27 +65,45 @@ contains
 
   end subroutine set_image
 
-  subroutine output_im(n,l)
+  subroutine output_im(n,l,n_output)
     implicit none
 
-    integer, intent(in) :: l, n
+    integer, intent(in) :: l, n, n_output
     logical, save :: first_call = .True.
     integer :: nn
     character (len=8) :: fmt
     character (len=3) :: n_str
 
+    if (n_output < 1) then
+      print*, 'ERROR: image output count must be positive.'
+      print*, 'n_output: ', n_output
+      stop
+    end if
+
     if (first_call .eqv. .True.) then
-      allocate(f_im(n_phase))
-      allocate(q_im(n_phase))
-      allocate(u_im(n_phase))
+      allocate(f_im(n_output))
+      allocate(q_im(n_output))
+      allocate(u_im(n_output))
       fmt = '(I3.3)'
-      do nn = 1, n_phase
+      do nn = 1, n_output
         write(n_str,fmt) nn 
-        open(newunit=f_im(nn), file='f_im_'//trim(n_str)//'.txt', action='readwrite',form='unformatted')
+        open(newunit=f_im(nn), file='f_im_'//trim(n_str)//'.txt', status='replace', action='write',form='unformatted')
       end do
       !open(newunit=q_im, file='q_im.txt', action='readwrite',form='unformatted')
       !open(newunit=u_im, file='u_im.txt', action='readwrite',form='unformatted')
       first_call = .False.
+    end if
+
+    if (size(f_im) /= n_output) then
+      print*, 'ERROR: image output count changed after output initialization.'
+      print*, 'Initial, requested counts: ', size(f_im), n_output
+      stop
+    end if
+
+    if ((n < 1) .or. (n > size(f_im))) then
+      print*, 'ERROR: image output index is out of range.'
+      print*, 'Index, available outputs: ', n, size(f_im)
+      stop
     end if
 
     write(f_im(n)) real(f(:,:))

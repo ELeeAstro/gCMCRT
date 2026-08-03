@@ -1,6 +1,7 @@
 module mc_class_grid
   use mc_precision
   use mc_data_mod
+  use, intrinsic :: ieee_arithmetic, only : ieee_is_finite
   implicit none
 
   type geo
@@ -96,13 +97,80 @@ module mc_class_grid
 
 contains
 
+  subroutine validate_spherical_grid_dimensions()
+    implicit none
+
+    if (grid%n_lay < 1) then
+      print*, 'ERROR: spherical grid requires at least one radial layer.'
+      print*, 'n_lay: ', grid%n_lay
+      stop
+    end if
+
+    if (grid%n_lev /= grid%n_lay + 1) then
+      print*, 'ERROR: spherical grid requires n_lev = n_lay + 1.'
+      print*, 'n_lay, n_lev: ', grid%n_lay, grid%n_lev
+      stop
+    end if
+
+    if (grid%n_theta < 3) then
+      print*, 'ERROR: spherical grid requires at least three theta boundaries.'
+      print*, 'n_theta: ', grid%n_theta
+      stop
+    end if
+
+    if (mod(grid%n_theta,2) == 0) then
+      print*, 'ERROR: spherical grid requires an odd n_theta.'
+      print*, 'The equator must be a theta boundary, not the centre of a cell.'
+      print*, 'n_theta: ', grid%n_theta
+      stop
+    end if
+
+    if (grid%n_phi < 4) then
+      print*, 'ERROR: spherical grid requires at least four phi boundaries.'
+      print*, 'Smaller grids have coincident longitude-face planes.'
+      print*, 'n_phi: ', grid%n_phi
+      stop
+    end if
+
+  end subroutine validate_spherical_grid_dimensions
+
   subroutine set_grid()
     implicit none
 
-    integer :: i,j,k
+    integer :: i, j, k, equator_idx
     real(dp) :: v_tot, dr3, a_tot
+    real(dp) :: dphi_cell, dmu_cell
 
     print*, 'Setting grid'
+
+    call validate_spherical_grid_dimensions()
+
+    if (.not. allocated(H)) then
+      print*, 'ERROR: height boundaries must be allocated before setting the grid.'
+      stop
+    end if
+
+    if (size(H) /= grid%n_lev) then
+      print*, 'ERROR: height-boundary count does not match grid%n_lev.'
+      print*, 'Height count, n_lev: ', size(H), grid%n_lev
+      stop
+    end if
+
+    if (any(.not. ieee_is_finite(H))) then
+      print*, 'ERROR: spherical height boundaries must be finite.'
+      stop
+    end if
+
+    if (H(1) <= 0.0_dp) then
+      print*, 'ERROR: the inner spherical radius must be positive.'
+      print*, 'H(1): ', H(1)
+      stop
+    end if
+
+    if (any(H(2:grid%n_lev) <= H(1:grid%n_lev-1))) then
+      print*, 'ERROR: spherical height boundaries must be strictly increasing.'
+      stop
+    end if
 
     if (oneD .eqv. .True.) then
       grid%n_cell = grid%n_lay
@@ -127,60 +195,62 @@ contains
 
     grid%r_del = (H(grid%n_lev) - H(1))/(r(grid%n_lev) - r(1))
 
-    !! phi (longitude) grid set up
-    ! 1st grid = 0 degrees
+    !! Phi (longitude) grid set up.
     allocate(aarr(grid%n_phi),barr(grid%n_phi))
-    phiarr(1) = 0.0_dp
-    aarr(1) = sin(phiarr(1))
-    barr(1) = -cos(phiarr(1))
-
-    ! Spacing in longitude
     dphi = twopi / real(grid%n_phi-1,kind=dp)
-    do j = 2, grid%n_phi - 1
-      phiarr(j) = phiarr(j-1) + dphi
+    do j = 1, grid%n_phi
+      phiarr(j) = real(j-1,kind=dp) * dphi
       aarr(j) = sin(phiarr(j))
       barr(j) = -cos(phiarr(j))
-      !print*, j, phiarr(j), aarr(j), barr(j), dphi
     end do
-
-    ! last grid = 360 degrees
+    phiarr(1) = 0.0_dp
     phiarr(grid%n_phi) = twopi
-    aarr(grid%n_phi) = sin(phiarr(grid%n_phi))
-    barr(grid%n_phi) = -cos(phiarr(grid%n_phi))
+    aarr(1) = 0.0_dp
+    barr(1) = -1.0_dp
+    aarr(grid%n_phi) = 0.0_dp
+    barr(grid%n_phi) = -1.0_dp
+    if (mod(grid%n_phi-1,2) == 0) then
+      j = (grid%n_phi + 1) / 2
+      phiarr(j) = pi
+      aarr(j) = 0.0_dp
+      barr(j) = 1.0_dp
+    end if
 
-    ! Spacing in latitude
+    !! Theta grid set up. Odd n_theta puts one boundary exactly at pi/2.
     dtheta = pi / real(grid%n_theta-1,kind=dp)
-
     allocate(tan2thet(grid%n_theta))
-    ! 1st gird = 0 degrees
-    thetarr(1) = 0.0_dp
-    tan2thet(1) = 0.0_dp
-
-    do k = 2, grid%n_theta-1
-      thetarr(k) = thetarr(k-1) + dtheta
-      if ((thetarr(k) > (1.57060_dp)).and.(thetarr(k) < (1.57090_dp))) then
+    equator_idx = (grid%n_theta + 1) / 2
+    do k = 1, grid%n_theta
+      thetarr(k) = real(k-1,kind=dp) * dtheta
+      if (k == 1) then
+        thetarr(k) = 0.0_dp
+        tan2thet(k) = 0.0_dp
+      else if (k == grid%n_theta) then
+        thetarr(k) = pi
+        tan2thet(k) = 0.0_dp
+      else if (k == equator_idx) then
+        thetarr(k) = 0.5_dp * pi
         tan2thet(k) = -1.0_dp
-        !tan2thet(k) = tan(thetarr(k))**2
       else
         tan2thet(k) = tan(thetarr(k))**2
-      endif
-      !print*, k, thetarr(k), tan2thet(k), dtheta
+      end if
     end do
 
-    ! last grid = pi
-    thetarr(grid%n_theta) = pi
-    tan2thet(grid%n_theta) = 0.0_dp
+    if (count(tan2thet < 0.0_dp) /= 1) then
+      print*, 'ERROR: spherical theta grid must contain exactly one equatorial plane.'
+      stop
+    end if
 
     ! Find volume of each cell - spherical coordinates
     allocate(v_cell(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
     do i = 1, grid%n_lay
       dr3 = H(i+1)**3 - H(i)**3
       do j = 1, grid%n_phi-1
-        dphi = phiarr(j+1) - phiarr(j)
+        dphi_cell = phiarr(j+1) - phiarr(j)
         do k = 1, grid%n_theta-1
-          dtheta = cos(thetarr(k)) - cos(thetarr(k+1))
-          v_cell(i,j,k) = (dr3 * dphi * dtheta) / 3.0_dp
-          !print*, i, j, k, v_cell(i,j,k), dr3, dphi, dtheta
+          dmu_cell = cos(thetarr(k)) - cos(thetarr(k+1))
+          v_cell(i,j,k) = (dr3 * dphi_cell * dmu_cell) / 3.0_dp
+          !print*, i, j, k, v_cell(i,j,k), dr3, dphi_cell, dmu_cell
         end do
       end do
     end do
@@ -192,11 +262,11 @@ contains
     allocate(a_surf(grid%n_phi-1,grid%n_theta-1))
     dr3 = H(1)**2
     do j = 1, grid%n_phi-1
-      dphi = phiarr(j+1) - phiarr(j)
+      dphi_cell = phiarr(j+1) - phiarr(j)
       do k = 1, grid%n_theta-1
-        dtheta = cos(thetarr(k)) - cos(thetarr(k+1))
-        a_surf(j,k) = dr3 * dphi * dtheta
-        !print*, j, k, a_cell(j,k), dr3, dphi, dtheta
+        dmu_cell = cos(thetarr(k)) - cos(thetarr(k+1))
+        a_surf(j,k) = dr3 * dphi_cell * dmu_cell
+        !print*, j, k, a_cell(j,k), dr3, dphi_cell, dmu_cell
       end do
     end do
 
@@ -226,24 +296,42 @@ contains
   end subroutine set_grid
 
 
-  subroutine output_cf(n,l)
+  subroutine output_cf(n,l,n_output)
     implicit none
 
-    integer, intent(in) :: n,l
+    integer, intent(in) :: n, l, n_output
     logical, save :: first_call = .True.
     integer :: nn
     character (len=8) :: fmt
     character (len=3) :: n_str
 
+    if (n_output < 1) then
+      print*, 'ERROR: contribution-function output count must be positive.'
+      print*, 'n_output: ', n_output
+      stop
+    end if
+
     if (first_call .eqv. .True.) then
-      allocate(u_cf(n_phase))
+      allocate(u_cf(n_output))
       fmt = '(I3.3)'      
-      do nn = 1, n_phase
+      do nn = 1, n_output
         write(n_str,fmt) nn
-        open(newunit=u_cf(nn), file='cf_'//trim(n_str)//'.txt', action='readwrite',form='unformatted')
+        open(newunit=u_cf(nn), file='cf_'//trim(n_str)//'.txt', status='replace', action='write',form='unformatted')
       end do
 
       first_call = .False.
+    end if
+
+    if (size(u_cf) /= n_output) then
+      print*, 'ERROR: contribution-function output count changed after initialization.'
+      print*, 'Initial, requested counts: ', size(u_cf), n_output
+      stop
+    end if
+
+    if ((n < 1) .or. (n > size(u_cf))) then
+      print*, 'ERROR: contribution-function output index is out of range.'
+      print*, 'Index, available outputs: ', n, size(u_cf)
+      stop
     end if
 
     write(u_cf(n)) real(cf(:,:,:))

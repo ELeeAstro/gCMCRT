@@ -7,7 +7,7 @@ The best way to learn the code is to use it! And feel free to contact Elsie or o
 
 More extensive documentation is in the making, for now here are some bare bones instructions.
 
-Two example models are provided:
+The repository provides the following example models and benchmarks:
 
 1. A 3D WASP-33b SPARC/MITgcm GCM model emission example - which extracts chemical abundances at CE from the file
 2. A 3D 10x Solar WASP-39b Exo-FMS GCM model transmission example - uses chemical equilibirum abundance table interpolation
@@ -170,21 +170,17 @@ gCMCRT uses a fortran namelist (.nml) file to communicate with the code.
 
 exp_name - Name of experiment; used as the prefix for profile files such as `<exp_name>.prf`, `<exp_name>.hprf` and related inputs.
 
-xper - Required mode of gCMCRT. Active values in `gpuCMCRT.f90` are `3D_sph_tests`, `3D_sph_pol`, `3D_sph_alb`, `3D_sph_trans`, `3D_sph_trans_lc`, `3D_sph_em`, `3D_sph_em_hi` and `3D_sph_trans_hi`. `1D_pp`, `1D_sph` and `2D_car_gal` are listed in the dispatcher but currently commented out.
+xper - Required mode of gCMCRT. Active values in `gpuCMCRT.f90` are `3D_sph_alb`, `3D_sph_trans`, `3D_sph_trans_lc`, `3D_sph_em`, `3D_sph_em_hi` and `3D_sph_trans_hi`.
 
-do_trans - .True. = Transmission limb sampling (for transit spectra), .False. = Normal sampling
+The selected experiment determines its source sampling automatically.
+`3D_sph_trans` and `3D_sph_trans_hi` use atmospheric-annulus sampling.
+`3D_sph_trans_lc` uses its dedicated full-disk/overlap-lens sampler.
 
 oneD - Use a 1D profile as input
 
 threeD - Use a 3D profile as input
 
-do_infslab - Legacy infinite slab switch; not used by the active example experiments.
-
-do_diffuse - Legacy diffuse/cartesian experiment switch; not used by the active example experiments.
-
-do_cart_3D - Legacy cartesian 3D switch; not used by the active example experiments.
-
-do_moments - experimental not in use
+Exactly one of `oneD` and `threeD` must be `.True.`.
 
 do_images - produce pixel images of the output (warning, can be a large file)
 
@@ -206,19 +202,19 @@ do_scat_loop - .True. = Allow multiple scattering (usually .False. unless needed
 
 do_g_bias - .True. = Use biasing when sampling g-ordinance (typically .True.)
 
-wght_deg - experimental do not use
-
-do_BB_band - experimental do not use
-
 lbl - .True. (lbl mode), .False. (corr-k mode)
 
 ck - .True. (corr-k mode), .False. (lbl mode)
 
-LHS - .True. (use Latin Hypercube Sampling - currently for transmission limbs only)
+Exactly one of `ck` and `lbl` must be `.True.`. `inc_ck` is only valid in `ck` mode, and `inc_lbl` is only valid in `lbl` mode. Both gas-inclusion flags may be `.False.` for a scattering/cloud-only calculation.
+
+LHS - `.True.` enables Latin-hypercube projected-position sampling in the albedo and transmission source modes. Storage is allocated once and samples are regenerated for each requested phase/wavelength.
+
+random_seed - Non-negative base seed used by both the CPU/LHS and GPU random-number generators. GPU packet `id - 1` selects a distinct CURAND sequence under this common seed. Reusing a value reproduces the same Monte Carlo realization; change it for an independent run. The default is `12345`.
 
 ! Wind parameters for hi-res los velocity (lbl mode only)
 
-doppler_on - .True. = Apply doppler shifting to local opacity
+doppler_on - `.True.` applies Doppler shifting to local opacity. It is accepted only by `3D_sph_em_hi` and `3D_sph_trans_hi`; all other experiment modes reject it.
 
 winds_on - .True. = Apply doppler shifting due to winds
 
@@ -228,21 +224,19 @@ orbit_on - .True. = Apply doppler shifting due to orbital motion
 
 orbital_period - X  orbital period (days)
 
-systemic_velocity -  X  Systematic velocity (km s-1)
+systemic_velocity - Systemic velocity (km s-1). This observer-frame shift is applied independently of `orbit_on`.
 
 sm_ax -  X semi-major axis (AU)
 
-ecc - Orbital eccentricity, used by the phase/eclipse geometry.
+ecc - Orbital eccentricity. Only circular orbits are currently supported, so this must be 0.
 
 xpix -  number of pixels in x direction for pixel maps
 
 ypix - number of pixels in y direction for pixel maps
 
-do_Draine - .True. = Perform the Draine G value calculation
+Draine_alp - Alpha parameter for the Draine phase function (typically around 0.5). When an experiment uses `iscat = 6`, the corresponding Draine `Dg` field is calculated automatically from `Draine_alp` and the cloud asymmetry parameter.
 
-Draine_alp - Alpha value for the Draine G calculation (typically around 0.5)
-
-do_LD - .True. = Applying the limb darkening scheme (lbl mode only)
+do_LD - `.True.` applies the selected stellar limb-darkening law to transit source sampling and transit-light-curve normalisation. It is independent of the opacity mode and is not valid for albedo illumination.
 
 ilimb - Integer limb darkening law selection. Options are 1 linear, 2 quadratic, 3 square-root, 4 logarithmic, 5 exponential, 6 three-parameter, 7 four-parameter non-linear and 8 power-2.
 
@@ -252,8 +246,6 @@ Rs - Radius of star in Solar units. Used for limb darkening and phase/eclipse ge
 
 inc - Inclination in degrees. Used for limb darkening and phase/eclipse geometry.
 
-phase - Phase value used by the limb-darkening setup.
-
 do_phase - .True. = calculate an emission phase curve using `n_phase`; .False. = use the single `viewphi`/`viewthet` value from the experiment namelist.
 
 do_eclipse - .True. = include secondary eclipse/occultation geometry during phase-curve emission calculations. Partial occultations are masked in the per-phase image plane.
@@ -262,13 +254,22 @@ n_phase - Number of phases to calculate (= 1 for single phase)
 
 n_ecl - Number of eclipse points used when `do_phase` and `do_eclipse` are both .True.
 
-do_surf - Surface switch for surface-enabled experiments.
+For all spherical 3D experiments, `n_theta` is the number of theta
+boundaries and must be odd and at least 3, which places a boundary exactly at
+the equator. `n_phi` is the number of periodic longitude boundaries and must
+be at least 4.
 
-T_surf - Surface temperature.
-
-emis_surf - Surface emissivity.
-
-alb_surf - Surface albedo.
+The standard and high-resolution transmission, transit-light-curve, albedo,
+standard emission and high-resolution emission experiment namelists accept
+`use_block_accum`.
+It defaults to `.True.` when omitted. In this mode, integrated transport
+quantities are accumulated into separate CUDA-block slots and reduced on the
+host after the kernel completes, reducing contention on single global scalar
+atomics. Set it to `.False.` to restore the original scalar-atomic path for
+A/B testing. The two paths should be statistically equivalent, but floating-
+point summation order means results are not expected to be bit-for-bit
+identical. Image pixels, contribution functions and failure diagnostics retain
+their existing accumulation paths.
 
 ### &sph_3D_em
 
@@ -284,11 +285,11 @@ pc = 0.39 (polarisation parameter; experimental)
 
 sc = 1.0 (polarisation parameter; experimental)
 
-iscat = Scattering phase function choice (See mc_k_scatt.f90)
+iscat = Volumetric cloud scattering phase function: 1 isotropic, 3 Rayleigh, 4 Henyey-Greenstein, 5 two-term Henyey-Greenstein, or 6 Draine. Value 2 is a Lambertian surface law and is rejected for atmospheric volume scattering.
 
 n_theta = Number of latitudes + 1 in GCM (i.e. number of latitude edges)
 
-n_phi = Number of longitudes + 1 in GCM (i.e. number of latitude edges)
+n_phi = Number of longitudes + 1 in GCM (i.e. number of longitude edges)
 
 n_lay = Number of layers in GCM (NOTE: not levels)
 
@@ -299,6 +300,8 @@ viewphi = Viewing angle(s) in longitude (typically 0 = dayside, 180 = nightside)
 Emission only option:
 
 xi_emb = Emission biasing (typically ~0.99)
+
+use_block_accum = `.True.` uses per-CUDA-block accumulation for integrated flux, Stokes values, occulted flux and scattering counts; `.False.` selects the legacy scalar atomics.
 
 ### &sph_3D_trans
 
@@ -314,7 +317,7 @@ pc = 0.39 (polarisation parameter; experimental)
 
 sc = 1.0 (polarisation parameter; experimental)
 
-iscat = Scattering phase function choice (See mc_k_scatt.f90)
+iscat = Volumetric cloud scattering phase function: 1, 3, 4, 5, or 6 as defined above.
 
 n_theta = Number of latitudes + 1 in GCM
 
@@ -326,11 +329,15 @@ viewthet = Viewing angle in latitude (typically 90 = edge on)
 
 viewphi = Viewing angle in longitude (typically 180 for transmission)
 
-nb_cf = number of layers for interpolation to calculate contribution function
+nb_cf = number of radial bins used for the transmission contribution function
+
+use_block_accum = `.True.` uses per-CUDA-block accumulation for the transmission estimators, integrated flux/Stokes values and scattering counts; `.False.` selects the legacy scalar atomics.
 
 ### &sph_3D_alb
 
 Used by `xper = '3D_sph_alb'`.
+
+Albedo requires `do_scat_loop = .True.` because the signal is produced by scattered packets. The `viewphi` array must contain `n_phase` values.
 
 Nph = Number of photon packets per wavelength and phase
 
@@ -344,7 +351,7 @@ pc = 0.39 (polarisation parameter; experimental)
 
 sc = 1.0 (polarisation parameter; experimental)
 
-iscat = Scattering phase function choice (See mc_k_scatt.f90)
+iscat = Volumetric cloud scattering phase function: 1, 3, 4, 5, or 6 as defined above.
 
 n_theta = Number of latitudes + 1 in GCM
 
@@ -356,35 +363,13 @@ viewthet = Viewing angle in latitude
 
 viewphi = Viewing angle(s) in longitude. For phase curves this should have `n_phase` values unless using the `-vphi` command-line override.
 
-### &sph_3D_alb for 3D_sph_pol
-
-The polarization test experiment `xper = '3D_sph_pol'` also reads a namelist called `&sph_3D_alb`, but its accepted options are different:
-
-Nph = Number of photon packets per wavelength
-
-n_wl = End wavelength integer
-
-pl = 0.51 (polarisation parameter; experimental)
-
-pc = 0.39 (polarisation parameter; experimental)
-
-sc = 1.0 (polarisation parameter; experimental)
-
-n_theta = Number of latitudes + 1
-
-n_phi = Number of longitudes + 1
-
-n_lay = Number of layers
-
-viewthet = Viewing angle in latitude
-
-viewphi = Viewing angle in longitude
-
-Do not include `s_wl` or `iscat` in this block when using `xper = '3D_sph_pol'`.
+use_block_accum = `.True.` uses per-CUDA-block accumulation for integrated flux/Stokes values and scattering counts; `.False.` selects the legacy scalar atomics.
 
 ### &sph_3D_em_hires
 
 Used by `xper = '3D_sph_em_hi'`.
+
+This mode requires `lbl = .True.` and `ck = .False.`. If `doppler_on = .True.`, `inc_lbl` must also be `.True.` and `inc_xsec` must be `.False.`.
 
 Nph_tot = Number of photon packets per phase
 
@@ -396,7 +381,7 @@ pc = 0.39 (polarisation parameter; experimental)
 
 sc = 1.0 (polarisation parameter; experimental)
 
-iscat = Scattering phase function choice (See mc_k_scatt.f90)
+iscat = Volumetric cloud scattering phase function: 1, 3, 4, 5, or 6 as defined above.
 
 n_theta = Number of latitudes + 1 in GCM
 
@@ -410,9 +395,13 @@ viewphi = Viewing angle(s) in longitude; array length should match `n_phase`.
 
 xi_emb = Emission biasing (typically ~0.99)
 
+use_block_accum = `.True.` uses per-CUDA-block accumulation for integrated flux, Stokes values, occulted flux and scattering counts; `.False.` selects the legacy scalar atomics.
+
 ### &sph_3D_trans_hires
 
 Used by `xper = '3D_sph_trans_hi'`.
+
+This mode requires `lbl = .True.` and `ck = .False.`. If `doppler_on = .True.`, `inc_lbl` must also be `.True.` and `inc_xsec` must be `.False.`.
 
 Nph = Number of photon packets per wavelength and phase
 
@@ -424,7 +413,7 @@ pc = 0.39 (polarisation parameter; experimental)
 
 sc = 1.0 (polarisation parameter; experimental)
 
-iscat = Scattering phase function choice (See mc_k_scatt.f90)
+iscat = Volumetric cloud scattering phase function: 1, 3, 4, 5, or 6 as defined above.
 
 n_theta = Number of latitudes + 1 in GCM
 
@@ -435,6 +424,8 @@ n_lay = Number of layers in GCM
 viewthet = Viewing angle in latitude
 
 viewphi = Viewing angle(s) in longitude; array length should match `n_phase`.
+
+use_block_accum = `.True.` uses per-CUDA-block accumulation for the transmission estimator, integrated flux/Stokes values and scattering counts; `.False.` selects the legacy scalar atomics.
 
 ### &sph_3D_trans_lc
 
@@ -458,13 +449,15 @@ pc = 0.39 (polarisation parameter; experimental)
 
 sc = 1.0 (polarisation parameter; experimental)
 
-iscat = Scattering phase function choice, kept for consistency with other modes
+iscat = Scattering phase-function choice retained for opacity setup consistency; this direct-only mode does not sample scattering angles.
 
 n_theta = Number of latitudes + 1 in GCM
 
 n_phi = Number of longitudes + 1 in GCM
 
 n_lay = Number of layers in GCM
+
+use_block_accum = `.True.` uses per-CUDA-block accumulation for the total, east-limb and west-limb atmospheric transmission estimators; `.False.` selects the legacy scalar atomics.
 
 This mode derives `viewphi`, `viewthet`, projected star position and transit state from `Rs`, `inc`, `sm_ax`, `orbital_period`, `do_LD`, `ilimb` and `LD_c` in `&main`.
 
@@ -474,9 +467,9 @@ The code writes one file per sampled transit phase:
 
 The first row is:
 
-`n_wl H_base H_top viewphi viewthet phase trans_state xstar ystar zstar`
+`n_wl_out H_base H_top viewphi viewthet phase trans_state xstar ystar zstar`
 
-where `H_base = H(1)` is the opaque/reference radius, `H_top = H(n_lev)` is the top-of-atmosphere radius, and `xstar/ystar/zstar` are projected into the per-phase image basis. `trans_state` is 0 out of transit, 1 partial transit and 2 full atmospheric transit.
+where `n_wl_out = n_wl - s_wl + 1` is the number of wavelength rows in the file, `H_base = H(1)` is the opaque/reference radius, `H_top = H(n_lev)` is the top-of-atmosphere radius, and `xstar/ystar/zstar` are projected into the per-phase image basis. `trans_state` is 0 out of transit, 1 partial transit and 2 full atmospheric transit.
 
 The data rows are:
 
@@ -484,47 +477,15 @@ The data rows are:
 
 `depth` is the total blocked fraction from the opaque body plus atmosphere. `depth_atm`, `depth_atm_east` and `depth_atm_west` are the atmosphere-only contribution and its east/west limb split. `depth_opaque` is the solid-body contribution alone, including the active limb-darkening law.
 
-### &diffuse_nml
-
-Legacy cartesian diffuse experiment namelist. The dispatcher currently lists `2D_car_gal`, but that call is commented out.
-
-Nph_tot = Total number of photon packets
-
-kappa = Opacity
-
-albedo = Single-scattering albedo
-
-hgg = Henyey-Greenstein asymmetry parameter
-
-pl = 0.51 (polarisation parameter; experimental)
-
-pc = 0.39 (polarisation parameter; experimental)
-
-sc = 1.0 (polarisation parameter; experimental)
-
-xmax, ymax, zmax = Cartesian domain extents
-
-rimage = Image radius
-
-viewthet = Viewing angle in latitude
-
-viewphi = Viewing angle in longitude
-
-nxim, nyim = Image pixel dimensions
-
-nxg, nyg, nzg = Cartesian grid dimensions
-
 # What is output and how do I make synthetic observations?
 
-The WASP-33b and WASP-39b example directories include a common set of plotting/post-processing scripts:
+The WASP-33b and WASP-39b examples use the following plotting/post-processing scripts; the interactive tool is shared from `tools/`:
 
 `plot_trans.py` - transmission spectrum from `Transmission.txt`
 
 `plot_trans_lc.py` - primary-transit light curve from `Transit_*.txt`
 
-`plot_trans_lc_interactive.py` - interactive primary-transit light-curve explorer from `Transit_*.txt`
-
-`compare_trans_lc_opaque_batman.py` - compares `depth_opaque` from `Transit_*.txt` against a batman solid-body light curve; requires `batman-package`
+`tools/plot_trans_lc_interactive.py` - interactive primary-transit light-curve explorer from `Transit_*.txt`
 
 `plot_em.py` - emission spectra from `Em_*.txt`
 
@@ -538,7 +499,7 @@ The WASP-33b and WASP-39b example directories include a common set of plotting/p
 
 ## WASP-33b GCM emission, eclipse and transit-light-curve example
 
-Example using a SPARC/MITgcm WASP-33b model. The default `CMCRT.nml` is prepared for emission phase-curve calculations with secondary-eclipse/occultation sampling enabled. The same namelist also contains dormant transmission-spectrum and primary-transit light-curve blocks for experimentation.
+Example using a SPARC/MITgcm WASP-33b model. The default `CMCRT.nml` is prepared for emission phase-curve calculations with secondary-eclipse/occultation sampling enabled. The same namelist also contains dormant transmission-spectrum, albedo and primary-transit light-curve blocks for experimentation.
 1. Use the extract script to extract the GCM data into the gCMCRT .hprf and .prf format, chemical abundances are extracted alongside.
 2. Run goptools to produce the corr-k, CIA and Rayleigh opacity files.
 3. Run gCMCRT to produce `Em_*.txt` output files.
@@ -546,12 +507,9 @@ Example using a SPARC/MITgcm WASP-33b model. The default `CMCRT.nml` is prepared
 
 For phase curves and eclipses, `plot_em_lc.py` reads the unocculted and occulted columns in the current `Em_*.txt` output and plots the band-mean Fp/Fs versus phase. For image outputs, `plot_pixel.py` reads the current `Em_*.txt` header and `f_im_*.txt` files.
 
-To test the primary-transit light-curve mode in the WASP-33b directory, change `xper` to `3D_sph_trans_lc` and set `do_trans = .True.`. The light-curve mode writes `Transit_*.txt`; run `plot_trans_lc.py` from the WASP-33b example directory to plot transit spectra, normalised flux versus time from mid-transit, and the wavelength-time normalised-flux map.
+To test the primary-transit light-curve mode in the WASP-33b directory, change `xper` to `3D_sph_trans_lc`. The light-curve mode writes `Transit_*.txt`; run `plot_trans_lc.py` from the WASP-33b example directory to plot transit spectra, normalised flux versus time from mid-transit, and the wavelength-time normalised-flux map.
 
-For interactive exploration, run `python ../plot_trans_lc_interactive.py --pattern "Transit_*.txt" --period-days 1.21987` from the WASP-33b example directory. The sliders select a wavelength bin and averaging width, and clicking a light-curve point shows the spectrum for that transit phase.
-
-To check the solid-body light curve against batman, run `python ../compare_trans_lc_opaque_batman.py --pattern "Transit_*.txt" --namelist CMCRT.nml` from the WASP-33b example directory.
-Add `--force-ld` to apply the namelist `ilimb`/`LD_c` coefficients in batman even when `do_LD = .False.`.
+For interactive exploration, run `python ../tools/plot_trans_lc_interactive.py --pattern "Transit_*.txt" --period-days 1.21987` from the WASP-33b example directory. The sliders select a wavelength bin and averaging width, and clicking a light-curve point shows the spectrum for that transit phase.
 
 ## WASP-39b GCM transmission spectrum and transit light curve (with details on using CE interpolation tables)
 
@@ -571,12 +529,9 @@ The light-curve mode writes `Transit_*.txt` files. Run `plot_trans_lc.py` from t
 3. normalised flux versus time from mid-transit
 4. wavelength-time normalised-flux map
 
-For interactive exploration, run `python ../plot_trans_lc_interactive.py --pattern "Transit_*.txt" --period-days 4.0552941` from the WASP-39b example directory. The sliders select a wavelength bin and averaging width, and clicking a light-curve point shows the spectrum for that transit phase.
+For interactive exploration, run `python ../tools/plot_trans_lc_interactive.py --pattern "Transit_*.txt" --period-days 4.055` from the WASP-39b example directory. The sliders select a wavelength bin and averaging width, and clicking a light-curve point shows the spectrum for that transit phase.
 
-To check the solid-body light curve against batman, run `python ../compare_trans_lc_opaque_batman.py --pattern "Transit_*.txt" --namelist CMCRT.nml` from the WASP-39b example directory.
-Add `--force-ld` to apply the namelist `ilimb`/`LD_c` coefficients in batman even when `do_LD = .False.`.
-
-To experiment with WASP-39b emission, change `xper` to `3D_sph_em` and set `do_trans = .False.`. The provided `&sph_3D_em` block is a single-view setup by default. To run an emission phase curve, set `do_phase = .True.`. To include secondary-eclipse/occultation sampling, set both `do_phase = .True.` and `do_eclipse = .True.`; `n_phase` and `n_ecl` are already populated with example values.
+To experiment with WASP-39b emission, change `xper` to `3D_sph_em`. The provided `&sph_3D_em` block is a single-view setup by default. To run an emission phase curve, set `do_phase = .True.`. To include secondary-eclipse/occultation sampling, set both `do_phase = .True.` and `do_eclipse = .True.`; `n_phase` and `n_ecl` are already populated with example values.
 
 ## WASP-39b 1D VULCAN + CARMA model (with details on using the code in 1D)
 

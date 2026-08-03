@@ -2,9 +2,9 @@
 
 exp_name = 'SPARC-MITgcm'
 xper = '3D_sph_em'
-! Set xper = '3D_sph_trans' and do_trans = .True. to run transmission.
-! Set xper = '3D_sph_trans_lc' and do_trans = .True. to run the primary-transit light-curve block below.
-do_trans = .False.
+! Set xper = '3D_sph_trans' to run transmission.
+! Set xper = '3D_sph_trans_lc' to run the primary-transit light-curve block below.
+! Set xper = '3D_sph_alb' and do_scat_loop = .True. to run the albedo block.
 
 oneD = .False.
 threeD = .True.
@@ -33,6 +33,7 @@ lbl = .False.
 ck = .True.
 
 LHS = .False.
+random_seed = 12345
 
 ! Wind parameters for hi-res los velocity
 doppler_on = .False.
@@ -44,7 +45,6 @@ systemic_velocity = 0.0 ! Systematic velocity (km s-1)
 xpix = 300
 ypix = 300
 
-do_Draine = .False.
 Draine_alp = 0.5
 
 do_LD = .False.
@@ -70,6 +70,8 @@ orbital_period = 1.21987
 &sph_3D_em
 
 Nph_tot = 10240000
+! Set false to restore the legacy scalar-atomic accumulator for A/B testing.
+use_block_accum = .True.
 s_wl = 1
 n_wl = 503
 pl = 0.51
@@ -88,6 +90,8 @@ xi_emb = 0.99
 &sph_3D_trans
 
 Nph = 1024000
+! Set false to restore the legacy scalar-atomic accumulator for A/B testing.
+use_block_accum = .True.
 s_wl = 1
 n_wl = 503
 pl = 0.51
@@ -106,6 +110,8 @@ nb_cf = 301
 &sph_3D_alb
 
 Nph = 1024000
+! Set false to restore the legacy scalar-atomic accumulator for A/B testing.
+use_block_accum = .True.
 s_wl = 1
 n_wl = 503
 pl = 0.51
@@ -116,15 +122,18 @@ n_theta = 31
 n_phi = 65
 n_lay = 53
 viewthet = 90.0
-viewphi = 0.0
+viewphi = 0.0, 22.5, 45.0, 67.5, 90.0, 112.5, 135.0, 157.5,
+          180.0, 202.5, 225.0, 247.5, 270.0, 292.5, 315.0, 337.5
 
 /
 
 &sph_3D_trans_lc
 
 ! Transit light-curve settings. To use this block, set xper = '3D_sph_trans_lc'
-! and do_trans = .True. in &main. n_trans mirrors n_phase + n_ecl above.
+! in &main. n_trans mirrors n_phase + n_ecl above.
 Nph = 1024000
+! Set false to restore the legacy scalar-atomic accumulator for A/B testing.
+use_block_accum = .True.
 s_wl = 1
 n_wl = 503
 n_trans = 26
