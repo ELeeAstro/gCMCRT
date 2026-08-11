@@ -169,7 +169,7 @@ contains
     nn = 2*nang-1
     do j = 1, nn
       dcxS1(j) = cmplx(0.0_dp,0.0_dp,dp)
-      dcxS1(j) = cmplx(0.0_dp,0.0_dp,dp)
+      dcxS2(j) = cmplx(0.0_dp,0.0_dp,dp)
     end do
 
     allocate(d(nmx))
@@ -203,8 +203,8 @@ contains
       bn = (drefrl*d(n)+en/dx)*psi - psi1
       bn = bn/((drefrl*d(n) + en/dx)*xi - xi1)
 
-      qsca = qsca + real((2.0_dp*en-1.0_dp)*(abs(an)**2+abs(bn)**2),dp)
-      gsca = gsca + real(((2.0_dp*en-1.0_dp)/(en*(en+1.0_dp))) * &
+      qsca = qsca + real((2.0_dp*en+1.0_dp)*(abs(an)**2+abs(bn)**2),dp)
+      gsca = gsca + real(((2.0_dp*en+1.0_dp)/(en*(en+1.0_dp))) * &
         & (real(an,dp)*real(bn,dp)+aimag(an)*aimag(bn)),dp)
       if (n > 1) then
         gsca = gsca + real(((en-1.0_dp)*(en+1.0_dp)/en) * & 

@@ -21,7 +21,7 @@ contains
 
     integer :: m, idist_m
     real(kind=dp), dimension(3) :: cl_out_k2, cl_out_a2, cl_out_g2
-    real(kind=dp) :: beta, alpha, aeff, const, Ev, Var, muu, sigg, lam
+    real(kind=dp) :: beta, alpha, aeff, const, Ev, Var, muu, sigg, lam, veff_l
     real(kind=dp) :: z_val, ext_int, sca_int, g_int
 
 
@@ -45,9 +45,11 @@ contains
       call cl_mie(z,l,nd_cl_lay(z),a_cl_lay(z),eps_comb,cl_out_k2(2),cl_out_a2(2),cl_out_g2(2))
       call cl_mie(z,l,nd_cl_lay(z),a_cl_lay(z)*1.01_dp,eps_comb,cl_out_k2(3),cl_out_a2(3),cl_out_g2(3))
 
-      cl_out_k = sum(cl_out_k2(:))/3.0_dp
-      cl_out_a = sum(cl_out_a2(:))/3.0_dp
-      cl_out_g = sum(cl_out_g2(:))/3.0_dp
+      ext_int = sum(cl_out_k2(:))
+      sca_int = sum(cl_out_k2(:) * cl_out_a2(:))
+      g_int = sum(cl_out_k2(:) * cl_out_a2(:) * cl_out_g2(:))
+      call set_cloud_moments(z,l,eps_comb,ext_int/3.0_dp,ext_int,sca_int,g_int, &
+        & cl_out_k,cl_out_a,cl_out_g)
 
     case(3)
 
@@ -143,13 +145,13 @@ contains
 
       !! Rayleigh distribution: the particle size in the PRF sets the distribution sigma.
 
-      !! sig is directly related to the distribution mean or variance.
-      sig = Ev/sqrt(pi/2.0_dp)
-      !sig = sqrt(Var/(2.0_dp - pi/2.0_dp))
+      !! sigg is directly related to the distribution mean or variance.
+      sigg = Ev/sqrt(pi/2.0_dp)
+      !sigg = sqrt(Var/(2.0_dp - pi/2.0_dp))
 
       do m = 1, ndist
         ! Distribution in cm-3 cm-1
-        nd_dist(m) = nd_cl_lay(z) * (a_dist(m)/sig**2) * exp(-a_dist(m)**2/(2.0_dp * sig**2))
+        nd_dist(m) = nd_cl_lay(z) * (a_dist(m)/sigg**2) * exp(-a_dist(m)**2/(2.0_dp * sigg**2))
 
         if ((ieee_is_nan(nd_dist(m)) .eqv. .True.) .or. (ieee_is_finite(nd_dist(m)) .eqv. .False.)) then
           nd_dist(m) = 1.0e-99_dp
@@ -169,18 +171,16 @@ contains
       !! According to Hansen - 0 < veff < 0.5 typically
 
       !! Variables related to the effective size and effective variance.
-      !! veff is a namelist variable!
-
       aeff = a_cl_lay(z)
-      veff = var_cl_lay(z)
+      veff_l = var_cl_lay(z)
 
-      lam = (1.0_dp - 2.0_dp*veff)/veff
-      const = nd_cl_lay(z) * exp(-log_gamma(lam) - lam*log(aeff*veff))
+      lam = (1.0_dp - 2.0_dp*veff_l)/veff_l
+      const = nd_cl_lay(z) * exp(-log_gamma(lam) - lam*log(aeff*veff_l))
 
       do m = 1, ndist
         ! Distribution in cm-3 cm-1
-        nd_dist(m) =  const * a_dist(m)**((1.0_dp - 3.0_dp*veff)/veff) * &
-          & exp(-(a_dist(m)/(aeff*veff)))
+        nd_dist(m) =  const * a_dist(m)**((1.0_dp - 3.0_dp*veff_l)/veff_l) * &
+          & exp(-(a_dist(m)/(aeff*veff_l)))
 
         if ((ieee_is_nan(nd_dist(m)) .eqv. .True.) .or. (ieee_is_finite(nd_dist(m)) .eqv. .False.)) then
           nd_dist(m) = 1.0e-99_dp

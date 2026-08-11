@@ -1,5 +1,6 @@
 module cloud_tables_read
   use optools_data_mod
+  use, intrinsic :: ieee_arithmetic, only : ieee_is_finite
   implicit none
 
 
@@ -48,7 +49,7 @@ contains
     ! Read number of lines and conducting flag
     read(u,*) nlines, conducting_flag
 
-    if (conducting_flag .eqv. .True. .and. nlines < 4) then
+    if (conducting_flag .and. nlines < 4) then
       print*, 'ERROR - Conducting nk table requires at least 4 wavelength points - STOPPING'
       print*, 'Species, path, points: ', cl_tab(s)%sp, trim(cl_tab(s)%path), nlines
       stop
@@ -68,8 +69,24 @@ contains
     ! Read wavelengths, n and k values
     do l = 1, cl_tab(s)%nwl
       read(u,*) cl_tab(s)%wl(l), cl_tab(s)%n(l),cl_tab(s)%k(l)
-      cl_tab(s)%n(l) = max(0.0_dp, cl_tab(s)%n(l))
-      cl_tab(s)%k(l) = max(0.0_dp, cl_tab(s)%k(l))
+
+      if (.not. ieee_is_finite(cl_tab(s)%wl(l)) .or. cl_tab(s)%wl(l) <= 0.0_dp) then
+        print*, 'ERROR - Cloud nk wavelengths must be finite and positive - STOPPING'
+        print*, 'Species, path, point, wavelength: ', cl_tab(s)%sp, trim(cl_tab(s)%path), l, cl_tab(s)%wl(l)
+        stop
+      end if
+
+      if (l > 1) then
+        if (cl_tab(s)%wl(l) <= cl_tab(s)%wl(l-1)) then
+          print*, 'ERROR - Cloud nk wavelengths must be strictly increasing - STOPPING'
+          print*, 'Species, path, points: ', cl_tab(s)%sp, trim(cl_tab(s)%path), l-1, l
+          print*, 'Wavelengths: ', cl_tab(s)%wl(l-1), cl_tab(s)%wl(l)
+          stop
+        end if
+      end if
+
+      cl_tab(s)%n(l) = max(1.0e-12_dp, cl_tab(s)%n(l))
+      cl_tab(s)%k(l) = max(1.0e-12_dp, cl_tab(s)%k(l))
       !print*, l, cl_tab(s)%wl(l), cl_tab(s)%n(l),cl_tab(s)%k(l)
     end do
 

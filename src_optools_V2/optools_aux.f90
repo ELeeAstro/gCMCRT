@@ -289,6 +289,9 @@ contains
     integer :: L, IR, I, J
     real(kind=dp), dimension(N), intent(inout) :: RA, RB
     real(kind=dp) :: RRA, RRB
+
+    if (N <= 1) return
+
     L=N/2+1
     IR=N
 10  CONTINUE
