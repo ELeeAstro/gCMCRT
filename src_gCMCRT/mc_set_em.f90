@@ -1,4 +1,5 @@
 module mc_set_em
+  use, intrinsic :: iso_c_binding, only : c_double
   use mc_precision
   use mc_data_mod
   use mc_class_grid
@@ -14,6 +15,14 @@ module mc_set_em
   integer, allocatable, dimension(:,:) :: itau3
 
   private :: F
+
+  interface
+    function c_expm1(x) bind(C, name='expm1') result(y)
+      import :: c_double
+      real(c_double), value :: x
+      real(c_double) :: y
+    end function c_expm1
+  end interface
 
   contains
 
@@ -381,7 +390,7 @@ module mc_set_em
     wl_cm = wl_in * 1.0e-4_dp
 
     left = (2.0_dp * hpl * c_s**2)/wl_cm**5
-    right = 1.0_dp / (exp((hpl * c_s) / (wl_cm * kb * T_in)) - 1.0_dp)
+    right = 1.0_dp / c_expm1((hpl * c_s) / (wl_cm * kb * T_in))
     BB = left * right
 
   end function BB
@@ -470,7 +479,7 @@ module mc_set_em
     implicit none
 
     real(dp), intent(in) :: x
-    F = x**3 / (exp(x) - 1.0_dp)
+    F = x**3 / c_expm1(x)
   end function F
 
   real(dp) function tplkavg (wl1_in, wl2_in, T_in)

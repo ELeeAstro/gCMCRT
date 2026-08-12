@@ -250,6 +250,8 @@ contains
     type(pac), intent(in) :: ray
     real(dp), intent(out) :: contri
     logical, intent(out) :: valid
+    real(dp), parameter :: small_tau_limit = 1.0e-3_dp
+    real(dp) :: interact_prob
 
     contri = 0.0_dp
     valid = .False.
@@ -265,7 +267,14 @@ contains
        return
     end if
 
-    contri = ray%wght * (1.0_dp - exp(-ray%tau))
+    if (ray%tau < small_tau_limit) then
+       interact_prob = ray%tau * (1.0_dp - ray%tau * &
+          (0.5_dp - ray%tau * (1.0_dp/6.0_dp - ray%tau/24.0_dp)))
+    else
+       interact_prob = 1.0_dp - exp(-ray%tau)
+    end if
+
+    contri = ray%wght * interact_prob
     if (contri < 0.0_dp .or. ieee_is_nan(contri) .or. &
         abs(contri) > huge(contri)) then
        call record_raytrace_diagnostic(ray, RAYTRACE_ERR_INVALID_CONTRIBUTION, contri)

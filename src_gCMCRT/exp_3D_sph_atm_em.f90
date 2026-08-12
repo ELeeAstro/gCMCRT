@@ -231,7 +231,8 @@ subroutine exp_3D_sph_atm_em()
 
   Nph_pad = Nph_tot
   threads = dim3(128, 1, 1)
-  blocks = dim3(ceiling(real(Nph_pad,dp)/threads%x),1,1)
+  blocks = dim3(Nph_pad / threads%x,1,1)
+  if (mod(Nph_pad,threads%x) /= 0) blocks%x = blocks%x + 1
   allocate(iseed(Nph_pad))
   allocate(Nph_i(Nph_pad),Nph_j(Nph_pad),Nph_k(Nph_pad))
   allocate(Nph_i_d(Nph_pad),Nph_j_d(Nph_pad),Nph_k_d(Nph_pad))
@@ -315,7 +316,8 @@ subroutine exp_3D_sph_atm_em()
       blocks = dim3(1,1,1)
     else
       threads = dim3(128, 1, 1)
-      blocks = dim3(ceiling(real(Nph_sum,dp)/threads%x),1,1)
+      blocks = dim3(Nph_sum / threads%x,1,1)
+      if (mod(Nph_sum,threads%x) /= 0) blocks%x = blocks%x + 1
     end if
 
     !! Flatten the packet allocation into the reusable packet-to-cell buffers.

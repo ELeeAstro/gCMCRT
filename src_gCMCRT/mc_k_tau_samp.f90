@@ -46,7 +46,8 @@ contains
 
     type(pac), intent(inout) :: ph
 
-    real(dp) :: tau_trace
+    real(dp), parameter :: small_tau_limit = 1.0e-3_dp
+    real(dp) :: tau_trace, interact_prob
 
     ! Find total tau across the photon ray path to edge of grid
     if (ph%geo == 1) then
@@ -60,12 +61,19 @@ contains
       return
     end if
 
+    if (tau_trace < small_tau_limit) then
+      interact_prob = tau_trace * (1.0_dp - tau_trace * &
+        (0.5_dp - tau_trace * (1.0_dp/6.0_dp - tau_trace/24.0_dp)))
+    else
+      interact_prob = 1.0_dp - exp(-tau_trace)
+    end if
+
     ! Sample tau from fs equation
     ! Find tau that is somewhere between 0 and tau_path
-    ph%tau_p = -log(1.0_dp - curand_uniform(ph%iseed)*(1.0_dp - exp(-tau_trace)))
+    ph%tau_p = -log(1.0_dp - curand_uniform(ph%iseed)*interact_prob)
 
     ! Update weight of packet due to fs
-    ph%wght = ph%wght * (1.0_dp - exp(-tau_trace))
+    ph%wght = ph%wght * interact_prob
 
   end subroutine tau_force_scatt
 

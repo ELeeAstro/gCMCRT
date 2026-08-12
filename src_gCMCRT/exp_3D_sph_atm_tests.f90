@@ -137,7 +137,8 @@ subroutine exp_3D_sph_atm()
   Nph = 1024
 
   threads = dim3(128, 1, 1)
-  blocks = dim3(ceiling(real(Nph,dp)/threads%x),1,1)
+  blocks = dim3(Nph / threads%x,1,1)
+  if (mod(Nph,threads%x) /= 0) blocks%x = blocks%x + 1
   allocate(iseed(Nph))
   Nph_d = Nph
   call set_iseed<<<blocks, threads>>>(Nph_d)

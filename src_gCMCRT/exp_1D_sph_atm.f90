@@ -147,7 +147,8 @@ subroutine exp_1D_sph_atm()
   !threads= dim3(1024,1,1)
   threads= dim3(256,1,1)
   !threads= dim3(128,1,1)
-  blocks = dim3(ceiling(real(Nph)/threads%x),1,1)
+  blocks = dim3(Nph / threads%x,1,1)
+  if (mod(Nph,threads%x) /= 0) blocks%x = blocks%x + 1
 
   print*, 'Npackets: '
   print*, Nph

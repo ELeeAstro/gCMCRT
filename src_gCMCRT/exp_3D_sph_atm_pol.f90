@@ -176,7 +176,8 @@ subroutine exp_3D_sph_atm_pol()
   sc_d = sc
 
   threads = dim3(128, 1, 1)
-  blocks = dim3(ceiling(real(Nph,dp)/threads%x),1,1)
+  blocks = dim3(Nph / threads%x,1,1)
+  if (mod(Nph,threads%x) /= 0) blocks%x = blocks%x + 1
   allocate(iseed(Nph))
   Nph_d = Nph
   call set_iseed<<<blocks, threads>>>(Nph_d)
@@ -202,7 +203,8 @@ subroutine exp_3D_sph_atm_pol()
 
   ! Grid for GPU threads/blocks
   threads = dim3(128,1,1)
-  blocks = dim3(ceiling(real(Nph)/threads%x),1,1)
+  blocks = dim3(Nph / threads%x,1,1)
+  if (mod(Nph,threads%x) /= 0) blocks%x = blocks%x + 1
 
   print*, Nph, threads, blocks
 

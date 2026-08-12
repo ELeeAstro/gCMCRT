@@ -249,7 +249,8 @@ subroutine exp_3D_sph_atm_trans_hires()
   iscat_d = iscat
 
   threads = dim3(128, 1, 1)
-  blocks = dim3(ceiling(real(Nph,dp)/threads%x),1,1)
+  blocks = dim3(Nph / threads%x,1,1)
+  if (mod(Nph,threads%x) /= 0) blocks%x = blocks%x + 1
   allocate(iseed(Nph))
   Nph_d = Nph
   call set_iseed<<<blocks, threads>>>(Nph_d)
@@ -280,7 +281,8 @@ subroutine exp_3D_sph_atm_trans_hires()
 
   ! Grid for GPU threads/blocks
   threads = dim3(128,1,1)
-  blocks = dim3(ceiling(real(Nph)/threads%x),1,1)
+  blocks = dim3(Nph / threads%x,1,1)
+  if (mod(Nph,threads%x) /= 0) blocks%x = blocks%x + 1
 
   use_block_accum_d = use_block_accum
   if (use_block_accum .eqv. .True.) then
