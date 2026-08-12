@@ -198,6 +198,11 @@ inc_cld - .True. = Read in cl_k.cmcrt, cl_a.cmcrt and cl_g.cmcrt files (inc. Clo
 
 inc_xsec - .True. = Read in xsec.cmcrt file (inc. xsec opacity)
 
+inc_refrac - `.True.` reads `refrac.cmcrt`, containing gas refractivity
+`nu = n - 1` for each wavelength and atmospheric cell. This input is independent
+of `inc_Ray`. `mc_k_refraction` supplies the local spherical-interface Snell and
+total-internal-reflection physics; the forward ray tracer does not yet invoke it.
+
 do_scat_loop - .True. = Allow multiple scattering (usually .False. unless needed)
 
 do_g_bias - .True. = Use biasing when sampling g-ordinance (typically .True.)

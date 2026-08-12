@@ -7,6 +7,7 @@ program optools
   use CIA_tables_mod, only : calc_CIA_table
   use cloud_tables_mod, only: calc_cloud_table
   use xsec_tables_mod, only: calc_xsec_table
+  use refrac_tables_mod, only: calc_refrac_table
   implicit none
 
   !! Run this opacity toolkit separately and output opacity variables for each cell.
@@ -60,11 +61,10 @@ program optools
     call calc_xsec_table()
   end if
 
-  ! Read gas phase optical constants and find refraction parameters
-  ! Output CMCRT refrac file
-  !if (refrac .eqv. .True.) then
-    !call calc_refrac()
-  !end if
+  ! Calculate the local gas refractivity and output refrac.cmcrt.
+  if (refrac .eqv. .True.) then
+    call calc_refrac_table()
+  end if
 
   ! Read photochemistry xsec inputs and parameters
   ! Output CMCRT phchem file

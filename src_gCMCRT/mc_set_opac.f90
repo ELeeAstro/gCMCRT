@@ -3,13 +3,15 @@ module mc_opacset
   use mc_data_mod
   use mc_class_grid
   use mc_k_aux
+  use mc_refrac_io
   use ieee_arithmetic
   use mc_Draine_G, only : Draine_G
   implicit none
 
   logical :: first_call = .True.
+  logical :: first_refrac_read = .True.
 
-  integer :: u_k, u_conti, u_Ray, u_cld_k, u_cld_a, u_cld_g, u_xsec
+  integer :: u_k, u_conti, u_Ray, u_cld_k, u_cld_a, u_cld_g, u_xsec, u_refrac
   integer :: id_u_k, id_u_conti, id_u_Ray, id_u_cld_k, id_u_cld_a, id_u_cld_g
   integer :: dop_pad
 
@@ -26,6 +28,7 @@ module mc_opacset
   ! Dummy variable for reading in k-tables
   real(sp), allocatable, dimension(:) :: k_dum
   real(sp), allocatable, dimension(:) :: conti_dum_arr, Ray_dum_arr, lbl_dum_arr, xsec_dum_arr
+  real(sp), allocatable, dimension(:) :: refrac_dum_arr
   real(sp), allocatable, dimension(:) :: cld_ext_dum_arr, cld_ssa_dum_arr, cld_g_dum_arr
   real(sp), allocatable, dimension(:,:) :: ck_dum_arr
 
@@ -39,6 +42,13 @@ contains
     integer :: k, j, i, g
     real(dp) :: k_tot_ext(ng), k_tot_scat
 
+    if (inc_refrac) then
+      if (.not. allocated(refrac_nu) .or. .not. allocated(refrac_nu_d)) then
+        print*, 'ERROR - Refractivity arrays are unavailable before GPU transfer.'
+        stop
+      end if
+      refrac_nu_d(:,:,:) = refrac_nu(:,:,:)
+    end if
 
     if (oneD .eqv. .True.) then
       ! If 1D, only need to do 1 vertical column for whole atmosphere and g loop for indexing
@@ -103,6 +113,8 @@ contains
     if (l == n_wl+1) then
       return
     end if
+
+    call read_refrac_record(l)
 
     if (first_call .eqv. .True.) then
 
@@ -438,6 +450,10 @@ contains
     if (ll == n_wl+1) then
       return
     end if
+
+    ! Refractivity follows the observer wavelength record and is not part of
+    ! the Doppler-shifted opacity padding buffer.
+    call read_refrac_record(ll)
 
 
     if (first_call .eqv. .True.) then
@@ -811,6 +827,98 @@ contains
     iwl_rest = iwl_rest + 1
 
   end subroutine read_next_opac_doppler
+
+
+  subroutine read_refrac_record(l)
+    implicit none
+
+    integer, intent(in) :: l
+    integer :: reclen, ios, unpack_status, bad_index
+    integer(8) :: file_size, expected_file_size
+    character(len=512) :: iomsg
+    logical :: opened_now
+
+    if (.not. inc_refrac) return
+
+    opened_now = .False.
+
+    if ((l < 1) .or. (l > n_wl)) then
+      print*, 'ERROR - Refractivity wavelength record is out of range: ', l, n_wl
+      stop
+    end if
+
+    if (first_refrac_read) then
+      if (grid%n_cell < 1) then
+        print*, 'ERROR - Invalid atmospheric cell count before reading refractivity: ', &
+          grid%n_cell
+        stop
+      end if
+
+      allocate(refrac_dum_arr(grid%n_cell))
+      inquire(iolength=reclen) refrac_dum_arr
+      open(newunit=u_refrac, file='refrac.cmcrt', status='old', action='read', &
+        form='unformatted', access='direct', recl=reclen, iostat=ios, iomsg=iomsg)
+      if (ios /= 0) then
+        print*, 'ERROR opening refrac.cmcrt: ', trim(iomsg)
+        print*, 'Expected single-precision values per record: ', grid%n_cell
+        stop
+      end if
+
+      inquire(unit=u_refrac,size=file_size,iostat=ios,iomsg=iomsg)
+      if (ios /= 0) then
+        print*, 'ERROR determining refrac.cmcrt size: ', trim(iomsg)
+        stop
+      end if
+      expected_file_size = int(n_wl,8)*int(reclen,8)
+      if (file_size /= expected_file_size) then
+        print*, 'ERROR - refrac.cmcrt size does not match wavelength/cell grids.'
+        print*, 'Actual, expected bytes: ', file_size, expected_file_size
+        print*, 'Wavelengths, values per record: ', n_wl, grid%n_cell
+        stop
+      end if
+
+      allocate(refrac_nu(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
+      allocate(refrac_nu_d(grid%n_lay,grid%n_phi-1,grid%n_theta-1))
+      first_refrac_read = .False.
+      opened_now = .True.
+
+      print*, 'unit _refrac: ', u_refrac, reclen, grid%n_cell
+      print*, '- Complete -'
+    end if
+
+    read(u_refrac,rec=l,iostat=ios,iomsg=iomsg) refrac_dum_arr
+    if (ios /= 0) then
+      print*, 'ERROR reading refrac.cmcrt wavelength record: ', l
+      print*, trim(iomsg)
+      print*, 'Check that optools and gCMCRT use the same wavelength and cell grids.'
+      stop
+    end if
+
+    call unpack_refrac_record(refrac_dum_arr, oneD, threeD, refrac_nu, &
+      unpack_status, bad_index)
+    if (unpack_status /= REFRAC_IO_SUCCESS) then
+      select case(unpack_status)
+      case(REFRAC_IO_BAD_DIMENSIONS)
+        print*, 'ERROR - Refractivity record dimensions do not match the grid.'
+        print*, 'Record values, grid cells: ', size(refrac_dum_arr), grid%n_cell
+      case(REFRAC_IO_BAD_GEOMETRY)
+        print*, 'ERROR - Refractivity input requires exactly one of oneD or threeD.'
+      case(REFRAC_IO_BAD_VALUE)
+        print*, 'ERROR - Invalid refractivity nu in refrac.cmcrt: ', &
+          l, bad_index, refrac_dum_arr(bad_index)
+        print*, 'Required range is finite and 0 <= nu < 1.'
+      case default
+        print*, 'ERROR - Unknown refractivity unpack status: ', unpack_status
+      end select
+      stop
+    end if
+
+    if (opened_now) then
+      print*, 'Refractivity nu range at first requested wavelength: ', &
+        minval(refrac_nu), maxval(refrac_nu)
+    end if
+
+  end subroutine read_refrac_record
 
   subroutine shift_opac(n,ll)
     implicit none

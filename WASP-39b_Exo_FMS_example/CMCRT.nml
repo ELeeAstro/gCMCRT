@@ -18,6 +18,7 @@ inc_CIA = .True.
 inc_Ray = .True.
 inc_cld = .False.
 inc_xsec = .False.
+inc_refrac = .False.
 
 do_scat_loop = .False.
 do_g_bias = .True.

@@ -12,7 +12,7 @@ contains
     implicit none
 
     integer :: u
-    integer :: k, r, c
+    integer :: k, r, c, ios
 
     print*, ' ~~ Reading in optools.par file ~~ '
 
@@ -75,6 +75,51 @@ contains
       read(u,*) xsec_name(c)
     end do
 
+    ! Optional trailing refraction section.  Existing optools.par files end
+    ! after the cross-section species and remain valid with refraction disabled.
+    refrac = .False.
+    nrefrac = 0
+    read(u,*,iostat=ios)
+    if (ios == 0) then
+      read(u,*,iostat=ios)
+      if (ios /= 0) then
+        print*, 'ERROR - Incomplete atmospheric-refraction header in optools.par'
+        stop
+      end if
+      read(u,*,iostat=ios)
+      if (ios /= 0) then
+        print*, 'ERROR - Incomplete atmospheric-refraction header in optools.par'
+        stop
+      end if
+      read(u,*,iostat=ios) refrac
+      if (ios /= 0) then
+        print*, 'ERROR - Invalid atmospheric-refraction switch in optools.par'
+        stop
+      end if
+      read(u,*,iostat=ios) nrefrac
+      if ((ios /= 0) .or. (nrefrac < 0)) then
+        print*, 'ERROR - Invalid refractive-species count in optools.par'
+        stop
+      end if
+      if (refrac .and. nrefrac < 1) then
+        print*, 'ERROR - Refraction is enabled but no refractive species were specified'
+        stop
+      else if ((.not. refrac) .and. nrefrac /= 0) then
+        print*, 'ERROR - Set the refractive-species count to zero when refraction is disabled'
+        stop
+      end if
+      allocate(refrac_name(nrefrac))
+      do r = 1, nrefrac
+        read(u,*,iostat=ios) refrac_name(r)
+        if (ios /= 0) then
+          print*, 'ERROR - Missing refractive species in optools.par at index: ', r
+          stop
+        end if
+      end do
+    else
+      allocate(refrac_name(0))
+    end if
+
     close(u)
 
     print*, '-----'
@@ -89,6 +134,7 @@ contains
     print*, Ray_scat, 'Ray_scat'
     print*, cloud_opc, 'cloud_opc'
     print*, xsec_opc, 'xsec_opac'
+    print*, refrac, 'refraction'
 
     print*, '-----'
 
@@ -128,6 +174,11 @@ contains
     print*, 'Xsec species: '
     do c = 1, nxsec
       print*, xsec_name(c)
+    end do
+
+    print*, 'Refractive species: '
+    do r = 1, nrefrac
+      print*, refrac_name(r)
     end do
 
     print*, '-----'

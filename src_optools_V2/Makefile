@@ -56,6 +56,8 @@ OBJECTS = \
     CIA_tables_read.o \
     CIA_tables_mod.o \
     Ray_tables_mod.o \
+    gas_refractivity_mod.o \
+    refrac_tables_mod.o \
     optools.o
 
 # Executable

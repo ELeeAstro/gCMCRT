@@ -46,16 +46,18 @@ module optools_data_mod
   logical :: Ray_scat
   logical :: cloud_opc
   logical :: xsec_opc
+  logical :: refrac = .False.
 
   ! ---- Name of gas and dust species to calculate ---- !
   character(len=10), allocatable, dimension(:) :: g_name, CK_name, lbl_name, CIA_name, Ray_name, xsec_name
+  character(len=10), allocatable, dimension(:) :: refrac_name
   character(len=10), allocatable, dimension(:) :: cl_name, d_name
 
   ! ---- Output file units ---- !
-  integer :: uCK, ulbl, ulbl_for, uRay, ucl_k, ucl_a, ucl_g, uCIA, u_nml, uxsec
+  integer :: uCK, ulbl, ulbl_for, uRay, ucl_k, ucl_a, ucl_g, uCIA, u_nml, uxsec, urefrac
 
   ! ---- Number of species for each source ---- !
-  integer :: nCK, nlbl, nCIA, nRay, ncl, nxsec
+  integer :: nCK, nlbl, nCIA, nRay, ncl, nxsec, nrefrac = 0
 
   ! ---- Experiment name ---- !
   character(len=50) :: exp_name

@@ -65,6 +65,8 @@ module mc_class_grid
   real(dp), dimension(:,:,:), allocatable :: l_cell
   real(dp), dimension(:,:,:,:), allocatable :: l_cell_g
   real(dp), dimension(:,:,:), allocatable :: dorg
+  ! Gas refractivity nu = n - 1 for the active wavelength.
+  real(dp), dimension(:,:,:), allocatable :: refrac_nu
 
   ! Surface properties
   real(dp), allocatable, dimension(:,:) :: surf_ssa
@@ -76,6 +78,7 @@ module mc_class_grid
   real(dp), dimension(:,:,:), allocatable, device :: g_d, Dgg_d
   real(dp), dimension(:,:,:), allocatable, device :: cf_d
   real(dp), dimension(:,:,:), allocatable, device :: dorg_d
+  real(dp), dimension(:,:,:), allocatable, device :: refrac_nu_d
 
 
 

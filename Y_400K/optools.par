@@ -52,3 +52,8 @@ KCl
 ! ---- Cross Section Species  ---- !
 ! ! Number of xsec species followed by names
 0
+!
+! ---- Atmospheric Refraction ---- !
+! ! Calculate refractivity, followed by species count and names
+.False.
+0

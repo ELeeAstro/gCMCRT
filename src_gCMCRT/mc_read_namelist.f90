@@ -126,6 +126,7 @@ subroutine read_namelist()
   do_moments_d = do_moments ! calculate J, H, K moments
   do_trans_spectrum_d = do_trans_spectrum
   do_cf_d = do_cf ! For contribution functions
+  inc_refrac_d = inc_refrac
 
   do_scat_loop_d = do_scat_loop
 

@@ -33,6 +33,7 @@ OBJECTS = \
     mc_k_findcell.o \
     mc_k_findwall_cart.o \
     mc_k_findwall_sph.o \
+    mc_k_refraction.o \
     mc_k_raytrace.o \
     mc_k_peeloff_emit.o \
     mc_k_peeloff_scatt.o \
@@ -42,6 +43,7 @@ OBJECTS = \
     mc_k_tau_samp.o \
     mc_k_gord_samp.o \
     mc_k_RR.o \
+    mc_refrac_io.o \
     mc_read_namelist.o \
     mc_read_prf.o \
     mc_Draine_G.o \
