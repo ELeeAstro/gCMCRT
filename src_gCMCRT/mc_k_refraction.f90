@@ -1,6 +1,5 @@
 module mc_k_refraction
   use mc_precision
-  use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
   implicit none
 
   private
@@ -12,6 +11,19 @@ module mc_k_refraction
   public :: refract_radial_direction, radial_snell_invariant
 
 contains
+
+  ! ieee_arithmetic exposes separate host and device specifics in NVFORTRAN.
+  ! Calling its generic predicates from an attributes(host,device) routine is
+  ! therefore ambiguous.  This ordered comparison is false for both NaN and
+  ! infinity and is valid in host and device code.
+  attributes(host,device) logical function is_finite_dp(value)
+    implicit none
+
+    real(dp), intent(in) :: value
+
+    is_finite_dp = abs(value) <= huge(value)
+
+  end function is_finite_dp
 
   attributes(host,device) subroutine refract_radial_direction(x, y, z, &
       ux, uy, uz, n_old, n_new, status)
@@ -29,22 +41,16 @@ contains
 
     status = REFRACT_INVALID_INPUT
 
-    if (ieee_is_nan(x) .or. abs(x) > huge(x) .or. &
-        ieee_is_nan(y) .or. abs(y) > huge(y) .or. &
-        ieee_is_nan(z) .or. abs(z) > huge(z) .or. &
-        ieee_is_nan(ux) .or. abs(ux) > huge(ux) .or. &
-        ieee_is_nan(uy) .or. abs(uy) > huge(uy) .or. &
-        ieee_is_nan(uz) .or. abs(uz) > huge(uz) .or. &
-        ieee_is_nan(n_old) .or. abs(n_old) > huge(n_old) .or. &
-        ieee_is_nan(n_new) .or. abs(n_new) > huge(n_new)) return
+    if (.not. is_finite_dp(x) .or. .not. is_finite_dp(y) .or. &
+        .not. is_finite_dp(z) .or. .not. is_finite_dp(ux) .or. &
+        .not. is_finite_dp(uy) .or. .not. is_finite_dp(uz) .or. &
+        .not. is_finite_dp(n_old) .or. .not. is_finite_dp(n_new)) return
     if (n_old <= 0.0_dp .or. n_new <= 0.0_dp) return
 
     radius2 = x*x + y*y + z*z
     direction2 = ux*ux + uy*uy + uz*uz
-    if (ieee_is_nan(radius2) .or. abs(radius2) > huge(radius2) .or. &
-        radius2 <= 0.0_dp) return
-    if (ieee_is_nan(direction2) .or. abs(direction2) > huge(direction2) .or. &
-        direction2 <= 0.0_dp) return
+    if (.not. is_finite_dp(radius2) .or. radius2 <= 0.0_dp) return
+    if (.not. is_finite_dp(direction2) .or. direction2 <= 0.0_dp) return
 
     radius = sqrt(radius2)
     direction_norm = sqrt(direction2)
@@ -73,8 +79,7 @@ contains
     ratio = n_old/n_new
     sin2_transmitted = ratio*ratio * &
       max(0.0_dp,1.0_dp-cos_incident*cos_incident)
-    if (ieee_is_nan(sin2_transmitted) .or. &
-        abs(sin2_transmitted) > huge(sin2_transmitted)) return
+    if (.not. is_finite_dp(sin2_transmitted)) return
 
     tir_tolerance = 256.0_dp*epsilon(1.0_dp) * &
       max(1.0_dp,abs(sin2_transmitted))
@@ -99,8 +104,7 @@ contains
     end if
 
     out2 = outx*outx + outy*outy + outz*outz
-    if (ieee_is_nan(out2) .or. abs(out2) > huge(out2) .or. &
-        out2 <= 0.0_dp) then
+    if (.not. is_finite_dp(out2) .or. out2 <= 0.0_dp) then
       status = REFRACT_INVALID_INPUT
       return
     end if
@@ -108,9 +112,8 @@ contains
     outx = outx/out_norm
     outy = outy/out_norm
     outz = outz/out_norm
-    if (ieee_is_nan(outx) .or. abs(outx) > huge(outx) .or. &
-        ieee_is_nan(outy) .or. abs(outy) > huge(outy) .or. &
-        ieee_is_nan(outz) .or. abs(outz) > huge(outz)) then
+    if (.not. is_finite_dp(outx) .or. .not. is_finite_dp(outy) .or. &
+        .not. is_finite_dp(outz)) then
       status = REFRACT_INVALID_INPUT
       return
     end if
@@ -133,26 +136,20 @@ contains
 
     invariant = -1.0_dp
 
-    if (ieee_is_nan(x) .or. abs(x) > huge(x) .or. &
-        ieee_is_nan(y) .or. abs(y) > huge(y) .or. &
-        ieee_is_nan(z) .or. abs(z) > huge(z) .or. &
-        ieee_is_nan(ux) .or. abs(ux) > huge(ux) .or. &
-        ieee_is_nan(uy) .or. abs(uy) > huge(uy) .or. &
-        ieee_is_nan(uz) .or. abs(uz) > huge(uz) .or. &
-        ieee_is_nan(refractive_index) .or. &
-        abs(refractive_index) > huge(refractive_index)) return
+    if (.not. is_finite_dp(x) .or. .not. is_finite_dp(y) .or. &
+        .not. is_finite_dp(z) .or. .not. is_finite_dp(ux) .or. &
+        .not. is_finite_dp(uy) .or. .not. is_finite_dp(uz) .or. &
+        .not. is_finite_dp(refractive_index)) return
     if (refractive_index <= 0.0_dp) return
 
     radius2 = x*x + y*y + z*z
     direction2 = ux*ux + uy*uy + uz*uz
-    if (ieee_is_nan(radius2) .or. abs(radius2) > huge(radius2) .or. &
-        radius2 <= 0.0_dp) return
-    if (ieee_is_nan(direction2) .or. abs(direction2) > huge(direction2) .or. &
-        direction2 <= 0.0_dp) return
+    if (.not. is_finite_dp(radius2) .or. radius2 <= 0.0_dp) return
+    if (.not. is_finite_dp(direction2) .or. direction2 <= 0.0_dp) return
 
     dot_position_direction = (x*ux + y*uy + z*uz)/sqrt(direction2)
     impact2 = radius2-dot_position_direction*dot_position_direction
-    if (ieee_is_nan(impact2) .or. abs(impact2) > huge(impact2)) return
+    if (.not. is_finite_dp(impact2)) return
 
     invariant = refractive_index*sqrt(max(0.0_dp,impact2))
 
