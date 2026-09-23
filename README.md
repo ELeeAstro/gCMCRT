@@ -49,8 +49,15 @@ wavelengths.wl (central band wavelengths of calculation)
 
 # How to operate optools
 
-To compile cd to src_optools_V2 and enter 'make'.
-To de-compile enter 'make clean'.
+To compile the CPU version, change to `src_optools` and run `make cpu`.
+This produces `goptools_cpu` in the repository root.
+
+To compile the OpenMP GPU-offload version, run `make gpu` in `src_optools`.
+This produces `goptools_gpu`. The GPU architecture defaults to `ccnative`;
+override it when cross-compiling, for example with `make gpu GPU_ARCH=cc80`.
+
+Run `make clean` to remove both builds. CPU and GPU object and module files
+are kept separately under `src_optools/.build`.
 
 Compile options can be altered in the Makefile
 
@@ -506,7 +513,7 @@ The WASP-33b and WASP-39b examples use the following plotting/post-processing sc
 
 Example using a SPARC/MITgcm WASP-33b model. The default `CMCRT.nml` is prepared for emission phase-curve calculations with secondary-eclipse/occultation sampling enabled. The same namelist also contains dormant transmission-spectrum, albedo and primary-transit light-curve blocks for experimentation.
 1. Use the extract script to extract the GCM data into the gCMCRT .hprf and .prf format, chemical abundances are extracted alongside.
-2. Run goptools to produce the corr-k, CIA and Rayleigh opacity files.
+2. Run `goptools_cpu` or `goptools_gpu` to produce the corr-k, CIA and Rayleigh opacity files.
 3. Run gCMCRT to produce `Em_*.txt` output files.
 4. Run `plot_em.py` to convert the output to synthetic observations, Fp/Fs, Fp and Tb. This file contains useful information on how to produce emission spectra.
 
@@ -521,7 +528,7 @@ For interactive exploration, run `python ../tools/plot_trans_lc_interactive.py -
 Example using an Exo-FMS WASP-39b model. The default `CMCRT.nml` produces a transmission spectrum, and the same namelist also contains dormant blocks for emission, secondary-eclipse experiments and a `3D_sph_trans_lc` primary-transit light-curve test setup.
 1. Use the extract script to extract the GCM data into the gCMCRT .hprf and .iprf format
 2. Use interp_iprf.py to interpolate the CE abundances to the T,p of the GCM and produce the .prf file.
-3. Run goptools to produce the corr-k, CIA and Rayleigh opacity files.
+3. Run `goptools_cpu` or `goptools_gpu` to produce the corr-k, CIA and Rayleigh opacity files.
 4. Run gCMCRT to produce the Transmission.txt file 
 5. Run `plot_trans.py` to convert the output to synthetic observations, Rp/Rs and compare to G395H and SOSS observations. (This file contains useful information on transmission spectrum fitting etc)
 

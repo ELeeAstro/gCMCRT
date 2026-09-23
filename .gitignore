@@ -38,6 +38,12 @@ MALBEC_benchmark_examples
 *.exe
 *.out
 *.app
+goptools
+goptools_cpu
+goptools_gpu
+
+# Local build directories
+.build/
 
 # Cia data
 *.cia
