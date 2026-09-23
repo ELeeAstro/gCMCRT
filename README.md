@@ -76,6 +76,26 @@ checks their expected dimensions, reports the largest absolute and relative
 errors, and exits unsuccessfully if any value exceeds the tolerance. The
 default relative tolerance is `5e-6` and can be changed with `--rtol`.
 
+### Comparing CPU and GPU CIA output
+
+The GPU build offloads CIA table selection, interpolation, and layer/species
+accumulation. HITRAN and Bell table data are packed into contiguous arrays
+once and remain on the GPU across the wavelength loop. The analytic H-, He-,
+and H2O continua are also evaluated inside the target kernel.
+
+Run the CPU and GPU executables from equivalent input directories and retain
+each generated `CIA.cmcrt`. Compare them with:
+
+```bash
+python tools/compare_cia.py \
+  cpu_run/CIA.cmcrt gpu_run/CIA.cmcrt \
+  --profile model.prf --wavelengths wavelengths.wl
+```
+
+The GPU executable prints `CIA OpenMP GPU offload active` after its target
+probe succeeds. It stops rather than silently using host fallback when no GPU
+target is available.
+
 Compile options can be altered in the Makefile
 
 optools uses a fortran namelist (.nml) and parameter (.par) file to communicate with the code.

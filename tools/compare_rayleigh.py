@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare CPU and GPU Rayleigh.cmcrt files for a 1D atmosphere."""
+"""Compare CPU and GPU optools output tables for a 1D atmosphere."""
 
 import argparse
 import array
@@ -37,7 +37,7 @@ def wavelength_grid(path):
         raise ValueError("cannot read the wavelength grid from {}: {}".format(path, exc))
 
 
-def read_rayleigh(path, nwl, nlay):
+def read_table(path, nwl, nlay):
     """Read native-endian float32 direct-access records."""
     expected_values = nwl * nlay
     expected_bytes = expected_values * 4
@@ -62,15 +62,19 @@ def read_rayleigh(path, nwl, nlay):
     return values, raw
 
 
-def parse_arguments():
+def parse_arguments(quantity="Rayleigh"):
     parser = argparse.ArgumentParser(
         description=(
-            "Compare CPU and GPU Rayleigh.cmcrt files. Files are interpreted "
-            "as native-endian float32 direct-access records."
+            "Compare CPU and GPU {}.cmcrt files. Files are interpreted as "
+            "native-endian float32 direct-access records.".format(quantity)
         )
     )
-    parser.add_argument("cpu", type=Path, help="Rayleigh.cmcrt produced by goptools_cpu")
-    parser.add_argument("gpu", type=Path, help="Rayleigh.cmcrt produced by goptools_gpu")
+    parser.add_argument(
+        "cpu", type=Path, help="{}.cmcrt produced by goptools_cpu".format(quantity)
+    )
+    parser.add_argument(
+        "gpu", type=Path, help="{}.cmcrt produced by goptools_gpu".format(quantity)
+    )
     parser.add_argument("--profile", required=True, type=Path, help="1D atmospheric .prf file")
     parser.add_argument(
         "--wavelengths", required=True, type=Path, help="wavelengths.wl used for both runs"
@@ -85,8 +89,8 @@ def location(index, nlay, wavelengths):
     return wavelength_index, layer_index, wavelengths[wavelength_index]
 
 
-def main():
-    args = parse_arguments()
+def main(quantity="Rayleigh"):
+    args = parse_arguments(quantity)
 
     if args.rtol < 0.0 or args.atol < 0.0:
         print("ERROR: tolerances must be non-negative", file=sys.stderr)
@@ -95,8 +99,8 @@ def main():
     try:
         nlay = profile_layer_count(args.profile)
         nwl, wavelengths = wavelength_grid(args.wavelengths)
-        cpu, cpu_raw = read_rayleigh(args.cpu, nwl, nlay)
-        gpu, gpu_raw = read_rayleigh(args.gpu, nwl, nlay)
+        cpu, cpu_raw = read_table(args.cpu, nwl, nlay)
+        gpu, gpu_raw = read_table(args.gpu, nwl, nlay)
     except ValueError as exc:
         print("ERROR: {}".format(exc), file=sys.stderr)
         return 2
@@ -147,7 +151,7 @@ def main():
         maximum_relative_index, nlay, wavelengths
     )
 
-    print("Rayleigh CPU/GPU comparison")
+    print("{} CPU/GPU comparison".format(quantity))
     print("  shape:                 {} wavelengths x {} layers".format(nwl, nlay))
     print("  tolerances:            rtol={:.3e}, atol={:.3e}".format(args.rtol, args.atol))
     print(
@@ -185,7 +189,7 @@ def main():
         )
         return 1
 
-    print("PASS: CPU and GPU Rayleigh outputs agree within tolerance")
+    print("PASS: CPU and GPU {} outputs agree within tolerance".format(quantity))
     return 0
 
 
