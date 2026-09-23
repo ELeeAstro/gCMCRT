@@ -1,5 +1,8 @@
 module Ray_tables_mod
   use optools_data_mod
+#ifdef GPU_OFFLOAD
+  use omp_lib, only : omp_get_num_devices, omp_is_initial_device
+#endif
   implicit none
 
   ! Parameters for H2O
@@ -34,7 +37,10 @@ module Ray_tables_mod
 
   namelist /Rayleigh_nml/ iopts
 
-  private :: Ray_xsec_calc
+  private :: Ray_xsec_calc, calc_Ray_table_cpu
+#ifdef GPU_OFFLOAD
+  private :: calc_Ray_table_gpu
+#endif
   public :: calc_Ray_table, refrac_index_calc
 
 contains
@@ -44,9 +50,8 @@ contains
   subroutine calc_Ray_table()
     implicit none
 
-    integer :: i, j, l, z, s
+    integer :: i, j
     logical :: exists
-    real(kind=dp) :: Ray_H2O
 
     ! Allocate work arrays
     allocate(Ray_work(nRay), n_ref(nRay), iVMR(nRay), King(nRay), nd_stp(nRay), a_vol(nRay))
@@ -78,7 +83,29 @@ contains
     print*, ' ~~ Performing Rayleigh calculation and output ~~ '
     print*, ' ~~ Please wait... ~~ '
 
-    !! Begin OpenMP loops.
+#ifdef GPU_OFFLOAD
+    call calc_Ray_table_gpu()
+#else
+    call calc_Ray_table_cpu()
+#endif
+
+    ! Deallocate arrays on exit
+    deallocate(Ray_work, n_ref, iVMR, King, nd_stp, a_vol)
+    deallocate(Ray_out,Ray_write)
+    ! Close the Rayleigh I/O unit.
+    close(uRay)
+
+    print*, ' ~~ Quest completed  ~~ '
+
+  end subroutine calc_Ray_table
+
+  subroutine calc_Ray_table_cpu()
+    implicit none
+
+    integer :: l, z, s
+    real(kind=dp) :: Ray_H2O
+
+    ! Retain the original CPU OpenMP implementation as the reference path.
     !$omp parallel default (none), &
     !$omp& private (l,z,s,Ray_H2O), &
     !$omp& shared (nwl,nlay,nRay,Ray_out,VMR_lay,iVMR,N_lay,RH_lay,Ray_work,wl,Ray_name)
@@ -123,17 +150,86 @@ contains
     end do
     !$omp end parallel
 
+  end subroutine calc_Ray_table_cpu
 
+#ifdef GPU_OFFLOAD
+  subroutine calc_Ray_table_gpu()
+    implicit none
 
-    ! Deallocate arrays on exit
-    deallocate(Ray_work, n_ref, iVMR, King)
-    deallocate(Ray_out,Ray_write)
-    ! Close the Rayleigh I/O unit.
-    close(uRay)
+    integer :: l, z, s, h2o_species, offload_active
+    real(kind=dp) :: Ray_value
+    real(kind=dp), allocatable, dimension(:) :: Ray_H2O_work
 
-    print*, ' ~~ Quest completed  ~~ '
+    allocate(Ray_H2O_work(nlay))
+    Ray_H2O_work(:) = 0.0_dp
 
-  end subroutine calc_Ray_table
+    ! Fail clearly instead of silently running the GPU executable on the host.
+    offload_active = 0
+    !$omp target map(from: offload_active)
+    if (.not. omp_is_initial_device()) offload_active = 1
+    !$omp end target
+    if (offload_active /= 1) then
+      print*, 'ERROR - Rayleigh OpenMP target region did not execute on a GPU - STOPPING'
+      print*, 'OpenMP target devices visible: ', omp_get_num_devices()
+      stop 1
+    end if
+    print*, ' ~~ Rayleigh OpenMP GPU offload active; visible devices: ', omp_get_num_devices()
+
+    ! Resolve the special water model on the host so the target region contains
+    ! only numerical array operations and no character comparisons.
+    h2o_species = 0
+    do s = 1, nRay
+      if (Ray_name(s) == 'H2O') h2o_species = s
+    end do
+
+    ! Atmospheric state is invariant over wavelength and remains resident on
+    ! the device. Per-wavelength cross sections and results are synchronized
+    ! explicitly, preserving the original streaming output and memory usage.
+    !$omp target data map(to: VMR_lay, iVMR, N_lay, RH_lay, nRay, h2o_species) &
+    !$omp& map(alloc: Ray_work, Ray_H2O_work, Ray_out)
+
+    do l = 1, nwl
+      if (mod(l,max(1,nwl/10)) == 0) then
+        print*, l, wl(l), nwl
+      end if
+
+      call refrac_index_calc(l)
+      call Ray_xsec_calc(l)
+
+      Ray_H2O_work(:) = 0.0_dp
+      if (h2o_species > 0) then
+        do z = 1, nlay
+          call Ray_xsec_calc_H2O(h2o_species,l,z,Ray_H2O_work(z))
+        end do
+      end if
+
+      !$omp target update to(Ray_work, Ray_H2O_work)
+
+      !$omp target teams loop private(s,Ray_value)
+      do z = 1, nlay
+        Ray_value = 0.0_dp
+        do s = 1, nRay
+          if (s == h2o_species) then
+            Ray_value = Ray_value + VMR_lay(iVMR(s),z) * N_lay(z) * Ray_H2O_work(z)
+          else
+            Ray_value = Ray_value + VMR_lay(iVMR(s),z) * N_lay(z) * Ray_work(s)
+          end if
+        end do
+        Ray_out(z) = Ray_value/RH_lay(z)
+      end do
+      !$omp end target teams loop
+
+      !$omp target update from(Ray_out)
+
+      call output_Ray_table(l)
+    end do
+
+    !$omp end target data
+
+    deallocate(Ray_H2O_work)
+
+  end subroutine calc_Ray_table_gpu
+#endif
 
   !! Find the refractive index of species
 
@@ -380,6 +476,13 @@ contains
 
     ! Find the cross section for each species following Sneep & Ubachs (2005)
     do s = 1, nRay
+
+      ! Water uses the layer-dependent Lorentz-Lorenz model below rather than
+      ! the standard-temperature cross-section path.
+      if (Ray_name(s) == 'H2O') then
+        Ray_work(s) = 0.0_dp
+        cycle
+      end if
 
       if (n_ref(s) == -1) then
         ! Special cases

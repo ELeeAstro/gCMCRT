@@ -9,7 +9,8 @@ NVFORTRAN ?= nvfortran
 CPU_FC ?= $(NVFORTRAN)
 GPU_FC ?= $(NVFORTRAN)
 
-GPU_ARCH ?= ccnative
+# Raven's NVIDIA A100 GPUs use CUDA compute capability 8.0.
+GPU_ARCH ?= cc80
 
 COMMON_FLAGS ?= -fast -O3 -Mpreprocess
 CPU_FLAGS ?= -mp=multicore $(COMMON_FLAGS)

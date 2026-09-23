@@ -53,11 +53,28 @@ To compile the CPU version, change to `src_optools` and run `make cpu`.
 This produces `goptools_cpu` in the repository root.
 
 To compile the OpenMP GPU-offload version, run `make gpu` in `src_optools`.
-This produces `goptools_gpu`. The GPU architecture defaults to `ccnative`;
-override it when cross-compiling, for example with `make gpu GPU_ARCH=cc80`.
+This produces `goptools_gpu`. The GPU architecture defaults to `cc80` for
+Raven's NVIDIA A100 GPUs. Override it for another target, for example with
+`make gpu GPU_ARCH=cc90`.
 
 Run `make clean` to remove both builds. CPU and GPU object and module files
 are kept separately under `src_optools/.build`.
+
+### Comparing CPU and GPU Rayleigh output
+
+For a 1D model, run `goptools_cpu` and `goptools_gpu` from equivalent input
+directories and retain each generated `Rayleigh.cmcrt`. Compare them with:
+
+```bash
+python tools/compare_rayleigh.py \
+  cpu_run/Rayleigh.cmcrt gpu_run/Rayleigh.cmcrt \
+  --profile model.prf --wavelengths wavelengths.wl
+```
+
+The comparison reads the direct-access files as single-precision values,
+checks their expected dimensions, reports the largest absolute and relative
+errors, and exits unsuccessfully if any value exceeds the tolerance. The
+default relative tolerance is `5e-6` and can be changed with `--rtol`.
 
 Compile options can be altered in the Makefile
 
