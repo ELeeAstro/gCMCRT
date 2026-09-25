@@ -4,7 +4,6 @@
 
 
 pre_mixed = .False.
-interp_wl = .False.
 iopts = 1
 form = 2,2,2,2,2,2,2,2
 nG = 16

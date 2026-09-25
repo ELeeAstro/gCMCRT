@@ -60,6 +60,35 @@ Raven's NVIDIA A100 GPUs. Override it for another target, for example with
 Run `make clean` to remove both builds. CPU and GPU object and module files
 are kept separately under `src_optools/.build`.
 
+### Comparing CPU and GPU correlated-k output
+
+The GPU build processes correlated-k opacity in configurable wavelength
+blocks. It performs the existing pressure-temperature Bezier interpolation
+and, for separate species tables, random overlap with resorting and
+conservative rebinning on the GPU. The default block contains eight
+wavelengths; change it at compile time with, for example,
+`make gpu GPU_CK_BLOCK=16`.
+
+Correlated-k wavelength interpolation has been removed. Calculation and table
+wavelength bins must be index-aligned. Older namelists containing
+`interp_wl = .False.` remain accepted temporarily, while `.True.` produces an
+error. The `rebin` option must also remain `.False.`.
+
+Run the CPU and GPU executables from equivalent input directories and retain
+`CK.cmcrt` and `gord.cmcrt` from each run. Compare them with:
+
+```bash
+python3 tools/compare_ck.py \
+  cpu_run/CK.cmcrt gpu_run/CK.cmcrt \
+  --cpu-gord cpu_run/gord.cmcrt \
+  --gpu-gord gpu_run/gord.cmcrt \
+  --profile model.prf --wavelengths wavelengths.wl
+```
+
+The GPU executable prints `CK OpenMP GPU offload active` after its target
+probe succeeds and reports its packed-table and scratch storage. It stops
+rather than silently using host fallback when no GPU target is available.
+
 ### Comparing CPU and GPU Rayleigh output
 
 For a 1D model, run `goptools_cpu` and `goptools_gpu` from equivalent input
@@ -96,6 +125,29 @@ The GPU executable prints `CIA OpenMP GPU offload active` after its target
 probe succeeds. It stops rather than silently using host fallback when no GPU
 target is available.
 
+### Comparing CPU and GPU LBL output
+
+The GPU build processes LBL opacity in configurable wavelength blocks so the
+full line-by-line table does not have to reside in GPU memory. Pressure and
+temperature grids remain resident on the device, while each block performs
+the existing logarithmic Bezier interpolation for every wavelength and layer.
+The default block contains 64 wavelengths; change it at compile time with,
+for example, `make gpu GPU_LBL_BLOCK=128`.
+
+Run the CPU and GPU executables from equivalent input directories and retain
+each generated `lbl.cmcrt`. Compare them with:
+
+```bash
+python tools/compare_lbl.py \
+  cpu_run/lbl.cmcrt gpu_run/lbl.cmcrt \
+  --profile model.prf --wavelengths wavelengths.wl
+```
+
+The GPU executable prints `LBL OpenMP GPU offload active` after its target
+probe succeeds. LBL wavelength interpolation remains unsupported, so
+`interp_wl` must be `.False.` and every LBL table must use the calculation
+wavelength count.
+
 Compile options can be altered in the Makefile
 
 optools uses a fortran namelist (.nml) and parameter (.par) file to communicate with the code.
@@ -112,8 +164,6 @@ Is more difficult to fill out correctly:
 
 pre_mixed - Does a pre-mixed table interpolation (.True.), otherwise random overlap (.False.)
 
-interp_wl - Interpolate to the wavelengths.wl file (.True.) (.False. if exact wavelengths of the ck table are used)
-
 iopts - Integer option number (dev-only)
 
 form - 1 (NEMESIS format), 2 (gCMCRT format) Note, for multiple k-tables this is a comma separated list, e.g. 2,2,2
@@ -128,6 +178,7 @@ nrebin - Number of g-ordinates after rebinning.
 
 paths - list of path to the k-table data
 NOTE: THESE PATHS MUST BE IN THE SAME SPECIES ORDER AS THE SPECIES IN THE optools.par FILE !!!!
+NOTE: correlated-k table wavelength bins must be index-aligned with wavelengths.wl; wavelength interpolation is not supported.
 
 ### &lbl_nml - line-by-line namelist
 

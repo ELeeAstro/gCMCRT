@@ -23,11 +23,20 @@ contains
         print*, ' - Skipping special species: ', s,  CK_tab(s)%sp, CK_tab(s)%form, CK_tab(s)%iVMR
 
       case(1)
-        print*, ' - Reading NEMESIS CK table: ', s,  CK_tab(s)%sp, CK_tab(s)%form, CK_tab(s)%iVMR
+        if (pre_mixed) then
+          print*, ' - Reading premixed NEMESIS CK table: ', s, CK_tab(s)%sp, CK_tab(s)%form
+        else
+          print*, ' - Reading NEMESIS CK table: ', s, CK_tab(s)%sp, &
+            & CK_tab(s)%form, CK_tab(s)%iVMR
+        end if
         call read_CK_NEMESIS(s)
       case(2)
-
-        print*, ' - Reading CMCRT CK table: ', s, CK_tab(s)%sp, CK_tab(s)%form, CK_tab(s)%iVMR, g_name(CK_tab(s)%iVMR)
+        if (pre_mixed) then
+          print*, ' - Reading premixed CMCRT CK table: ', s, CK_tab(s)%sp, CK_tab(s)%form
+        else
+          print*, ' - Reading CMCRT CK table: ', s, CK_tab(s)%sp, &
+            & CK_tab(s)%form, CK_tab(s)%iVMR, g_name(CK_tab(s)%iVMR)
+        end if
         call read_CK_CMCRT(s,pre_mixed)
 
       case(3)
